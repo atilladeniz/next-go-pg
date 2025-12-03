@@ -148,14 +148,16 @@ goca make usecase Product
 goca make handler Product
 ```
 
-### Nach Goca-Änderungen
+### Nach Goca/API-Änderungen
 
 ```bash
-# Swagger Dokumentation aktualisieren
-swag init -g cmd/server/main.go
+# Swagger + Orval in einem Befehl (vom Root-Verzeichnis)
+cd ..
+make api
 
-# Frontend API Client generieren
-cd ../frontend && bun run api:generate
+# Das macht automatisch:
+# 1. swag init → backend/docs/swagger.json
+# 2. orval → frontend/src/api/endpoints/
 ```
 
 ## Development Commands

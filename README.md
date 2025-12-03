@@ -206,12 +206,16 @@ goca make entity Product
 # Nur Repository
 goca make repository Product
 
-# Swagger aktualisieren
-swag init -g cmd/server/main.go
-
-# Frontend API Client aktualisieren
-cd ../frontend && bun run api:generate
+# Swagger + Orval (ein Befehl vom Root!)
+cd ..
+make api
 ```
+
+### API Workflow
+
+`make api` führt automatisch aus:
+1. **swag init** → Generiert Swagger aus Go-Kommentaren
+2. **orval** → Generiert TypeScript React Query Hooks
 
 ## Weitere Dokumentation
 

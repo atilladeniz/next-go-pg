@@ -1,190 +1,196 @@
 ---
 name: auth-pages
-description: Create and manage authentication pages and flows. Use when adding login, register, password reset, or other auth-related pages.
+description: Create and manage authentication pages with server-side session handling. Use when adding login, register, or protected pages WITHOUT flicker/skeleton.
 allowed-tools: Read, Edit, Write, Glob
 ---
 
 # Authentication Pages
 
-Better Auth integration with Next.js 16 for authentication flows.
+Better Auth integration mit Next.js 16 - **Server-Side First** für flicker-freie UX.
 
-## Existing Auth Pages
+## Architektur-Prinzip
 
-- `/login` - Login with email/password
-- `/register` - User registration
-- `/dashboard` - Protected dashboard (requires auth)
-
-## Auth Client
-
-```tsx
-import { signIn, signUp, signOut, useSession } from "@/lib/auth-client"
+```
+Server Component (Session prüfen) → Client Component (Interaktivität)
 ```
 
-### Check Session
+**KEIN useSession() in Protected Pages!** → Verursacht Flicker.
+
+## Bestehende Auth Pages
+
+- `/login` - Login mit Email/Password
+- `/register` - Registrierung
+- `/dashboard` - Protected Dashboard
+
+## Server-Side Session (KEIN FLICKER!)
+
+### Protected Page Pattern
 
 ```tsx
-const { data: session, isPending } = useSession()
+// app/(protected)/dashboard/page.tsx - SERVER COMPONENT
+import { auth } from "@/lib/auth"
+import { headers } from "next/headers"
+import { redirect } from "next/navigation"
+import { Header } from "./header"
+import { DashboardContent } from "./dashboard-content"
 
-if (isPending) return <div>Laden...</div>
-if (!session) return <div>Nicht angemeldet</div>
+async function getData() {
+  const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/data`, {
+    headers: { Cookie: (await headers()).get("cookie") ?? "" },
+    cache: "no-store",
+  })
+  if (!res.ok) return null
+  return res.json()
+}
 
-// Access user data
-session.user.name
-session.user.email
-```
+export default async function DashboardPage() {
+  // Server-side Session Check - KEIN Flicker!
+  const session = await auth.api.getSession({ headers: await headers() })
+  if (!session) redirect("/login")
 
-### Sign In
+  // Daten server-side laden
+  const data = await getData()
 
-```tsx
-const result = await signIn.email({
-  email: "user@example.com",
-  password: "password123",
-})
-
-if (result.error) {
-  // Handle error
-  console.error(result.error.message)
-} else {
-  // Redirect to dashboard
-  router.push("/dashboard")
+  return (
+    <div className="min-h-screen bg-background">
+      {/* User als Prop übergeben, nicht useSession! */}
+      <Header user={session.user} />
+      {/* Initial Data für React Query */}
+      <DashboardContent initialData={data} />
+    </div>
+  )
 }
 ```
 
-### Sign Up
+### Header mit User Prop
 
 ```tsx
-const result = await signUp.email({
-  name: "John Doe",
-  email: "user@example.com",
-  password: "password123",
-})
+// app/(protected)/dashboard/header.tsx
+"use client"
 
-if (result.error) {
-  console.error(result.error.message)
-} else {
-  router.push("/dashboard")
+import { signOut } from "@/lib/auth-client"
+import { Button } from "@/components/ui/button"
+
+type User = { name: string; email: string }
+
+export function Header({ user }: { user: User }) {
+  return (
+    <header className="border-b">
+      <div className="container flex h-16 items-center justify-between">
+        <span>Willkommen, {user.name}</span>
+        <Button variant="outline" onClick={() => signOut()}>
+          Abmelden
+        </Button>
+      </div>
+    </header>
+  )
 }
 ```
 
-### Sign Out
+### Client Component mit initialData
 
 ```tsx
+// app/(protected)/dashboard/dashboard-content.tsx
+"use client"
+
+import { useGetData } from "@/api/endpoints/data/data"
+import { useSSE } from "@/hooks/use-sse"
+
+export function DashboardContent({ initialData }: { initialData: Data | null }) {
+  // Real-time Updates via SSE
+  useSSE()
+
+  // React Query mit Server-Daten als Initial
+  const { data: response } = useGetData({
+    query: {
+      initialData: initialData
+        ? { data: initialData, status: 200 as const, headers: new Headers() }
+        : undefined,
+    },
+  })
+
+  const data = response?.status === 200 ? response.data : initialData
+
+  return <div>{/* Render data */}</div>
+}
+```
+
+## Auth Client (nur für Actions!)
+
+```tsx
+import { signIn, signUp, signOut } from "@/lib/auth-client"
+
+// Sign In (in Login Page)
+await signIn.email({ email, password })
+
+// Sign Up (in Register Page)
+await signUp.email({ name, email, password })
+
+// Sign Out (in Header Button)
 await signOut()
-router.push("/")
 ```
 
 ## Route Protection
 
 ### Proxy (middleware)
 
-Located at `frontend/src/proxy.ts`:
+`frontend/src/proxy.ts` prüft Cookie-basiert:
 
 ```typescript
 export function proxy(request: NextRequest) {
   const sessionCookie = request.cookies.get("better-auth.session_token")
 
-  // Redirect to login if accessing protected route without session
+  // Protected Route ohne Session → Login
   if (isProtectedRoute && !sessionCookie) {
     return NextResponse.redirect(new URL("/login", request.url))
   }
 
-  // Redirect to dashboard if accessing auth routes with active session
+  // Auth Route mit Session → Dashboard
   if (isAuthRoute && sessionCookie) {
     return NextResponse.redirect(new URL("/dashboard", request.url))
   }
 }
 ```
 
-### Protected Routes
-
-Place protected pages in `frontend/src/app/(protected)/`:
+### Ordner-Struktur
 
 ```
 src/app/
-├── (auth)/           # Auth pages (login, register)
+├── (auth)/           # Login, Register (redirect wenn eingeloggt)
 │   ├── login/
 │   └── register/
-├── (protected)/      # Requires authentication
+├── (protected)/      # Erfordert Auth
 │   └── dashboard/
-└── page.tsx          # Public home page
+│       ├── page.tsx           # Server Component
+│       ├── header.tsx         # Client Component
+│       └── dashboard-content.tsx
+└── page.tsx          # Public Home
 ```
 
-## Creating New Auth Page
+## WICHTIG: Was NICHT tun
 
-### Example: Password Reset Page
+❌ **NICHT** `useSession()` in Protected Pages
+❌ **NICHT** Skeleton für Session Loading
+❌ **NICHT** `isPending` Check für Session
+❌ **NICHT** Client-seitiger Redirect
 
-Create `frontend/src/app/(auth)/reset-password/page.tsx`:
+✅ **STATTDESSEN**:
+- Server Component prüft Session
+- `redirect()` wenn keine Session
+- User als Prop an Client Components
+- `initialData` für React Query
+
+## Real-Time Updates
+
+SSE Hook für automatische Daten-Aktualisierung:
 
 ```tsx
 "use client"
 
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+import { useSSE } from "@/hooks/use-sse"
 
-export default function ResetPasswordPage() {
-  const [email, setEmail] = useState("")
-  const [loading, setLoading] = useState(false)
-  const [sent, setSent] = useState(false)
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setLoading(true)
-
-    // TODO: Implement password reset
-    // await authClient.forgetPassword({ email })
-
-    setSent(true)
-    setLoading(false)
-  }
-
-  if (sent) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <Card className="w-full max-w-md">
-          <CardContent className="pt-6">
-            <p>Prüfe deine E-Mails für den Reset-Link.</p>
-          </CardContent>
-        </Card>
-      </div>
-    )
-  }
-
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-background">
-      <Card className="w-full max-w-md">
-        <CardHeader>
-          <CardTitle>Passwort zurücksetzen</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">E-Mail</Label>
-              <Input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-            </div>
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Wird gesendet..." : "Reset-Link senden"}
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
-    </div>
-  )
+export function MyComponent() {
+  useSSE() // Verbindet zu /api/v1/events
+  // React Query wird automatisch invalidiert bei SSE Events
 }
 ```
-
-## UI Conventions
-
-- Use german labels (Anmelden, Registrieren, Abmelden)
-- Use shadcn/ui Card for auth forms
-- Show loading state on buttons
-- Display errors in red alert box
-- Redirect after successful auth

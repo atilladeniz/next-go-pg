@@ -111,24 +111,147 @@ backend/internal/
 cd backend
 goca feature Invoice --fields "userId:string,amount:float64,status:string"
 
-# 2. Swagger aktualisieren
-swag init -g cmd/server/main.go
-
-# 3. API Client generieren (Frontend)
-cd ../frontend
-bun run api:generate
+# 2. Swagger + Orval (ein Befehl!)
+cd ..
+make api
 ```
+
+### API Generierung Workflow
+
+`make api` führt automatisch aus:
+1. **swag init** → Generiert `backend/docs/swagger.json` aus Go-Kommentaren
+2. **orval** → Generiert TypeScript Hooks in `frontend/src/api/`
+
+```bash
+# Nach jeder API-Änderung ausführen:
+make api
+
+# Oder einzeln:
+make swagger     # Nur Swagger generieren
+cd frontend && bunx orval  # Nur Orval ausführen
+```
+
+### Wichtig für Claude
+
+Wenn du Backend-Endpoints änderst:
+1. Swagger-Kommentare in Handler hinzufügen (`// @Summary`, `// @Router`, etc.)
+2. `make api` ausführen
+3. Frontend kann die neuen Hooks nutzen (`useGetX`, `usePostX`, etc.)
+
+---
+
+## WICHTIG: Server-Side First (KEIN FLICKER!)
+
+### Architektur-Prinzip
+
+```
+Server Component (Session + Daten laden) → Client Component (Interaktivität)
+```
+
+### Protected Page Pattern
+
+```tsx
+// app/(protected)/dashboard/page.tsx - SERVER COMPONENT
+import { auth } from "@/lib/auth"
+import { headers } from "next/headers"
+import { redirect } from "next/navigation"
+
+export default async function DashboardPage() {
+  // 1. Session server-side prüfen
+  const session = await auth.api.getSession({ headers: await headers() })
+  if (!session) redirect("/login")
+
+  // 2. Daten server-side laden
+  const data = await getData()
+
+  // 3. An Client Components übergeben
+  return (
+    <Header user={session.user} />
+    <Content initialData={data} />
+  )
+}
+```
+
+### Client Component mit initialData
+
+```tsx
+// content.tsx - CLIENT COMPONENT
+"use client"
+
+import { useGetData } from "@/api/endpoints/data/data"
+import { useSSE } from "@/hooks/use-sse"
+
+export function Content({ initialData }) {
+  useSSE() // Real-time Updates
+
+  const { data } = useGetData({
+    query: {
+      initialData: initialData
+        ? { data: initialData, status: 200 as const, headers: new Headers() }
+        : undefined,
+    },
+  })
+  // Kein Loading State nötig!
+}
+```
+
+### Was NICHT tun
+
+❌ `useSession()` in Protected Pages → Flicker
+❌ Skeleton für Session Loading
+❌ Client-seitiger Redirect
+❌ `isPending` Check
+
+### Was STATTDESSEN
+
+✅ Server Component prüft Session
+✅ `redirect()` wenn keine Session
+✅ User als Prop an Client Components
+✅ `initialData` für React Query
+
+---
+
+## SSE + React Query Pattern
+
+Real-time Updates ohne Polling:
+
+1. **Backend** sendet SSE Events bei Änderungen
+2. **Frontend** `useSSE()` Hook hört auf Events
+3. **React Query** wird automatisch invalidiert
+
+```tsx
+// Backend: SSE Broadcast
+h.sseBroker.Broadcast("stats-updated", `{"field":"projects"}`)
+
+// Frontend: Hook
+export function useSSE() {
+  const queryClient = useQueryClient()
+
+  useEffect(() => {
+    const eventSource = new EventSource(`${API_BASE}/api/v1/events`)
+    eventSource.addEventListener("stats-updated", () => {
+      queryClient.invalidateQueries({ queryKey: getGetStatsQueryKey() })
+    })
+  }, [])
+}
+```
+
+---
 
 ## Wichtige Dateien
 
 ### API Definition
-- `backend/api/openapi.yaml` - OpenAPI 3.0 Spec (Single Source of Truth)
+- `backend/docs/swagger.json` - Generiert aus Go-Kommentaren
 - `frontend/orval.config.ts` - Orval Config für API Client Generierung
 
 ### Authentifizierung
 - `frontend/src/lib/auth.ts` - Better Auth Server Config
-- `frontend/src/lib/auth-client.ts` - Better Auth Client mit Hooks
-- `frontend/src/proxy.ts` - Route Protection (Next.js 16 Proxy)
+- `frontend/src/lib/auth-client.ts` - Better Auth Client (nur für Actions!)
+- `frontend/src/proxy.ts` - Route Protection (Cookie-basiert)
+
+### Real-time
+- `backend/internal/sse/broker.go` - SSE Broker
+- `frontend/src/hooks/use-sse.ts` - SSE Client Hook
 
 ### UI Komponenten
 - `frontend/src/components/ui/` - shadcn/ui Komponenten (alle installiert)
