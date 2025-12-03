@@ -1,4 +1,4 @@
-.PHONY: help dev dev-frontend dev-backend build build-frontend build-backend test clean install lint docker-build docker-up docker-down goca-feature
+.PHONY: help dev dev-frontend dev-backend build build-frontend build-backend test clean install api lint docker-build docker-up docker-down goca-feature
 
 .DEFAULT_GOAL := help
 
@@ -54,6 +54,10 @@ test-backend: ## Run backend tests
 
 test-frontend: ## Run frontend tests
 	bun run --cwd frontend test
+
+# API Generation
+api: ## Generate TypeScript API client from OpenAPI spec
+	cd frontend && bunx orval
 
 # Lint & Format
 lint: ## Run Biome + ESLint
