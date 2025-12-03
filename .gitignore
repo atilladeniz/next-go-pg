@@ -43,3 +43,4 @@ bun.lockb
 *.pem
 coverage/
 .vercel
+backend/server
