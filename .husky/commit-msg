@@ -1,0 +1,23 @@
+#!/bin/sh
+
+# Validate commit message format
+# Allows: feat, fix, docs, style, refactor, test, chore, build, ci, perf, revert
+
+commit_msg=$(cat "$1")
+pattern="^(feat|fix|docs|style|refactor|test|chore|build|ci|perf|revert)(\(.+\))?: .{1,100}"
+
+if ! echo "$commit_msg" | grep -qE "$pattern"; then
+    echo ""
+    echo "❌ Invalid commit message format!"
+    echo ""
+    echo "Expected format: <type>(<scope>): <description>"
+    echo ""
+    echo "Types: feat, fix, docs, style, refactor, test, chore, build, ci, perf, revert"
+    echo ""
+    echo "Examples:"
+    echo "  feat: add user authentication"
+    echo "  fix(api): resolve timeout issue"
+    echo "  docs: update README"
+    echo ""
+    exit 1
+fi

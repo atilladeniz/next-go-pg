@@ -1,0 +1,55 @@
+#!/bin/sh
+
+echo ""
+echo "🔍 Running pre-commit checks..."
+
+# Get the root directory
+ROOT_DIR="$(git rev-parse --show-toplevel)"
+
+# Frontend checks (only if frontend files changed)
+FRONTEND_CHANGED=$(git diff --cached --name-only --diff-filter=ACMR | grep "^frontend/" | grep -E "\.(ts|tsx|js|jsx)$" || true)
+
+if [ -n "$FRONTEND_CHANGED" ]; then
+    echo ""
+    echo "📦 Frontend: Running lint-staged..."
+    cd "$ROOT_DIR/frontend" && npx lint-staged --allow-empty
+    if [ $? -ne 0 ]; then
+        echo "❌ Frontend lint failed"
+        exit 1
+    fi
+
+    echo ""
+    echo "📦 Frontend: Running typecheck..."
+    cd "$ROOT_DIR/frontend" && bun run typecheck
+    if [ $? -ne 0 ]; then
+        echo "❌ Frontend typecheck failed"
+        exit 1
+    fi
+fi
+
+# Backend checks (only if Go files changed)
+BACKEND_CHANGED=$(git diff --cached --name-only --diff-filter=ACMR | grep "^backend/.*\.go$" || true)
+
+if [ -n "$BACKEND_CHANGED" ]; then
+    echo ""
+    echo "🐹 Backend: Running go fmt..."
+    cd "$ROOT_DIR/backend"
+    for file in $BACKEND_CHANGED; do
+        filename=$(echo "$file" | sed 's|^backend/||')
+        if [ -f "$filename" ]; then
+            gofmt -w "$filename"
+            git add "$ROOT_DIR/$file"
+        fi
+    done
+
+    echo ""
+    echo "🐹 Backend: Running go vet..."
+    cd "$ROOT_DIR/backend" && go vet ./...
+    if [ $? -ne 0 ]; then
+        echo "❌ Backend vet failed"
+        exit 1
+    fi
+fi
+
+echo ""
+echo "✅ Pre-commit checks passed!"
