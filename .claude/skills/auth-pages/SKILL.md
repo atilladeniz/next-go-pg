@@ -130,6 +130,79 @@ await signUp.email({ name, email, password })
 await signOut()
 ```
 
+## Cross-Tab Synchronisation
+
+Better Auth hat **keine eingebaute Cross-Tab Synchronisation**. Nutze `broadcast-channel` Library:
+
+```bash
+bun add broadcast-channel
+```
+
+### useAuthSync Hook
+
+```tsx
+// hooks/use-auth-sync.ts
+"use client"
+
+import { BroadcastChannel } from "broadcast-channel"
+import { useRouter } from "next/navigation"
+import { useEffect } from "react"
+
+type AuthMessage = { type: "SIGN_OUT" | "SIGN_IN"; timestamp: number }
+
+export function useAuthSync() {
+  const router = useRouter()
+
+  useEffect(() => {
+    const channel = new BroadcastChannel<AuthMessage>("auth-sync", {
+      type: "localstorage", // Fallback für Safari Private Mode
+    })
+
+    channel.onmessage = (msg) => {
+      if (msg.type === "SIGN_OUT") {
+        router.push("/login")
+        router.refresh()
+      }
+    }
+
+    return () => channel.close()
+  }, [router])
+}
+
+export async function broadcastSignOut() {
+  const channel = new BroadcastChannel<AuthMessage>("auth-sync", { type: "localstorage" })
+  await channel.postMessage({ type: "SIGN_OUT", timestamp: Date.now() })
+}
+```
+
+### Integration im Header
+
+```tsx
+// components/header.tsx
+"use client"
+
+import { broadcastSignOut, useAuthSync } from "@/hooks/use-auth-sync"
+import { signOut } from "@/lib/auth-client"
+
+export function Header({ user }: { user: User }) {
+  useAuthSync() // Cross-Tab Listener
+
+  const handleSignOut = async () => {
+    await signOut()
+    await broadcastSignOut() // Alle anderen Tabs benachrichtigen
+    router.push("/")
+  }
+  // ...
+}
+```
+
+### Vorteile von broadcast-channel
+
+- Safari Private Mode Support
+- localStorage Fallback
+- TypeScript Support
+- WebWorker Support
+
 ## Route Protection
 
 ### Proxy (middleware)

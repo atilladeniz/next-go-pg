@@ -261,6 +261,7 @@ export function useSSE() {
 - `frontend/src/lib/auth.ts` - Better Auth Server Config
 - `frontend/src/lib/auth-client.ts` - Better Auth Client (nur für Actions!)
 - `frontend/src/proxy.ts` - Route Protection (Cookie-basiert)
+- `frontend/src/hooks/use-auth-sync.ts` - Cross-Tab Logout Synchronisation (broadcast-channel)
 
 ### Real-time
 - `backend/internal/sse/broker.go` - SSE Broker

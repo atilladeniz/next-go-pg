@@ -57,7 +57,9 @@ src/
 │   ├── providers.tsx       # App Providers
 │   └── theme-provider.tsx  # Theme Provider
 ├── hooks/
-│   └── use-mobile.ts       # Responsive Hook
+│   ├── use-auth-sync.ts    # Cross-Tab Auth Sync
+│   ├── use-mobile.ts       # Responsive Hook
+│   └── use-sse.ts          # SSE Real-Time Updates
 ├── lib/
 │   ├── auth.ts             # Better Auth Server Config
 │   ├── auth-client.ts      # Better Auth Client
@@ -94,6 +96,35 @@ await signUp.email({ name, email, password })
 // Sign Out
 await signOut()
 ```
+
+### Cross-Tab Synchronisation
+
+Better Auth hat keine eingebaute Cross-Tab Synchronisation. Nutze `broadcast-channel`:
+
+```bash
+bun add broadcast-channel
+```
+
+```tsx
+// In Client Components (z.B. Header)
+import { broadcastSignOut, useAuthSync } from "@/hooks/use-auth-sync"
+import { signOut } from "@/lib/auth-client"
+
+export function Header({ user }: { user: User }) {
+  useAuthSync() // Cross-Tab Listener
+
+  const handleSignOut = async () => {
+    await signOut()
+    await broadcastSignOut() // Alle anderen Tabs benachrichtigen
+    router.push("/")
+  }
+}
+```
+
+Vorteile:
+- Safari Private Mode Support
+- localStorage Fallback
+- TypeScript Support
 
 ## UI Komponenten
 
