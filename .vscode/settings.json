@@ -1,0 +1,127 @@
+{
+	"files.exclude": {
+		"**/node_modules": true,
+		"**/.next": true,
+		"**/dist": true,
+		"**/.git": true,
+		"**/.DS_Store": true,
+		"**/Thumbs.db": true,
+		"**/*.log": true,
+		"**/coverage": true,
+		"**/.turbo": true,
+		"frontend/bun.lock": true,
+		"frontend/package-lock.json": true,
+		"backend/bin": true,
+		"backend/server": true
+	},
+	"search.exclude": {
+		"**/node_modules": true,
+		"**/.next": true,
+		"**/dist": true,
+		"**/coverage": true,
+		"frontend/bun.lock": true,
+		"frontend/src/api/endpoints": true,
+		"frontend/src/api/models": true,
+		"frontend/src/components/ui": true,
+		"backend/docs": true
+	},
+
+	"editor.formatOnSave": true,
+	"editor.defaultFormatter": "biomejs.biome",
+	"editor.codeActionsOnSave": {
+		"source.organizeImports.biome": "explicit",
+		"quickfix.biome": "explicit"
+	},
+	"editor.tabSize": 4,
+	"editor.insertSpaces": false,
+	"editor.detectIndentation": false,
+	"editor.rulers": [100],
+	"editor.wordWrap": "off",
+	"editor.bracketPairColorization.enabled": true,
+	"editor.guides.bracketPairs": true,
+	"editor.linkedEditing": true,
+	"editor.suggestSelection": "first",
+	"editor.quickSuggestions": {
+		"strings": "on"
+	},
+
+	"typescript.preferences.importModuleSpecifier": "non-relative",
+	"typescript.suggest.autoImports": true,
+	"typescript.updateImportsOnFileMove.enabled": "always",
+	"typescript.tsdk": "frontend/node_modules/typescript/lib",
+
+	"javascript.preferences.importModuleSpecifier": "non-relative",
+	"javascript.suggest.autoImports": true,
+	"javascript.updateImportsOnFileMove.enabled": "always",
+
+	"[javascript]": {
+		"editor.defaultFormatter": "biomejs.biome"
+	},
+	"[javascriptreact]": {
+		"editor.defaultFormatter": "biomejs.biome"
+	},
+	"[typescript]": {
+		"editor.defaultFormatter": "biomejs.biome"
+	},
+	"[typescriptreact]": {
+		"editor.defaultFormatter": "biomejs.biome"
+	},
+	"[json]": {
+		"editor.defaultFormatter": "biomejs.biome"
+	},
+	"[jsonc]": {
+		"editor.defaultFormatter": "biomejs.biome"
+	},
+
+	"[go]": {
+		"editor.defaultFormatter": "golang.go",
+		"editor.formatOnSave": true,
+		"editor.codeActionsOnSave": {
+			"source.organizeImports": "explicit"
+		}
+	},
+	"go.useLanguageServer": true,
+	"go.lintTool": "golangci-lint",
+	"go.lintOnSave": "package",
+	"gopls": {
+		"ui.semanticTokens": true
+	},
+
+	"tailwindCSS.experimental.classRegex": [
+		["cva\\(([^)]*)\\)", "[\"'`]([^\"'`]*).*?[\"'`]"],
+		["cn\\(([^)]*)\\)", "[\"'`]([^\"'`]*).*?[\"'`]"]
+	],
+	"tailwindCSS.includeLanguages": {
+		"typescriptreact": "html"
+	},
+
+	"[css]": {
+		"editor.defaultFormatter": "biomejs.biome"
+	},
+	"css.validate": false,
+
+	"[markdown]": {
+		"editor.defaultFormatter": "esbenp.prettier-vscode",
+		"editor.wordWrap": "on",
+		"editor.formatOnSave": false
+	},
+
+	"files.associations": {
+		"*.css": "tailwindcss"
+	},
+	"files.trimTrailingWhitespace": true,
+	"files.insertFinalNewline": true,
+	"files.trimFinalNewlines": true,
+
+	"emmet.includeLanguages": {
+		"javascript": "javascriptreact",
+		"typescript": "typescriptreact"
+	},
+
+	"terminal.integrated.defaultProfile.osx": "zsh",
+	"terminal.integrated.scrollback": 10000,
+
+	"git.autofetch": true,
+	"git.confirmSync": false,
+	"git.enableSmartCommit": true
+}

@@ -1,0 +1,45 @@
+{
+	"version": "0.2.0",
+	"configurations": [
+		{
+			"name": "Next.js: Debug Frontend",
+			"type": "node",
+			"request": "launch",
+			"cwd": "${workspaceFolder}/frontend",
+			"runtimeExecutable": "bun",
+			"runtimeArgs": ["run", "dev"],
+			"console": "integratedTerminal",
+			"serverReadyAction": {
+				"pattern": "- Local:.+(https?://.+)",
+				"uriFormat": "%s",
+				"action": "openExternally"
+			}
+		},
+		{
+			"name": "Go: Debug Backend",
+			"type": "go",
+			"request": "launch",
+			"mode": "auto",
+			"program": "${workspaceFolder}/backend/cmd/server",
+			"cwd": "${workspaceFolder}/backend",
+			"env": {
+				"DATABASE_URL": "postgres://postgres:postgres@localhost:5432/gocatest",
+				"PORT": "8080"
+			}
+		},
+		{
+			"name": "Go: Debug Current File",
+			"type": "go",
+			"request": "launch",
+			"mode": "auto",
+			"program": "${file}"
+		}
+	],
+	"compounds": [
+		{
+			"name": "Full Stack: Frontend + Backend",
+			"configurations": ["Next.js: Debug Frontend", "Go: Debug Backend"],
+			"stopAll": true
+		}
+	]
+}

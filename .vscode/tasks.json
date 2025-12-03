@@ -1,0 +1,98 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "dev",
+			"type": "shell",
+			"command": "make dev",
+			"group": "build",
+			"problemMatcher": [],
+			"presentation": {
+				"reveal": "always",
+				"panel": "new"
+			}
+		},
+		{
+			"label": "dev:frontend",
+			"type": "shell",
+			"command": "make dev-frontend",
+			"group": "build",
+			"problemMatcher": [],
+			"presentation": {
+				"reveal": "always",
+				"panel": "dedicated"
+			}
+		},
+		{
+			"label": "dev:backend",
+			"type": "shell",
+			"command": "make dev-backend",
+			"group": "build",
+			"problemMatcher": ["$go"],
+			"presentation": {
+				"reveal": "always",
+				"panel": "dedicated"
+			}
+		},
+		{
+			"label": "db:up",
+			"type": "shell",
+			"command": "make db-up",
+			"problemMatcher": []
+		},
+		{
+			"label": "db:down",
+			"type": "shell",
+			"command": "make db-down",
+			"problemMatcher": []
+		},
+		{
+			"label": "db:reset",
+			"type": "shell",
+			"command": "make db-reset",
+			"problemMatcher": []
+		},
+		{
+			"label": "api:generate",
+			"type": "shell",
+			"command": "make api",
+			"problemMatcher": []
+		},
+		{
+			"label": "lint",
+			"type": "shell",
+			"command": "make lint",
+			"group": "test",
+			"problemMatcher": []
+		},
+		{
+			"label": "lint:fix",
+			"type": "shell",
+			"command": "make lint-fix",
+			"problemMatcher": []
+		},
+		{
+			"label": "typecheck",
+			"type": "shell",
+			"command": "make typecheck",
+			"group": "test",
+			"problemMatcher": ["$tsc"]
+		},
+		{
+			"label": "build",
+			"type": "shell",
+			"command": "make build",
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			},
+			"problemMatcher": []
+		},
+		{
+			"label": "install",
+			"type": "shell",
+			"command": "make install",
+			"problemMatcher": []
+		}
+	]
+}
