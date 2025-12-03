@@ -7,7 +7,16 @@
 	},
 	"files": {
 		"ignoreUnknown": true,
-		"includes": ["src/**", "*.ts", "*.tsx", "*.js", "*.jsx"]
+		"includes": [
+			"src/**",
+			"*.ts",
+			"*.tsx",
+			"*.js",
+			"*.jsx",
+			"!src/api/endpoints",
+			"!src/api/models",
+			"!src/components/ui"
+		]
 	},
 	"formatter": {
 		"enabled": true,
