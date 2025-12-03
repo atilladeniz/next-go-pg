@@ -131,6 +131,7 @@ goca-feature:
 # ━━━ Setup ━━━
 
 install:
+	bun install
 	cd frontend && bun install
 	cd backend && go mod tidy
 
