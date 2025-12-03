@@ -7,16 +7,25 @@ Full-Stack Monorepo mit Next.js Frontend und Go Backend.
 | Komponente | Technologie |
 |------------|-------------|
 | Frontend | Next.js 16, TypeScript, Tailwind CSS, shadcn/ui |
-| Backend | Go, Chi Router, Clean Architecture |
+| Backend | Go, Gorilla Mux, Clean Architecture, GORM |
+| Code Generator | **Goca CLI** (Go Clean Architecture) |
 | Datenbank | PostgreSQL 16 |
 | Auth | Better Auth |
-| API | OpenAPI 3.0, Orval |
+| API | Swagger/swag → Orval |
 
 ## Voraussetzungen
 
 - [Bun](https://bun.sh/) (Frontend)
 - [Go 1.21+](https://go.dev/) (Backend)
+- [Goca CLI](https://github.com/sazardev/goca) (Backend Code Generation)
 - [Docker](https://www.docker.com/) (Datenbank)
+
+### Goca installieren
+
+```bash
+go install github.com/sazardev/goca@latest
+goca version
+```
 
 ## Schnellstart
 
@@ -183,7 +192,29 @@ make docker-up      # Container starten
 make docker-down    # Container stoppen
 ```
 
+## Backend Features generieren (Goca)
+
+```bash
+cd backend
+
+# Neues Feature mit allen Layers
+goca feature Product --fields "name:string,price:float64,stock:int"
+
+# Nur Entity
+goca make entity Product
+
+# Nur Repository
+goca make repository Product
+
+# Swagger aktualisieren
+swag init -g cmd/server/main.go
+
+# Frontend API Client aktualisieren
+cd ../frontend && bun run api:generate
+```
+
 ## Weitere Dokumentation
 
 - [Frontend README](./frontend/README.md)
-- [API Specification](./backend/api/openapi.yaml)
+- [Backend README](./backend/README.md)
+- [Goca Dokumentation](https://github.com/sazardev/goca)

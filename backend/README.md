@@ -1,15 +1,35 @@
 # Backend
 
-Generated with Goca - Go Clean Architecture Code Generator
+Go Backend mit Clean Architecture, generiert mit [Goca CLI](https://github.com/sazardev/goca).
+
+## Tech Stack
+
+- **Go 1.23** - Programmiersprache
+- **Gorilla Mux** - HTTP Router
+- **GORM** - ORM für PostgreSQL
+- **Swagger/swag** - API Dokumentation
+- **Goca CLI** - Code Generator für Clean Architecture
 
 ## Architecture
 
-This project follows Clean Architecture principles:
+Clean Architecture mit strikter Layer-Trennung:
 
-- **Domain**: Entities and business rules  
-- **Use Cases**: Application logic
-- **Repository**: Data abstraction
-- **Handler**: Delivery adapters
+```
+internal/
+├── domain/           # Entities, Business Rules
+├── usecase/          # Application Logic
+├── repository/       # Data Access Layer
+├── handler/          # HTTP Handler
+├── middleware/       # Auth, CORS
+└── sse/              # Server-Sent Events
+```
+
+| Layer | Beschreibung | Goca Befehl |
+|-------|--------------|-------------|
+| Domain | Entities, Value Objects | `goca make entity` |
+| UseCase | Business Logic | `goca make usecase` |
+| Repository | Database Operations | `goca make repository` |
+| Handler | HTTP Endpoints | `goca make handler` |
 
 ## Quick Start
 
@@ -79,41 +99,67 @@ backend/
 │   └── server/           # Application entry point
 │       └── main.go
 ├── internal/
-│   ├── domain/           # Entities and business rules
-│   ├── usecase/          # Application logic
-│   ├── repository/       # Persistence implementations
-│   ├── handler/          # HTTP/gRPC adapters
-│   │   └── http/
-│   └── messages/         # Error and response messages
+│   ├── domain/           # Entities (goca make entity)
+│   ├── usecase/          # Business Logic (goca make usecase)
+│   ├── repository/       # Data Access (goca make repository)
+│   ├── handler/          # HTTP Handler (goca make handler)
+│   ├── middleware/       # Auth, CORS
+│   └── sse/              # Server-Sent Events
 ├── pkg/
 │   ├── config/           # Application configuration
 │   └── logger/           # Logging system
-├── migrations/           # Database migrations
+├── docs/                 # Swagger documentation
+├── .goca.yaml            # Goca configuration
 ├── .env                  # Environment variables
 ├── .env.example          # Configuration example
-├── docker-compose.yml    # Docker services
-├── Makefile              # Useful commands
-├── go.mod
-└── README.md
+├── Makefile              # Build commands
+└── go.mod
 ```
 
 
-## Useful Commands
+## Goca Befehle
 
-### Generate new features:
+### Neues Feature generieren
+
 ```bash
-# Complete feature with all layers
-goca feature User --fields "name:string,email:string"
+# Komplettes Feature mit allen Layers
+goca feature Product --fields "name:string,price:float64,stock:int"
 
-# Feature with validations
-goca feature Product --fields "name:string,price:float64" --validation
+# Feature mit Validierung
+goca feature Order --fields "userId:string,total:float64" --validation
 
-# Integrate existing features
+# Alle Features integrieren (Routes, DI)
 goca integrate --all
 ```
 
+### Einzelne Layer generieren
 
-### Development commands:
+```bash
+# Nur Entity (Domain Layer)
+goca make entity Product
+
+# Nur Repository (Data Layer)
+goca make repository Product
+
+# Nur UseCase (Business Logic)
+goca make usecase Product
+
+# Nur Handler (HTTP Layer)
+goca make handler Product
+```
+
+### Nach Goca-Änderungen
+
+```bash
+# Swagger Dokumentation aktualisieren
+swag init -g cmd/server/main.go
+
+# Frontend API Client generieren
+cd ../frontend && bun run api:generate
+```
+
+## Development Commands
+
 ```bash
 # Run application
 make run
@@ -127,6 +173,9 @@ make build
 # Linting and formatting
 make lint
 make fmt
+
+# Swagger generieren
+make swagger
 ```
 
 
