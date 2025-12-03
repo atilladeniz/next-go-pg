@@ -1,0 +1,96 @@
+basePath: /api/v1
+definitions:
+  handler.ErrorResponse:
+    properties:
+      error:
+        example: unauthorized
+        type: string
+    type: object
+  handler.MessageResponse:
+    properties:
+      message:
+        example: Hello World
+        type: string
+    type: object
+  handler.UserResponse:
+    properties:
+      email:
+        example: john@example.com
+        type: string
+      id:
+        example: user_123
+        type: string
+      name:
+        example: John Doe
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  description: Go Clean Architecture API with Better Auth integration
+  title: GocaTest API
+  version: "1.0"
+paths:
+  /hello:
+    get:
+      consumes:
+      - application/json
+      description: Returns a hello message, no auth required
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.MessageResponse'
+      summary: Public hello endpoint
+      tags:
+      - public
+  /me:
+    get:
+      consumes:
+      - application/json
+      description: Get the currently authenticated user's information
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.UserResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get current user
+      tags:
+      - users
+  /protected/hello:
+    get:
+      consumes:
+      - application/json
+      description: Returns a personalized hello message for authenticated users
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.MessageResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Protected hello endpoint
+      tags:
+      - protected
+securityDefinitions:
+  BearerAuth:
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"
