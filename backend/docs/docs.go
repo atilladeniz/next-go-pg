@@ -138,6 +138,55 @@ const docTemplate = `{
                         }
                     }
                 }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Modify a stat value and broadcast the change via SSE",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "users"
+                ],
+                "summary": "Update user statistics",
+                "parameters": [
+                    {
+                        "description": "Stat update request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler.UpdateStatRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler.UserStatsResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler.ErrorResponse"
+                        }
+                    }
+                }
             }
         }
     },
@@ -157,6 +206,21 @@ const docTemplate = `{
                 "message": {
                     "type": "string",
                     "example": "Hello World"
+                }
+            }
+        },
+        "internal_handler.UpdateStatRequest": {
+            "type": "object",
+            "properties": {
+                "delta": {
+                    "description": "+1 or -1",
+                    "type": "integer",
+                    "example": 1
+                },
+                "field": {
+                    "description": "\"projects\", \"activity\", \"notifications\"",
+                    "type": "string",
+                    "example": "projects"
                 }
             }
         },

@@ -11,5 +11,6 @@ export * from "./messageResponse";
 export * from "./userResponse";
 export * from './internalHandlerErrorResponse';
 export * from './internalHandlerMessageResponse';
+export * from './internalHandlerUpdateStatRequest';
 export * from './internalHandlerUserResponse';
 export * from './internalHandlerUserStatsResponse';

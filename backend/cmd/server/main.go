@@ -20,13 +20,20 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/atilla/gocatest/backend/internal/handler"
-	"github.com/atilla/gocatest/backend/internal/middleware"
-	"github.com/atilla/gocatest/backend/pkg/config"
-	"github.com/atilla/gocatest/backend/pkg/logger"
+	"github.com/atilladeniz/gocatest/backend/internal/domain"
+	"github.com/atilladeniz/gocatest/backend/internal/handler"
+	"github.com/atilladeniz/gocatest/backend/internal/middleware"
+	"github.com/atilladeniz/gocatest/backend/internal/repository"
+	"github.com/atilladeniz/gocatest/backend/internal/sse"
+	"github.com/atilladeniz/gocatest/backend/pkg/config"
+	"github.com/atilladeniz/gocatest/backend/pkg/logger"
 	"github.com/gorilla/mux"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+)
+
+var (
+	sseBroker *sse.Broker
 )
 
 type HealthStatus struct {
@@ -73,6 +80,10 @@ func main() {
 		}
 	}
 
+	// Setup SSE broker
+	sseBroker = sse.NewBroker()
+	log.Println("SSE broker initialized")
+
 	// Setup router
 	router := mux.NewRouter()
 
@@ -85,8 +96,14 @@ func main() {
 	router.HandleFunc("/health/ready", readinessHandler).Methods("GET")
 	router.HandleFunc("/health/live", livenessHandler).Methods("GET")
 
+	// Setup repositories
+	var statsRepo *repository.UserStatsRepository
+	if db != nil {
+		statsRepo = repository.NewUserStatsRepository(db)
+	}
+
 	// Setup API handlers
-	apiHandler := handler.NewAPIHandler(cfg.FrontendURL)
+	apiHandler := handler.NewAPIHandler(cfg.FrontendURL, sseBroker, statsRepo)
 	authMiddleware := apiHandler.GetAuthMiddleware()
 
 	// API v1 routes
@@ -103,6 +120,17 @@ func main() {
 	// User routes (require auth)
 	apiRouter.Handle("/me", authMiddleware.RequireAuth(http.HandlerFunc(apiHandler.GetCurrentUser))).Methods("GET", "OPTIONS")
 	apiRouter.Handle("/stats", authMiddleware.RequireAuth(http.HandlerFunc(apiHandler.GetUserStats))).Methods("GET", "OPTIONS")
+	apiRouter.Handle("/stats", authMiddleware.RequireAuth(http.HandlerFunc(apiHandler.UpdateUserStats))).Methods("POST", "OPTIONS")
+
+	// SSE endpoint for real-time updates
+	apiRouter.Handle("/events", sseBroker).Methods("GET")
+
+	// Test endpoint to trigger stats update (for demo)
+	apiRouter.HandleFunc("/trigger-update", func(w http.ResponseWriter, r *http.Request) {
+		sseBroker.Broadcast("stats-updated", `{"trigger":"manual"}`)
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]string{"status": "broadcast sent"})
+	}).Methods("POST")
 
 	// Setup HTTP server with timeouts
 	server := &http.Server{
@@ -265,8 +293,7 @@ func runAutoMigrations(database *gorm.DB) error {
 
 	// Create a slice of all domain entities to migrate
 	entities := []interface{}{
-		// Add domain entities here as they are created
-		// Example: &domain.User{}, &domain.Product{}
+		&domain.UserStats{},
 	}
 
 	// Run auto-migration for all entities

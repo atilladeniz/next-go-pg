@@ -12,6 +12,17 @@ definitions:
         example: Hello World
         type: string
     type: object
+  internal_handler.UpdateStatRequest:
+    properties:
+      delta:
+        description: +1 or -1
+        example: 1
+        type: integer
+      field:
+        description: '"projects", "activity", "notifications"'
+        example: projects
+        type: string
+    type: object
   internal_handler.UserResponse:
     properties:
       email:
@@ -122,6 +133,37 @@ paths:
       security:
       - BearerAuth: []
       summary: Get user statistics
+      tags:
+      - users
+    post:
+      consumes:
+      - application/json
+      description: Modify a stat value and broadcast the change via SSE
+      parameters:
+      - description: Stat update request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler.UpdateStatRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_handler.UserStatsResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_handler.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/internal_handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update user statistics
       tags:
       - users
 securityDefinitions:

@@ -6,22 +6,27 @@
  * OpenAPI spec version: 1.0
  */
 import {
+  useMutation,
   useQuery
 } from '@tanstack/react-query';
 import type {
   DataTag,
   DefinedInitialDataOptions,
   DefinedUseQueryResult,
+  MutationFunction,
   QueryClient,
   QueryFunction,
   QueryKey,
   UndefinedInitialDataOptions,
+  UseMutationOptions,
+  UseMutationResult,
   UseQueryOptions,
   UseQueryResult
 } from '@tanstack/react-query';
 
 import type {
   InternalHandlerErrorResponse,
+  InternalHandlerUpdateStatRequest,
   InternalHandlerUserResponse,
   InternalHandlerUserStatsResponse
 } from '../../models';
@@ -273,3 +278,100 @@ export function useGetStats<TData = Awaited<ReturnType<typeof getStats>>, TError
 
 
 
+/**
+ * Modify a stat value and broadcast the change via SSE
+ * @summary Update user statistics
+ */
+export type postStatsResponse200 = {
+  data: InternalHandlerUserStatsResponse
+  status: 200
+}
+
+export type postStatsResponse400 = {
+  data: InternalHandlerErrorResponse
+  status: 400
+}
+
+export type postStatsResponse401 = {
+  data: InternalHandlerErrorResponse
+  status: 401
+}
+    
+export type postStatsResponseSuccess = (postStatsResponse200) & {
+  headers: Headers;
+};
+export type postStatsResponseError = (postStatsResponse400 | postStatsResponse401) & {
+  headers: Headers;
+};
+
+export type postStatsResponse = (postStatsResponseSuccess | postStatsResponseError)
+
+export const getPostStatsUrl = () => {
+
+
+  
+
+  return `http://localhost:8080/api/v1/stats`
+}
+
+export const postStats = async (internalHandlerUpdateStatRequest: InternalHandlerUpdateStatRequest, options?: RequestInit): Promise<postStatsResponse> => {
+  
+  return customFetch<postStatsResponse>(getPostStatsUrl(),
+  {      
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      internalHandlerUpdateStatRequest,)
+  }
+);}
+
+
+
+
+export const getPostStatsMutationOptions = <TError = InternalHandlerErrorResponse,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postStats>>, TError,{data: InternalHandlerUpdateStatRequest}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof postStats>>, TError,{data: InternalHandlerUpdateStatRequest}, TContext> => {
+
+const mutationKey = ['postStats'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+      
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof postStats>>, {data: InternalHandlerUpdateStatRequest}> = (props) => {
+          const {data} = props ?? {};
+
+          return  postStats(data,requestOptions)
+        }
+
+        
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PostStatsMutationResult = NonNullable<Awaited<ReturnType<typeof postStats>>>
+    export type PostStatsMutationBody = InternalHandlerUpdateStatRequest
+    export type PostStatsMutationError = InternalHandlerErrorResponse
+
+    /**
+ * @summary Update user statistics
+ */
+export const usePostStats = <TError = InternalHandlerErrorResponse,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postStats>>, TError,{data: InternalHandlerUpdateStatRequest}, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof postStats>>,
+        TError,
+        {data: InternalHandlerUpdateStatRequest},
+        TContext
+      > => {
+
+      const mutationOptions = getPostStatsMutationOptions(options);
+
+      return useMutation(mutationOptions, queryClient);
+    }
+    
