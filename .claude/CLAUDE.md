@@ -140,57 +140,65 @@ Wenn du Backend-Endpoints änderst:
 
 ---
 
-## WICHTIG: Server-Side First (KEIN FLICKER!)
+## WICHTIG: HydrationBoundary Pattern (TanStack Recommended)
 
 ### Architektur-Prinzip
 
 ```
-Server Component (Session + Daten laden) → Client Component (Interaktivität)
+Server Component (prefetchQuery) → HydrationBoundary → Client Component (useQuery)
 ```
 
 ### Protected Page Pattern
 
 ```tsx
 // app/(protected)/dashboard/page.tsx - SERVER COMPONENT
-import { auth } from "@/lib/auth"
-import { headers } from "next/headers"
+import { dehydrate, HydrationBoundary } from "@tanstack/react-query"
+import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
+import { getStats, getGetStatsQueryKey } from "@/api/endpoints/users/users"
+import { getQueryClient } from "@/lib/get-query-client"
+import { getSession } from "@/lib/auth-server"
 
 export default async function DashboardPage() {
-  // 1. Session server-side prüfen
-  const session = await auth.api.getSession({ headers: await headers() })
+  // 1. Session prüfen
+  const session = await getSession()
   if (!session) redirect("/login")
 
-  // 2. Daten server-side laden
-  const data = await getData()
+  // 2. Cookies für Auth
+  const cookieStore = await cookies()
+  const cookieHeader = cookieStore.getAll().map((c) => `${c.name}=${c.value}`).join("; ")
 
-  // 3. An Client Components übergeben
+  // 3. Prefetch mit Orval-Funktion
+  const queryClient = getQueryClient()
+  await queryClient.prefetchQuery({
+    queryKey: getGetStatsQueryKey(),
+    queryFn: () => getStats({ headers: { Cookie: cookieHeader }, cache: "no-store" }),
+  })
+
+  // 4. HydrationBoundary wrappen
   return (
-    <Header user={session.user} />
-    <Content initialData={data} />
+    <HydrationBoundary state={dehydrate(queryClient)}>
+      <Header user={session.user} />
+      <Content />
+    </HydrationBoundary>
   )
 }
 ```
 
-### Client Component mit initialData
+### Client Component (kein initialData nötig!)
 
 ```tsx
 // content.tsx - CLIENT COMPONENT
 "use client"
 
-import { useGetData } from "@/api/endpoints/data/data"
+import { useGetStats } from "@/api/endpoints/users/users"
 import { useSSE } from "@/hooks/use-sse"
 
-export function Content({ initialData }) {
+export function Content() {
   useSSE() // Real-time Updates
 
-  const { data } = useGetData({
-    query: {
-      initialData: initialData
-        ? { data: initialData, status: 200 as const, headers: new Headers() }
-        : undefined,
-    },
-  })
+  // Daten sind bereits hydriert!
+  const { data } = useGetStats()
   // Kein Loading State nötig!
 }
 ```
@@ -200,14 +208,14 @@ export function Content({ initialData }) {
 ❌ `useSession()` in Protected Pages → Flicker
 ❌ Skeleton für Session Loading
 ❌ Client-seitiger Redirect
-❌ `isPending` Check
+❌ Manuelle `fetch()` Aufrufe → IMMER Orval nutzen!
 
 ### Was STATTDESSEN
 
-✅ Server Component prüft Session
+✅ Server Component prüft Session mit `getSession()`
 ✅ `redirect()` wenn keine Session
-✅ User als Prop an Client Components
-✅ `initialData` für React Query
+✅ `prefetchQuery` mit Orval-Funktion
+✅ `HydrationBoundary` für Cache-Hydration
 
 ---
 
@@ -243,6 +251,11 @@ export function useSSE() {
 ### API Definition
 - `backend/docs/swagger.json` - Generiert aus Go-Kommentaren
 - `frontend/orval.config.ts` - Orval Config für API Client Generierung
+
+### Data Fetching
+- `frontend/src/lib/get-query-client.ts` - Shared QueryClient für Server + Client
+- `frontend/src/api/custom-fetch.ts` - Fetch Wrapper für Orval
+- **WICHTIG**: IMMER Orval-Funktionen mit `prefetchQuery` + `HydrationBoundary` nutzen!
 
 ### Authentifizierung
 - `frontend/src/lib/auth.ts` - Better Auth Server Config

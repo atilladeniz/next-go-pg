@@ -5,29 +5,17 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { useSSE } from "@/hooks/use-sse"
 
-type InitialStats = {
-	projectCount?: number
-	activityToday?: number
-	notifications?: number
-}
-
-export function StatsGrid({ initialStats }: { initialStats: InitialStats | null }) {
+export function StatsGrid() {
 	// Connect to SSE for real-time updates
 	useSSE()
 
-	// Use React Query with initial data from server
-	const { data: statsResponse } = useGetStats({
-		query: {
-			initialData: initialStats
-				? { data: initialStats, status: 200 as const, headers: new Headers() }
-				: undefined,
-		},
-	})
+	// Data is already hydrated from server via HydrationBoundary
+	const { data: statsResponse } = useGetStats()
 
 	// Generated mutation hook from Orval
 	const { mutate: updateStats } = usePostStats()
 
-	const stats = statsResponse?.status === 200 ? statsResponse.data : initialStats
+	const stats = statsResponse?.status === 200 ? statsResponse.data : null
 
 	const handleUpdate = (field: string, delta: number) => {
 		updateStats({ data: { field, delta } })
