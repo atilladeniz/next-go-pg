@@ -4,6 +4,7 @@ import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { ModeToggle } from "@/components/mode-toggle"
 import { Button } from "@/components/ui/button"
+import { broadcastSignOut, useAuthSync } from "@/hooks/use-auth-sync"
 import { signOut } from "@/lib/auth-client"
 import { cn } from "@/lib/utils"
 
@@ -22,8 +23,12 @@ export function Header({ user }: { user: User }) {
 	const router = useRouter()
 	const pathname = usePathname()
 
+	// Cross-Tab Auth Synchronisation
+	useAuthSync()
+
 	const handleSignOut = async () => {
 		await signOut()
+		await broadcastSignOut() // Alle anderen Tabs benachrichtigen
 		router.push("/")
 	}
 
