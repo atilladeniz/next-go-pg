@@ -11,6 +11,8 @@
 		"**/.turbo": true,
 		"frontend/bun.lock": true,
 		"frontend/package-lock.json": true,
+		"frontend/tsconfig.tsbuildinfo": true,
+		"frontend/.typecheck": true,
 		"backend/bin": true,
 		"backend/server": true
 	},

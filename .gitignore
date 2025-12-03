@@ -5,6 +5,8 @@ frontend/node_modules/
 # Build outputs
 frontend/.next/
 frontend/out/
+frontend/tsconfig.tsbuildinfo
+frontend/.typecheck/
 backend/bin/
 
 # Environment files
