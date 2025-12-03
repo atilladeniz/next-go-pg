@@ -1,18 +1,18 @@
 basePath: /api/v1
 definitions:
-  handler.ErrorResponse:
+  internal_handler.ErrorResponse:
     properties:
       error:
         example: unauthorized
         type: string
     type: object
-  handler.MessageResponse:
+  internal_handler.MessageResponse:
     properties:
       message:
         example: Hello World
         type: string
     type: object
-  handler.UserResponse:
+  internal_handler.UserResponse:
     properties:
       email:
         example: john@example.com
@@ -22,6 +22,21 @@ definitions:
         type: string
       name:
         example: John Doe
+        type: string
+    type: object
+  internal_handler.UserStatsResponse:
+    properties:
+      activityToday:
+        type: integer
+      lastLogin:
+        type: string
+      memberSince:
+        type: string
+      notifications:
+        type: integer
+      projectCount:
+        type: integer
+      userId:
         type: string
     type: object
 host: localhost:8080
@@ -42,7 +57,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/handler.MessageResponse'
+            $ref: '#/definitions/internal_handler.MessageResponse'
       summary: Public hello endpoint
       tags:
       - public
@@ -57,11 +72,11 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/handler.UserResponse'
+            $ref: '#/definitions/internal_handler.UserResponse'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/handler.ErrorResponse'
+            $ref: '#/definitions/internal_handler.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Get current user
@@ -78,16 +93,37 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/handler.MessageResponse'
+            $ref: '#/definitions/internal_handler.MessageResponse'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/handler.ErrorResponse'
+            $ref: '#/definitions/internal_handler.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Protected hello endpoint
       tags:
       - protected
+  /stats:
+    get:
+      consumes:
+      - application/json
+      description: Get statistics for the authenticated user
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_handler.UserStatsResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/internal_handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get user statistics
+      tags:
+      - users
 securityDefinitions:
   BearerAuth:
     in: header

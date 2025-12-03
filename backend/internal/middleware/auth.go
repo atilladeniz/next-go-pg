@@ -57,6 +57,12 @@ func NewAuthMiddleware(betterAuthURL string) *AuthMiddleware {
 // RequireAuth middleware validates the session with Better Auth
 func (m *AuthMiddleware) RequireAuth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Skip auth for preflight OPTIONS requests (handled by CORS middleware)
+		if r.Method == "OPTIONS" {
+			next.ServeHTTP(w, r)
+			return
+		}
+
 		session, user, err := m.validateSession(r)
 		if err != nil {
 			http.Error(w, `{"error": "unauthorized"}`, http.StatusUnauthorized)

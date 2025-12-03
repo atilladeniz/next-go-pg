@@ -61,7 +61,7 @@ help: ## Show available commands
 
 # ━━━ Development ━━━
 
-dev: db-up
+dev: db-up api
 	@echo "Starting frontend and backend..."
 	bun run dev:all
 
@@ -120,7 +120,10 @@ test-frontend:
 
 # ━━━ Code Generation ━━━
 
-api:
+swagger:
+	cd backend && ~/go/bin/swag init -g cmd/server/main.go -o docs --parseDependency
+
+api: swagger
 	cd frontend && bunx orval
 
 goca-feature:

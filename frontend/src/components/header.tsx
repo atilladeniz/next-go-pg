@@ -3,20 +3,24 @@
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { ModeToggle } from "@/components/mode-toggle"
-import { useServerSession } from "@/components/session-provider"
 import { Button } from "@/components/ui/button"
 import { signOut } from "@/lib/auth-client"
 import { cn } from "@/lib/utils"
+
+type User = {
+	id: string
+	name: string
+	email: string
+}
 
 const navItems = [
 	{ href: "/dashboard", label: "Dashboard" },
 	{ href: "/api-test", label: "API Test" },
 ]
 
-export function Header() {
+export function Header({ user }: { user: User }) {
 	const router = useRouter()
 	const pathname = usePathname()
-	const { user } = useServerSession()
 
 	const handleSignOut = async () => {
 		await signOut()

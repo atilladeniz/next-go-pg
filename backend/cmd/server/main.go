@@ -1,5 +1,14 @@
 package main
 
+// @title GocaTest API
+// @version 1.0
+// @description Go Clean Architecture API with Better Auth integration
+// @host localhost:8080
+// @BasePath /api/v1
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
+
 import (
 	"context"
 	"encoding/json"
@@ -92,7 +101,8 @@ func main() {
 	protectedRouter.HandleFunc("/hello", apiHandler.ProtectedHello).Methods("GET")
 
 	// User routes (require auth)
-	apiRouter.Handle("/me", authMiddleware.RequireAuth(http.HandlerFunc(apiHandler.GetCurrentUser))).Methods("GET")
+	apiRouter.Handle("/me", authMiddleware.RequireAuth(http.HandlerFunc(apiHandler.GetCurrentUser))).Methods("GET", "OPTIONS")
+	apiRouter.Handle("/stats", authMiddleware.RequireAuth(http.HandlerFunc(apiHandler.GetUserStats))).Methods("GET", "OPTIONS")
 
 	// Setup HTTP server with timeouts
 	server := &http.Server{

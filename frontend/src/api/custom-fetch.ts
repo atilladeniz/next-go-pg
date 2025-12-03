@@ -8,10 +8,20 @@ export const customFetch = async <T>(url: string, options?: RequestInit): Promis
 		},
 	})
 
-	if (!response.ok) {
-		const error = await response.json().catch(() => ({ error: "Unknown error" }))
-		throw new Error(error.error || `HTTP ${response.status}`)
+	const contentType = response.headers.get("content-type")
+	let data: unknown
+
+	if (contentType?.includes("application/json")) {
+		data = await response.json()
+	} else {
+		const text = await response.text()
+		data = { message: text }
 	}
 
-	return response.json()
+	// Return response with status for Orval's discriminated unions
+	return {
+		data,
+		status: response.status,
+		headers: response.headers,
+	} as T
 }

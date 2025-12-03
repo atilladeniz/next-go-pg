@@ -7,15 +7,6 @@ import (
 	"github.com/atilla/gocatest/backend/internal/middleware"
 )
 
-// @title GocaTest API
-// @version 1.0
-// @description Go Clean Architecture API with Better Auth integration
-// @host localhost:8080
-// @BasePath /api/v1
-// @securityDefinitions.apikey BearerAuth
-// @in header
-// @name Authorization
-
 type APIHandler struct {
 	authMiddleware *middleware.AuthMiddleware
 }
@@ -41,6 +32,16 @@ type MessageResponse struct {
 // ErrorResponse represents an error
 type ErrorResponse struct {
 	Error string `json:"error" example:"unauthorized"`
+}
+
+// UserStatsResponse represents user statistics
+type UserStatsResponse struct {
+	UserID        string `json:"userId"`
+	ProjectCount  int    `json:"projectCount"`
+	ActivityToday int    `json:"activityToday"`
+	Notifications int    `json:"notifications"`
+	LastLogin     string `json:"lastLogin"`
+	MemberSince   string `json:"memberSince"`
 }
 
 // GetCurrentUser godoc
@@ -104,6 +105,38 @@ func (h *APIHandler) ProtectedHello(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(MessageResponse{
 		Message: "Hello " + user.Name + "! You are authenticated.",
 	})
+}
+
+// GetUserStats godoc
+// @Summary Get user statistics
+// @Description Get statistics for the authenticated user
+// @Tags users
+// @Accept json
+// @Produce json
+// @Success 200 {object} UserStatsResponse
+// @Failure 401 {object} ErrorResponse
+// @Security BearerAuth
+// @Router /stats [get]
+func (h *APIHandler) GetUserStats(w http.ResponseWriter, r *http.Request) {
+	user := middleware.GetUserFromContext(r.Context())
+	if user == nil {
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(ErrorResponse{Error: "unauthorized"})
+		return
+	}
+
+	// Simulate some stats - in real app this would come from database
+	stats := UserStatsResponse{
+		UserID:        user.ID,
+		ProjectCount:  7,
+		ActivityToday: 42,
+		Notifications: 3,
+		LastLogin:     "2025-12-03T22:15:00Z",
+		MemberSince:   "2025-11-15T10:00:00Z",
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(stats)
 }
 
 // GetAuthMiddleware returns the auth middleware for use in routes
