@@ -11,6 +11,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/atilla/gocatest/backend/internal/handler"
+	"github.com/atilla/gocatest/backend/internal/middleware"
 	"github.com/atilla/gocatest/backend/pkg/config"
 	"github.com/atilla/gocatest/backend/pkg/logger"
 	"github.com/gorilla/mux"
@@ -65,10 +67,32 @@ func main() {
 	// Setup router
 	router := mux.NewRouter()
 
+	// Setup CORS middleware
+	corsMiddleware := middleware.NewCORSMiddleware(cfg.FrontendURL)
+	router.Use(corsMiddleware.Handler)
+
 	// Health check endpoint with comprehensive checks
 	router.HandleFunc("/health", healthCheckHandler).Methods("GET")
 	router.HandleFunc("/health/ready", readinessHandler).Methods("GET")
 	router.HandleFunc("/health/live", livenessHandler).Methods("GET")
+
+	// Setup API handlers
+	apiHandler := handler.NewAPIHandler(cfg.FrontendURL)
+	authMiddleware := apiHandler.GetAuthMiddleware()
+
+	// API v1 routes
+	apiRouter := router.PathPrefix("/api/v1").Subrouter()
+
+	// Public routes
+	apiRouter.HandleFunc("/hello", apiHandler.PublicHello).Methods("GET")
+
+	// Protected routes (require auth)
+	protectedRouter := apiRouter.PathPrefix("/protected").Subrouter()
+	protectedRouter.Use(authMiddleware.RequireAuth)
+	protectedRouter.HandleFunc("/hello", apiHandler.ProtectedHello).Methods("GET")
+
+	// User routes (require auth)
+	apiRouter.Handle("/me", authMiddleware.RequireAuth(http.HandlerFunc(apiHandler.GetCurrentUser))).Methods("GET")
 
 	// Setup HTTP server with timeouts
 	server := &http.Server{

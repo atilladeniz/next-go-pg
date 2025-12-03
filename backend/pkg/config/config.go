@@ -14,6 +14,7 @@ type Config struct {
 	Port        string
 	Environment string
 	LogLevel    string
+	FrontendURL string
 	Database    DatabaseConfig
 	Server      ServerConfig
 }
@@ -46,6 +47,7 @@ func Load() *Config {
 		Port:        getEnv("PORT", "8080"),
 		Environment: getEnv("ENVIRONMENT", "development"),
 		LogLevel:    getEnv("LOG_LEVEL", "info"),
+		FrontendURL: getEnv("FRONTEND_URL", "http://localhost:3000"),
 		Database: DatabaseConfig{
 			Host:         getEnv("DB_HOST", "localhost"),
 			Port:         getEnv("DB_PORT", "5432"),
