@@ -1,0 +1,45 @@
+# Dependencies
+node_modules/
+frontend/node_modules/
+
+# Build outputs
+frontend/.next/
+frontend/out/
+backend/bin/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+frontend/.env.local
+backend/.env
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Go
+backend/tmp/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# Debug
+*.log
+npm-debug.log*
+bun-debug.log*
+
+# Bun
+bun.lockb
+
+# Misc
+*.pem
+coverage/
+.vercel

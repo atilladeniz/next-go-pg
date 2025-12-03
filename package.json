@@ -1,0 +1,19 @@
+{
+  "name": "gocatest",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev:frontend": "cd frontend && bun run dev",
+    "dev:backend": "cd backend && go run ./cmd/server",
+    "dev:all": "bun run dev:frontend & bun run dev:backend",
+    "build": "bun run build:frontend && bun run build:backend",
+    "build:frontend": "cd frontend && bun run build",
+    "build:backend": "cd backend && go build -o bin/server ./cmd/server",
+    "lint": "cd frontend && bun run lint",
+    "test": "bun run test:frontend && bun run test:backend",
+    "test:frontend": "cd frontend && bun run test",
+    "test:backend": "cd backend && go test ./...",
+    "install:frontend": "cd frontend && bun install",
+    "install:all": "cd frontend && bun install && cd ../backend && go mod tidy"
+  }
+}
