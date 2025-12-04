@@ -43,20 +43,21 @@ cd ..
 make api
 ```
 
-## WICHTIG: AutoMigrate registrieren
+## Entity Registry (AutoMigrate)
 
-Nach `goca feature` muss die neue Entity in `cmd/server/main.go` registriert werden:
+Nach `goca feature` muss die neue Entity in `backend/internal/domain/registry.go` registriert werden:
 
 ```go
-// Nach DB-Verbindung in main.go
-db.AutoMigrate(
-    &domain.User{},
-    &domain.UserStats{},
-    &domain.Product{},  // ← Neue Entity hinzufügen!
-)
+// internal/domain/registry.go
+func AllEntities() []interface{} {
+    return []interface{}{
+        &UserStats{},
+        &Product{},  // ← Neue Entity hier hinzufuegen!
+    }
+}
 ```
 
-Dann Backend neu starten → GORM erstellt die Tabelle automatisch.
+Das ist die **EINZIGE** Stelle wo neue Entities registriert werden muessen!
 
 ## Kompletter Workflow
 
@@ -65,14 +66,14 @@ Dann Backend neu starten → GORM erstellt die Tabelle automatisch.
 cd backend
 goca feature Product --fields "name:string,price:float64,stock:int"
 
-# 2. AutoMigrate in main.go hinzufügen (manuell!)
-# db.AutoMigrate(&domain.Product{})
+# 2. Entity in Registry hinzufuegen
+# backend/internal/domain/registry.go → &Product{} hinzufuegen
 
 # 3. API generieren
 cd ..
 make api
 
-# 4. Backend neu starten
+# 4. Backend neu starten (Migration laeuft automatisch)
 make dev-backend
 ```
 

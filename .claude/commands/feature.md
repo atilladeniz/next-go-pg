@@ -20,9 +20,8 @@ $ARGUMENTS
    goca feature $ARGUMENTS
    ```
 
-2. **Register AutoMigrate** in `backend/cmd/server/main.go`:
-   - Find the `db.AutoMigrate(...)` call
-   - Add the new entity: `&domain.<FeatureName>{}`
+2. **Register Entity** in `backend/internal/domain/registry.go`:
+   - Add the new entity to `AllEntities()`: `&<FeatureName>{}`
 
 3. **Generate API Client**:
    ```bash

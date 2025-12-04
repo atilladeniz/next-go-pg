@@ -17,13 +17,14 @@ cd frontend && DATABASE_URL="postgres://postgres:postgres@localhost:5432/gocates
 
 GORM migrations run automatically on backend startup. To add a new entity:
 
-1. Add to `backend/cmd/server/main.go`:
+1. Add to `backend/internal/domain/registry.go`:
    ```go
-   db.AutoMigrate(
-       &domain.User{},
-       &domain.UserStats{},
-       &domain.NewEntity{},  // Add here
-   )
+   func AllEntities() []interface{} {
+       return []interface{}{
+           &UserStats{},
+           &NewEntity{},  // Add here
+       }
+   }
    ```
 
 2. Restart backend:

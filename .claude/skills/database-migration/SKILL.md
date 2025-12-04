@@ -10,17 +10,19 @@ Manage PostgreSQL database, Better Auth schema, and GORM AutoMigrate.
 
 ## GORM AutoMigrate (Backend)
 
-Nach `goca feature` muss die neue Entity in `backend/cmd/server/main.go` registriert werden:
+Nach `goca feature` muss die neue Entity in `backend/internal/domain/registry.go` registriert werden:
 
 ```go
-// Nach DB-Verbindung
-db.AutoMigrate(
-    &domain.User{},
-    &domain.UserStats{},
-    &domain.NewEntity{},  // Neue Entity hinzufuegen
-)
+// internal/domain/registry.go
+func AllEntities() []interface{} {
+    return []interface{}{
+        &UserStats{},
+        &NewEntity{},  // Neue Entity hier hinzufuegen
+    }
+}
 ```
 
+Das ist die **EINZIGE** Stelle - `main.go` bleibt unveraendert!
 GORM erstellt die Tabelle automatisch beim Backend-Start.
 
 ## Database Commands

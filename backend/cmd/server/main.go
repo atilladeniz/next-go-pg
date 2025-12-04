@@ -291,10 +291,9 @@ func runAutoMigrations(database *gorm.DB) error {
 	// Auto-migrate domain entities using GORM
 	log.Println("Running GORM auto-migrations...")
 
-	// Create a slice of all domain entities to migrate
-	entities := []interface{}{
-		&domain.UserStats{},
-	}
+	// Get all entities from the domain registry
+	// New entities only need to be added to domain.AllEntities()
+	entities := domain.AllEntities()
 
 	// Run auto-migration for all entities
 	for _, entity := range entities {
