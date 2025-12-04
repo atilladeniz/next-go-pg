@@ -43,42 +43,82 @@ cd ..
 make api
 ```
 
-## Server-Side Data Loading Pattern (KEIN FLICKER!)
+## WICHTIG: AutoMigrate registrieren
 
-### Schritt 1: Server Component für Daten
+Nach `goca feature` muss die neue Entity in `cmd/server/main.go` registriert werden:
+
+```go
+// Nach DB-Verbindung in main.go
+db.AutoMigrate(
+    &domain.User{},
+    &domain.UserStats{},
+    &domain.Product{},  // ← Neue Entity hinzufügen!
+)
+```
+
+Dann Backend neu starten → GORM erstellt die Tabelle automatisch.
+
+## Kompletter Workflow
+
+```bash
+# 1. Feature generieren
+cd backend
+goca feature Product --fields "name:string,price:float64,stock:int"
+
+# 2. AutoMigrate in main.go hinzufügen (manuell!)
+# db.AutoMigrate(&domain.Product{})
+
+# 3. API generieren
+cd ..
+make api
+
+# 4. Backend neu starten
+make dev-backend
+```
+
+## Server-Side Data Loading Pattern (HydrationBoundary)
+
+### Schritt 1: Server Component mit prefetchQuery
 
 ```tsx
 // app/(protected)/products/page.tsx (Server Component)
-import { auth } from "@/lib/auth"
-import { headers } from "next/headers"
+import { dehydrate, HydrationBoundary } from "@tanstack/react-query"
+import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
+import { getGetProductsQueryKey, getProducts } from "@/api/endpoints/products/products"
+import { getQueryClient } from "@/lib/get-query-client"
+import { getSession } from "@/lib/auth-server"
 import { ProductList } from "./product-list"
 
-async function getProducts() {
-  const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/products`, {
-    headers: { Cookie: (await headers()).get("cookie") ?? "" },
-    cache: "no-store",
-  })
-  if (!res.ok) return null
-  return res.json()
-}
-
 export default async function ProductsPage() {
-  const session = await auth.api.getSession({ headers: await headers() })
+  // 1. Session prüfen
+  const session = await getSession()
   if (!session) redirect("/login")
 
-  const products = await getProducts()
+  // 2. Cookies für Auth
+  const cookieStore = await cookies()
+  const cookieHeader = cookieStore.getAll().map((c) => `${c.name}=${c.value}`).join("; ")
 
+  // 3. Prefetch mit Orval-Funktion
+  const queryClient = getQueryClient()
+  await queryClient.prefetchQuery({
+    queryKey: getGetProductsQueryKey(),
+    queryFn: () => getProducts({ headers: { Cookie: cookieHeader }, cache: "no-store" }),
+  })
+
+  // 4. HydrationBoundary wrappen
   return (
-    <div className="container py-8">
-      <h1 className="text-2xl font-bold mb-4">Produkte</h1>
-      <ProductList initialProducts={products} />
-    </div>
+    <HydrationBoundary state={dehydrate(queryClient)}>
+      <div className="container py-8">
+        <h1 className="text-2xl font-bold mb-4">Produkte</h1>
+        <ProductList />
+      </div>
+    </HydrationBoundary>
   )
 }
 ```
 
-### Schritt 2: Client Component mit initialData
+### Schritt 2: Client Component (kein initialData nötig!)
 
 ```tsx
 // app/(protected)/products/product-list.tsx
@@ -87,22 +127,13 @@ export default async function ProductsPage() {
 import { useGetProducts } from "@/api/endpoints/products/products"
 import { useSSE } from "@/hooks/use-sse"
 
-type Product = { id: string; name: string; price: number }
+export function ProductList() {
+  useSSE() // Real-time Updates
 
-export function ProductList({ initialProducts }: { initialProducts: Product[] | null }) {
-  // SSE für Real-time Updates
-  useSSE()
+  // Daten sind bereits hydriert - kein initialData nötig!
+  const { data: productsResponse } = useGetProducts()
 
-  // React Query mit Server-Daten als Initial
-  const { data: productsResponse } = useGetProducts({
-    query: {
-      initialData: initialProducts
-        ? { data: initialProducts, status: 200 as const, headers: new Headers() }
-        : undefined,
-    },
-  })
-
-  const products = productsResponse?.status === 200 ? productsResponse.data : initialProducts
+  const products = productsResponse?.status === 200 ? productsResponse.data : null
 
   return (
     <div className="grid gap-4">

@@ -6,7 +6,22 @@ allowed-tools: Read, Bash, Grep
 
 # Database Migration
 
-Manage PostgreSQL database and Better Auth schema.
+Manage PostgreSQL database, Better Auth schema, and GORM AutoMigrate.
+
+## GORM AutoMigrate (Backend)
+
+Nach `goca feature` muss die neue Entity in `backend/cmd/server/main.go` registriert werden:
+
+```go
+// Nach DB-Verbindung
+db.AutoMigrate(
+    &domain.User{},
+    &domain.UserStats{},
+    &domain.NewEntity{},  // Neue Entity hinzufuegen
+)
+```
+
+GORM erstellt die Tabelle automatisch beim Backend-Start.
 
 ## Database Commands
 
