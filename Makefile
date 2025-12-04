@@ -45,7 +45,8 @@ help: ## Show available commands
 	@echo "$(CYAN)━━━ Code Generation ━━━$(RESET)"
 	@echo ""
 	@echo "  $(GREEN)api$(RESET)               Generate TypeScript API client from OpenAPI"
-	@echo "  $(GREEN)goca-feature$(RESET)      Generate a new feature with Goca"
+	@echo "  $(GREEN)swagger$(RESET)           Generate Swagger docs only"
+	@echo "  $(GREEN)goca-feature$(RESET)      Generate a new feature with Goca $(DIM)(+ registry hint)$(RESET)"
 	@echo ""
 	@echo "$(CYAN)━━━ Setup ━━━$(RESET)"
 	@echo ""
@@ -129,7 +130,22 @@ api: swagger
 goca-feature:
 	@read -p "Feature name: " name; \
 	read -p "Fields (e.g. name:string,email:string): " fields; \
-	cd backend && ~/bin/goca feature $$name --fields "$$fields"
+	cd backend && ~/go/bin/goca feature $$name --fields "$$fields"; \
+	REGISTRY="$(CURDIR)/backend/internal/domain/registry.go"; \
+	if grep -q "&$$name{}" "$$REGISTRY" 2>/dev/null; then \
+		echo "$(DIM)Entity already in registry$(RESET)"; \
+	elif [ -f "$$REGISTRY" ]; then \
+		sed -i '' "s|\(	// AUTO-GENERATED: New entities will be added above this line\)|	\&$$name{},\n\1|" "$$REGISTRY"; \
+		echo "$(GREEN)✓ Added &$$name{} to registry.go$(RESET)"; \
+	else \
+		echo "$(YELLOW)⚠ registry.go not found - add &$$name{} manually$(RESET)"; \
+	fi; \
+	echo ""; \
+	echo "$(YELLOW)━━━ Next Steps ━━━$(RESET)"; \
+	echo ""; \
+	echo "1. Run: $(GREEN)make api$(RESET)"; \
+	echo "2. Run: $(GREEN)make dev-backend$(RESET)"; \
+	echo ""
 
 # ━━━ Setup ━━━
 

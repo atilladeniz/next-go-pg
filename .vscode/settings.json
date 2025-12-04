@@ -109,7 +109,10 @@
 	},
 
 	"files.associations": {
-		"*.css": "tailwindcss"
+		"*.css": "tailwindcss",
+		"*.tmpl": "gohtml",
+		"*.gotmpl": "gohtml",
+		"*.go.tmpl": "gohtml"
 	},
 	"files.trimTrailingWhitespace": true,
 	"files.insertFinalNewline": true,
