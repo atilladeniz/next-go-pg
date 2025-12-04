@@ -1,4 +1,4 @@
-.PHONY: help dev dev-frontend dev-backend build build-frontend build-backend test clean install api lint docker-build docker-up docker-down goca-feature
+.PHONY: help dev dev-frontend dev-backend build build-frontend build-backend test clean install api lint docker-build docker-up docker-down goca-feature deploy deploy-staging deploy-production deploy-rollback deploy-logs deploy-console
 
 .DEFAULT_GOAL := help
 
@@ -58,6 +58,14 @@ help: ## Show available commands
 	@echo "  $(GREEN)docker-build$(RESET)      Build production Docker images"
 	@echo "  $(GREEN)docker-up$(RESET)         Start production containers"
 	@echo "  $(GREEN)docker-down$(RESET)       Stop production containers"
+	@echo ""
+	@echo "$(CYAN)━━━ Deployment (Kamal) ━━━$(RESET)"
+	@echo ""
+	@echo "  $(GREEN)deploy-staging$(RESET)    Deploy to staging environment"
+	@echo "  $(GREEN)deploy-production$(RESET) Deploy to production environment"
+	@echo "  $(GREEN)deploy-rollback$(RESET)   Rollback to previous version"
+	@echo "  $(GREEN)deploy-logs$(RESET)       Show deployment logs"
+	@echo "  $(GREEN)deploy-console$(RESET)    Open console on production server"
 	@echo ""
 
 # ━━━ Development ━━━
@@ -169,3 +177,35 @@ docker-up:
 
 docker-down:
 	docker compose down
+
+# ━━━ Deployment (Kamal) ━━━
+
+KAMAL_CONFIG := -c deploy/config/deploy.yml
+
+deploy-staging:
+	kamal deploy $(KAMAL_CONFIG) -d staging
+
+deploy-production:
+	@echo "$(YELLOW)⚠ Deploying to PRODUCTION!$(RESET)"
+	@read -p "Are you sure? [y/N] " confirm; \
+	if [ "$$confirm" = "y" ] || [ "$$confirm" = "Y" ]; then \
+		kamal deploy $(KAMAL_CONFIG) -d production; \
+	else \
+		echo "Aborted."; \
+	fi
+
+deploy-rollback:
+	@read -p "Destination (staging/production): " dest; \
+	kamal rollback $(KAMAL_CONFIG) -d $$dest
+
+deploy-logs:
+	@read -p "Destination (staging/production): " dest; \
+	kamal app logs $(KAMAL_CONFIG) -d $$dest -f
+
+deploy-console:
+	@read -p "Destination (staging/production): " dest; \
+	kamal app exec $(KAMAL_CONFIG) -d $$dest -i bash
+
+deploy-setup:
+	@read -p "Destination (staging/production): " dest; \
+	kamal setup $(KAMAL_CONFIG) -d $$dest

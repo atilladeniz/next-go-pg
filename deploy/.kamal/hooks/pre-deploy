@@ -1,0 +1,30 @@
+#!/bin/sh
+# Pre-deploy hook
+# Runs BEFORE deployment starts
+# Exit with non-zero to abort deployment
+
+set -e
+
+echo "==> Pre-deploy checks for $KAMAL_SERVICE v$KAMAL_VERSION"
+
+# Check required environment variables
+required_vars="DATABASE_URL BETTER_AUTH_SECRET"
+for var in $required_vars; do
+    if [ -z "$(eval echo \$$var)" ]; then
+        echo "ERROR: Required environment variable $var is not set!"
+        exit 1
+    fi
+done
+
+# Run tests (optional - uncomment if you want tests before deploy)
+# echo "==> Running tests..."
+# cd backend && go test ./...
+# cd frontend && bun run test
+
+# Check git status (warn if uncommitted changes)
+if ! git diff-index --quiet HEAD --; then
+    echo "WARNING: You have uncommitted changes!"
+    echo "Consider committing before deploying."
+fi
+
+echo "==> Pre-deploy checks passed!"

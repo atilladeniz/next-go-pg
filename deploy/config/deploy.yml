@@ -1,0 +1,86 @@
+# Kamal 2.9 Deployment Configuration
+# Docs: .docs/kamal-deploy.md
+#
+# Usage:
+#   kamal setup -d staging     # First-time setup
+#   kamal deploy -d staging    # Deploy to staging
+#   kamal deploy -d production # Deploy to production
+
+service: gocatest
+
+# Docker Registry (GitHub Container Registry)
+image: ghcr.io/<your-github-username>/gocatest
+
+# Registry Login
+registry:
+  server: ghcr.io
+  username:
+    - KAMAL_REGISTRY_USERNAME
+  password:
+    - KAMAL_REGISTRY_PASSWORD
+
+# Builder Configuration
+builder:
+  arch: amd64
+  context: ..
+  dockerfile: deploy/Dockerfile
+  args:
+    COMMIT_SHA: <%= `git rev-parse HEAD`.strip %>
+
+# SSH Configuration
+ssh:
+  user: root
+  keys_only: true
+  # keys: ["~/.ssh/id_ed25519"]
+
+# Healthcheck - kamal-proxy checks this endpoint
+proxy:
+  ssl: true
+  host: app.example.com
+  healthcheck:
+    interval: 3
+    path: /health
+    timeout: 3
+
+# Environment Variables (non-secret)
+env:
+  clear:
+    RAILS_ENV: production
+    GO_ENV: production
+  secret:
+    - DATABASE_URL
+    - BETTER_AUTH_SECRET
+    - NEXT_PUBLIC_APP_URL
+    - NEXT_PUBLIC_API_URL
+
+# Logging
+logging:
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+# Accessories (Database, Redis, etc.)
+# Uncomment if you want Kamal to manage PostgreSQL
+# For production: Use managed DB (Hetzner, DO, AWS RDS)
+#
+# accessories:
+#   db:
+#     image: postgres:16-alpine
+#     host: db.example.com
+#     port: 5432
+#     env:
+#       secret:
+#         - POSTGRES_PASSWORD
+#     directories:
+#       - data:/var/lib/postgresql/data
+#     options:
+#       restart: unless-stopped
+
+# Boot Configuration
+boot:
+  limit: 3  # Deploy to 3 servers at a time (rolling deploy)
+  wait: 5   # Wait 5 seconds between batches
+
+# Retain old containers for rollback
+retain_containers: 5

@@ -1,0 +1,25 @@
+# Kamal Staging Configuration
+# Merges with deploy.yml
+#
+# Usage: kamal deploy -d staging
+
+# Staging Servers
+servers:
+  web:
+    hosts:
+      - staging.example.com  # Replace with your staging IP/hostname
+    options:
+      memory: 512m
+      cpus: 1
+
+# Staging-specific proxy config
+proxy:
+  ssl: true
+  host: staging.example.com
+
+# Staging Environment
+env:
+  clear:
+    GO_ENV: staging
+    NODE_ENV: staging
+    LOG_LEVEL: debug

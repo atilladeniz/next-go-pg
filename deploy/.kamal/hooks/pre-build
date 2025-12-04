@@ -1,0 +1,14 @@
+#!/bin/sh
+# Pre-build hook
+# Runs BEFORE Docker image is built
+
+set -e
+
+echo "==> Pre-build for $KAMAL_SERVICE"
+
+# Generate API types (swagger -> orval)
+echo "==> Generating API types..."
+cd "$(dirname "$0")/../../.."
+make api 2>/dev/null || echo "Skipping API generation (make api not available)"
+
+echo "==> Pre-build complete!"

@@ -1,0 +1,22 @@
+#!/bin/sh
+# Post-deploy hook
+# Runs AFTER successful deployment
+
+echo "==> Post-deploy for $KAMAL_SERVICE v$KAMAL_VERSION"
+echo "    Deployed to: $KAMAL_HOSTS"
+echo "    Deployed by: $KAMAL_PERFORMER"
+echo "    Timestamp:   $KAMAL_RECORDED_AT"
+
+# Notify on success (examples)
+
+# Slack notification (uncomment and configure)
+# curl -X POST -H 'Content-type: application/json' \
+#   --data "{\"text\":\":rocket: Deployed $KAMAL_SERVICE_VERSION to $KAMAL_DESTINATION\"}" \
+#   $SLACK_WEBHOOK_URL
+
+# Discord notification (uncomment and configure)
+# curl -X POST -H 'Content-type: application/json' \
+#   --data "{\"content\":\":rocket: Deployed $KAMAL_SERVICE_VERSION to $KAMAL_DESTINATION\"}" \
+#   $DISCORD_WEBHOOK_URL
+
+echo "==> Deployment complete!"

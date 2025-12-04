@@ -1,0 +1,36 @@
+# Kamal Production Configuration
+# Merges with deploy.yml
+#
+# Usage: kamal deploy -d production
+
+# Production Servers (add more for horizontal scaling)
+servers:
+  web:
+    hosts:
+      - web1.example.com  # Primary web server
+      # - web2.example.com  # Add more for HA
+      # - web3.example.com
+    options:
+      memory: 1g
+      cpus: 2
+
+# Production-specific proxy config
+proxy:
+  ssl: true
+  host: app.example.com
+  # For multiple domains:
+  # hosts:
+  #   - app.example.com
+  #   - www.example.com
+
+# Production Environment
+env:
+  clear:
+    GO_ENV: production
+    NODE_ENV: production
+    LOG_LEVEL: info
+
+# Production boot strategy (safer, slower)
+boot:
+  limit: 1      # One server at a time
+  wait: 10      # Wait 10 seconds between servers
