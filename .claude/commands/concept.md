@@ -1,94 +1,77 @@
 ---
-description: Create a new system design concept with Mermaid diagrams
+description: "Type: architecture, flow, data-model"
 arguments:
-  - name: name
-    description: Name of the concept (e.g., "payment-flow", "notification-system")
+  - name: topic
+    description: What do you want to visualize? (e.g., "how users login", "database structure", "deployment setup")
     required: true
-  - name: type
-    description: "Type: architecture, flow, data-model"
-    required: false
 ---
 
 # Create System Design Concept
 
 Erstelle ein neues Concept-Dokument mit Mermaid-Diagrammen in `.concepts/`.
 
-## Instructions
+## Workflow
 
-1. **Analysiere** was der User visualisieren möchte
-2. **Wähle** den passenden Diagram-Typ:
-   - **architecture**: C4, Deployment, Infrastructure → `.concepts/architecture/`
-   - **flow**: Sequence, Flowchart, State, User Journey → `.concepts/flows/`
-   - **data-model**: ER, Class Diagram → `.concepts/data-models/`
+1. **User beschreibt** was er visualisieren möchte: `$ARGUMENTS.topic`
+2. **Du analysierst** und erkennst automatisch:
+   - Welcher **Typ** passt (architecture, flow, data-model)
+   - Welches **Mermaid-Diagramm** am besten geeignet ist
+   - Einen passenden **Dateinamen** (kebab-case)
+3. **Du erstellst** das Dokument mit Business Context + Mermaid
 
-3. **Erstelle** das Dokument mit:
-   - Business Context (Textbeschreibung)
-   - Mermaid Diagram(s)
-   - Details/Tabellen wenn nötig
+## Type Detection Guide
 
-4. **Speichere** in `.concepts/<type>/<name>.md`
+### → `architecture/`
+**Wenn es um geht:**
+- Wie Systeme/Services zusammenhängen
+- Deployment, Server, Infrastructure
+- Technische Komponenten und ihre Verbindungen
+- "Big Picture" / Übersicht
 
-## Diagram Type Reference
+**Mermaid:** C4Context, C4Container, flowchart mit Subgraphs
 
-| Use Case | Diagram Type | Mermaid |
-|----------|-------------|---------|
-| System Overview | C4 Context | `C4Context` |
-| Service Architecture | C4 Container | `C4Container` |
-| API Interaction | Sequence | `sequenceDiagram` |
-| Process/Workflow | Flowchart | `flowchart TD` |
-| Object States | State | `stateDiagram-v2` |
-| Database Schema | ER Diagram | `erDiagram` |
-| Class Structure | Class | `classDiagram` |
-| User Experience | Journey | `journey` |
-| Timeline | Gantt | `gantt` |
-| Hierarchy | Mind Map | `mindmap` |
+### → `flows/`
+**Wenn es um geht:**
+- Wie etwas abläuft (Prozess, Workflow)
+- Wer mit wem kommuniziert (API Calls, Events)
+- User Journey / UX Flow
+- Zeitliche Abfolge von Aktionen
 
-## Template
+**Mermaid:** sequenceDiagram, flowchart, journey, stateDiagram-v2
 
-```markdown
-# [Concept Name]
+### → `data-models/`
+**Wenn es um geht:**
+- Datenbank-Struktur, Tabellen, Relationen
+- Entity/Domain Models
+- Zustände eines Objekts (State Machine)
+- Klassen und ihre Beziehungen
 
-## Business Context
+**Mermaid:** erDiagram, classDiagram, stateDiagram-v2
 
-[Beschreibe die Business Logic und den Kontext]
+## Response Format
 
-## [Diagram Title]
+Nachdem du den Typ erkannt hast:
 
-\`\`\`mermaid
-[Diagram Code]
-\`\`\`
-
-## Details
-
-| Aspekt | Beschreibung |
-|--------|--------------|
-| ... | ... |
-
-## Related Concepts
-
-- [Link zu verwandten Concepts]
-```
+1. **Kurz bestätigen** was du verstanden hast
+2. **Datei erstellen** in `.concepts/<type>/<name>.md`
+3. **Inhalt:**
+   - `## Business Context` - Was ist das Problem/Kontext
+   - `## [Diagram]` - Mermaid Diagramm(e)
+   - `## Details` - Tabelle mit Erklärungen (optional)
 
 ## Examples
 
-### `/concept payment-flow flow`
-→ Creates `.concepts/flows/payment-flow.md` with sequence/flowchart diagrams
-
-### `/concept user-service architecture`
-→ Creates `.concepts/architecture/user-service.md` with C4 diagrams
-
-### `/concept order-model data-model`
-→ Creates `.concepts/data-models/order-model.md` with ER diagram
-
-## Argument: $ARGUMENTS.name
-
-Name des Concepts: **{{ name | default: "[Frage nach Name]" }}**
-
-## Argument: $ARGUMENTS.type
-
-Typ: **{{ type | default: "auto-detect" }}**
+| User sagt | Du erkennst | Output |
+|-----------|-------------|--------|
+| "wie funktioniert der login" | flow + sequenceDiagram | `.concepts/flows/login-flow.md` |
+| "zeig mir die datenbank struktur" | data-model + erDiagram | `.concepts/data-models/database-schema.md` |
+| "wie hängen frontend und backend zusammen" | architecture + C4Container | `.concepts/architecture/system-overview.md` |
+| "was passiert wenn user bestellt" | flow + sequenceDiagram | `.concepts/flows/order-process.md` |
+| "welche zustände hat eine bestellung" | data-model + stateDiagram | `.concepts/data-models/order-states.md` |
+| "wie deployen wir" | architecture + flowchart | `.concepts/architecture/deployment.md` |
 
 ---
 
-Bitte erstelle jetzt das Concept-Dokument basierend auf dem Namen und Typ.
-Frage nach Details falls nötig.
+**User möchte visualisieren:** `$ARGUMENTS.topic`
+
+Analysiere was der User braucht, wähle den passenden Typ und Diagramm-Art, und erstelle das Concept-Dokument.
