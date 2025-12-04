@@ -12,7 +12,8 @@
 		"formulahendry.auto-rename-tag",
 		"naumovs.color-highlight",
 		"aaron-bond.better-comments",
-		"pkief.material-icon-theme"
+		"pkief.material-icon-theme",
+		"bierner.markdown-mermaid"
 	],
 	"unwantedRecommendations": []
 }
