@@ -1,5 +1,25 @@
 # GocaTest - Projekt Kontext
 
+## WICHTIG: Technical Docs (.docs)
+
+**IMMER ZUERST in `.docs/` nachschauen** bevor im Internet recherchiert wird!
+
+```
+.docs/
+├── nextjs.md           # Next.js 16 App Router
+├── tanstack-query.md   # TanStack Query / React Query
+├── better-auth.md      # Better Auth
+├── gorm.md             # GORM ORM
+├── goca.md             # Goca CLI
+├── orval.md            # Orval API Client Generator
+├── kamal-deploy.md     # Kamal Deployment (Docker)
+└── ...                 # Weitere Tech Stack Docs
+```
+
+Dort findest du LLM-friendly Dokumentation fuer den gesamten Tech Stack.
+
+---
+
 ## Projektübersicht
 
 Full-Stack Monorepo mit Next.js 16 Frontend und Go Backend, PostgreSQL Datenbank und Better Auth für Authentifizierung.

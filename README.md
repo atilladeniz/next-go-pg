@@ -2,6 +2,25 @@
 
 Full-Stack Monorepo mit Next.js Frontend und Go Backend.
 
+## Technical Documentation
+
+**WICHTIG:** LLM-friendly Dokumentation für den gesamten Tech Stack findest du in `.docs/`:
+
+```
+.docs/
+├── nextjs.md           # Next.js 16 App Router
+├── tanstack-query.md   # TanStack Query
+├── better-auth.md      # Better Auth
+├── gorm.md             # GORM ORM
+├── goca.md             # Goca CLI
+├── orval.md            # Orval API Generator
+├── shadcn.md           # shadcn/ui
+├── tailwind.md         # Tailwind CSS 4
+└── kamal-deploy.md     # Kamal Deployment
+```
+
+→ **Immer zuerst `.docs/` prüfen** bevor im Internet recherchiert wird!
+
 ## Tech Stack
 
 | Komponente | Technologie |
@@ -219,6 +238,7 @@ make api
 
 ## Weitere Dokumentation
 
+- [Technical Docs (.docs)](./.docs/README.md) - LLM-friendly Tech Stack Docs
 - [Frontend README](./frontend/README.md)
 - [Backend README](./backend/README.md)
 - [Goca Dokumentation](https://github.com/sazardev/goca)

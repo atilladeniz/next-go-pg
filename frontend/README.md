@@ -2,6 +2,8 @@
 
 Next.js 16 Frontend mit TypeScript, Tailwind CSS und shadcn/ui.
 
+> **Tipp:** LLM-friendly Dokumentation für Next.js, TanStack Query, Better Auth, etc. findest du in `../.docs/`
+
 ## Tech Stack
 
 - **Next.js 16** - App Router mit Turbopack

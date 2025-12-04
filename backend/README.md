@@ -2,6 +2,8 @@
 
 Go Backend mit Clean Architecture, generiert mit [Goca CLI](https://github.com/sazardev/goca).
 
+> **Tipp:** LLM-friendly Dokumentation für GORM, Gorilla Mux, Goca, etc. findest du in `../.docs/`
+
 ## Tech Stack
 
 - **Go 1.23** - Programmiersprache
