@@ -148,6 +148,22 @@ goca make usecase Product
 goca make handler Product
 ```
 
+### Entity Registry (AutoMigrate)
+
+Nach `goca feature` muss die neue Entity in `internal/domain/registry.go` registriert werden:
+
+```go
+// internal/domain/registry.go
+func AllEntities() []interface{} {
+    return []interface{}{
+        &UserStats{},
+        &Product{},  // ← Neue Entity hier hinzufuegen
+    }
+}
+```
+
+Das ist die **EINZIGE** Stelle - `main.go` bleibt unveraendert!
+
 ### Nach Goca/API-Änderungen
 
 ```bash

@@ -111,10 +111,31 @@ backend/internal/
 cd backend
 goca feature Invoice --fields "userId:string,amount:float64,status:string"
 
-# 2. Swagger + Orval (ein Befehl!)
+# 2. Entity in Registry hinzufuegen (internal/domain/registry.go)
+# &Invoice{} zur AllEntities() Funktion hinzufuegen
+
+# 3. Swagger + Orval (ein Befehl!)
 cd ..
 make api
+
+# 4. Backend neu starten (Migration laeuft automatisch)
+make dev-backend
 ```
+
+### Entity Registry
+
+Neue Entities muessen in `backend/internal/domain/registry.go` registriert werden:
+
+```go
+func AllEntities() []interface{} {
+    return []interface{}{
+        &UserStats{},
+        &Invoice{},  // ← Neue Entity hier
+    }
+}
+```
+
+Das ist die **EINZIGE** Stelle fuer AutoMigrate!
 
 ### API Generierung Workflow
 
