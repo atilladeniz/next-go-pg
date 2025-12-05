@@ -334,10 +334,42 @@ make lint             # Biome Linting
 make lint-fix         # Auto-fix Lint Errors
 make typecheck        # TypeScript Check
 
+# Security
+make security-scan    # Scan auf Secrets/sensitive Daten
+make setup-hooks      # Git Hooks einrichten
+
 # Build
 make build            # Frontend + Backend bauen
 make build-frontend   # Next.js Production Build
 make build-backend    # Go Binary
+```
+
+---
+
+## Security: Gitleaks Pre-Commit Hook
+
+Das Projekt verwendet **gitleaks** um Secrets vor dem Commit zu erkennen.
+
+### Was wird blockiert?
+
+- API Keys, Tokens, Passwords
+- Absolute Pfade mit Usernamen
+- Database URLs mit echten Credentials
+- Private Keys
+
+### Wichtig fuer Claude
+- **NIEMALS** absolute Pfade mit Usernamen in Code/Docs schreiben
+- **NIEMALS** echte Secrets hardcoden
+- Beispiel-URLs immer mit `localhost` oder Platzhaltern
+- Config: `.gitleaks.toml`
+
+### Bei Commit-Blockierung
+```bash
+# Zeigt was blockiert wurde
+make security-scan
+
+# Notfall-Bypass (NICHT EMPFOHLEN)
+git commit --no-verify
 ```
 
 ## Projektstruktur
