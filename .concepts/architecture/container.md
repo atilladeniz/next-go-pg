@@ -11,15 +11,19 @@ C4Container
     title Next-Go-PG - Container Diagram
 
     Person(user, "User", "Application user")
+    Person(admin, "Admin", "Via VPN")
 
     System_Boundary(nextgopg, "Next-Go-PG System") {
         Container(proxy, "kamal-proxy", "Go", "Reverse Proxy, SSL Termination, Zero-Downtime Deploys")
         Container(frontend, "Frontend", "Next.js 16, TypeScript", "React SPA mit App Router, TanStack Query")
         Container(backend, "Backend", "Go, Gorilla Mux", "REST API, Clean Architecture, SSE")
         ContainerDb(db, "Database", "PostgreSQL 16", "User Data, Sessions, Business Data")
+        Container(loki, "Loki", "Grafana Loki", "Log Aggregation (VPN only)")
+        Container(grafana, "Grafana", "Grafana 10", "Log Visualization (VPN only)")
     }
 
     System_Ext(email, "Email Service", "SendGrid/SMTP")
+    System_Ext(vpn, "VPN", "Private Network Access")
 
     Rel(user, proxy, "HTTPS :443")
     Rel(proxy, frontend, "HTTP :3000")
@@ -27,6 +31,11 @@ C4Container
     Rel(frontend, backend, "REST API", "JSON")
     Rel(backend, db, "SQL", "TCP :5432")
     Rel(backend, email, "SMTP/API")
+    Rel(backend, loki, "HTTP POST", "Logs")
+    Rel(frontend, loki, "HTTP POST", "Logs")
+    Rel(loki, grafana, "LogQL")
+    Rel(admin, vpn, "VPN")
+    Rel(vpn, grafana, "HTTPS :3001")
 
     UpdateLayoutConfig($c4ShapeInRow="3", $c4BoundaryInRow="1")
 ```

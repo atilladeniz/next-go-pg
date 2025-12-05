@@ -35,8 +35,12 @@ make deploy-console
 │  ┌───────────────────▼───────────────────────────────────┐  │
 │  │              Docker Container (next-go-pg)            │  │
 │  │  ┌─────────────────┐    ┌─────────────────────────┐   │  │
-│  │  │   Backend :8080 │    │   Frontend :3000        │   │  │
-│  │  │   (Go + Mux)    │    │   (Next.js standalone)  │   │  │
+│  │  │   Backend :8080 │────▶   Loki :3100            │   │  │
+│  │  │   (Go + Mux)    │    │   (Log Aggregation)     │   │  │
+│  │  └─────────────────┘    └─────────────────────────┘   │  │
+│  │  ┌─────────────────┐    ┌─────────────────────────┐   │  │
+│  │  │   Frontend :3000│────▶   Grafana :3001         │   │  │
+│  │  │   (Next.js)     │    │   (Log Visualization)   │   │  │
 │  │  └─────────────────┘    └─────────────────────────┘   │  │
 │  │              Managed by supervisord                   │  │
 │  └───────────────────────────────────────────────────────┘  │
@@ -46,6 +50,53 @@ make deploy-console
 │  └───────────────────────────────────────────────────────┘  │
 └─────────────────────────────────────────────────────────────┘
 ```
+
+## Logging (Self-Hosted + Tailscale)
+
+Loki + Grafana run as Kamal accessories, **accessible only via Tailscale** (not public internet).
+
+- **Loki** (:3100) - Log aggregation, stores logs locally
+- **Grafana** (:3001) - Dashboard for viewing logs
+
+Both Backend and Frontend send logs directly to Loki via HTTP.
+
+### Tailscale Setup (Required)
+
+1. **Install Tailscale on VPS**:
+   ```bash
+   ssh root@your-server-ip
+   curl -fsSL https://tailscale.com/install.sh | sh
+   tailscale up
+   ```
+
+2. **Get Tailscale credentials**:
+   ```bash
+   # Get Tailscale IP
+   tailscale ip -4
+   # Output: 100.x.x.x
+
+   # Get MagicDNS hostname
+   tailscale status --self --json | jq -r '.Self.DNSName' | sed 's/\.$//'
+   # Output: your-vps.your-tailnet.ts.net
+   ```
+
+3. **Add to secrets**:
+   ```bash
+   # deploy/.kamal/secrets
+   TAILSCALE_IP=100.x.x.x
+   TAILSCALE_HOSTNAME=your-vps.your-tailnet.ts.net
+   ```
+
+### Access Grafana
+
+After deployment (from any device in your Tailnet):
+```
+https://your-vps.your-tailnet.ts.net:3001
+User: admin
+Password: (from GF_SECURITY_ADMIN_PASSWORD secret)
+```
+
+**Note**: Grafana is NOT accessible from the public internet - only from devices connected to your Tailscale network.
 
 ## Setup (Initial Deployment)
 

@@ -156,13 +156,91 @@ flowchart LR
 
 ## Monitoring & Logging
 
+### Architektur
+
 ```mermaid
 flowchart TB
-    subgraph Server
-        App[next-go-pg]
-        Logs[/var/log/]
+    subgraph Internet["Public Internet"]
+        U[User]
     end
 
+    subgraph VPN["Private VPN Network"]
+        Admin[Admin]
+    end
+
+    subgraph Server["VPS Server"]
+        subgraph Public["Public"]
+            Proxy[kamal-proxy :443]
+            App[next-go-pg]
+        end
+
+        subgraph Private["VPN Only"]
+            Loki[Loki :3100]
+            Grafana[Grafana :3001]
+        end
+
+        App -->|HTTP Push| Loki
+        Loki -->|Query| Grafana
+    end
+
+    U -->|HTTPS| Proxy
+    Proxy --> App
+    Admin -->|VPN| Grafana
+```
+
+**Sicherheitskonzept:**
+
+- App öffentlich erreichbar (Internet)
+- Loki + Grafana nur über VPN (z.B. Tailscale)
+- Backend/Frontend senden Logs direkt an Loki
+
+### Log Flow
+
+```mermaid
+flowchart LR
+    subgraph App["next-go-pg Container"]
+        B[Backend - zerolog]
+        F[Frontend - Pino]
+    end
+
+    subgraph Logging["Logging Stack"]
+        L[Loki :3100]
+        G[Grafana :3001]
+    end
+
+    B -->|HTTP POST| L
+    F -->|HTTP POST| L
+    L -->|LogQL| G
+```
+
+### Node Sharing (Externe User)
+
+Externe User können Zugriff auf einzelne Server bekommen, ohne ins interne Netzwerk zu kommen.
+
+```mermaid
+flowchart TB
+    subgraph Internal["Internes Netzwerk"]
+        Dev1[Dev Gerät 1]
+        Dev2[Dev Gerät 2]
+        VPS[VPS Server]
+    end
+
+    subgraph External["Externer User"]
+        ExtDevice[Externes Gerät]
+    end
+
+    VPS -.->|"SHARED"| ExtDevice
+```
+
+| Zugriff | Intern | Extern (Shared) |
+|---------|--------|-----------------|
+| VPS Server | ✅ | ✅ |
+| Andere Geräte | ✅ | ❌ |
+
+### Uptime Monitoring
+
+```mermaid
+flowchart TB
     subgraph Monitoring
         UK[Uptime Kuma]
         BT[Better Stack]
@@ -173,9 +251,12 @@ flowchart TB
         S[Slack]
     end
 
-    App -->|stdout| Logs
-    App -->|/health| UK
-    App -->|/health| BT
+    subgraph Server
+        App[next-go-pg /health]
+    end
+
+    UK -->|Check| App
+    BT -->|Check| App
     UK -->|Alert| E
     UK -->|Alert| S
     BT -->|Alert| E

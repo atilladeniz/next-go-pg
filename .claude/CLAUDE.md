@@ -13,6 +13,7 @@
 ├── goca.md             # Goca CLI
 ├── orval.md            # Orval API Client Generator
 ├── kamal-deploy.md     # Kamal Deployment (Docker)
+├── logging.md          # Logging (zerolog + Pino)
 └── ...                 # More Tech Stack Docs
 ```
 
@@ -36,6 +37,7 @@ Full-Stack Monorepo with Next.js 16 Frontend and Go Backend, PostgreSQL database
 - **Auth Client**: Better Auth React Client
 - **API Client**: Orval-generated hooks from OpenAPI Spec
 - **Linting**: Biome + Steiger (FSD Linting)
+- **Logging**: Pino (structured JSON)
 - **Package Manager**: Bun
 
 ### Backend (`/backend`)
@@ -47,12 +49,14 @@ Full-Stack Monorepo with Next.js 16 Frontend and Go Backend, PostgreSQL database
 - **ORM**: GORM
 - **Auth**: Better Auth Session Validation
 - **API Docs**: Swagger/swag
+- **Logging**: zerolog (structured JSON)
 - **Module**: `github.com/atilladeniz/next-go-pg/backend`
 
 ### Infrastructure
 
 - **Database**: PostgreSQL 16 (Docker)
 - **Dev Environment**: Docker Compose for DB
+- **Log Aggregation**: Grafana + Loki + Promtail (self-hosted)
 
 ---
 
@@ -233,6 +237,7 @@ frontend/src/
     ├── lib/
     │   ├── auth-client/        # Client-safe Auth
     │   ├── auth-server/        # Server-only Auth
+    │   ├── logger/             # Pino Logger
     │   └── ...
     └── config/                 # Providers, Theme
 ```
@@ -422,6 +427,12 @@ export function useSSE() {
 - `backend/internal/sse/broker.go` - SSE Broker
 - `frontend/src/features/stats/model/use-sse.ts` - SSE Client Hook
 
+### Logging
+
+- `backend/pkg/logger/logger.go` - zerolog Logger with helpers
+- `backend/internal/middleware/logging.go` - HTTP request logging + Request-ID
+- `frontend/src/shared/lib/logger/index.ts` - Pino Logger
+
 ### UI Components (FSD Paths)
 
 - `frontend/src/shared/ui/` - shadcn/ui components
@@ -457,7 +468,90 @@ make setup-hooks      # Setup Git Hooks
 make build            # Build Frontend + Backend
 make build-frontend   # Next.js Production Build
 make build-backend    # Go Binary
+
+# Logging Stack (Grafana + Loki)
+make logs-up          # Start logging stack
+make logs-down        # Stop logging stack
+make logs-open        # Open Grafana (localhost:3001)
+make logs-query q='...'  # Query logs via CLI
 ```
+
+---
+
+## Logging
+
+Structured JSON logging is configured for both frontend and backend. See `.docs/logging.md` for full documentation.
+
+### Backend (zerolog)
+
+```go
+import "github.com/atilladeniz/next-go-pg/backend/pkg/logger"
+
+// Simple logging
+logger.Info().Msg("Server started")
+logger.Error().Err(err).Msg("Database failed")
+
+// Structured logging
+logger.Info().
+    Str("user_id", "123").
+    Str("action", "login").
+    Msg("User logged in")
+
+// With request context (includes request_id)
+logger.WithContext(ctx).Info().Msg("Request processed")
+
+// Business events (audit trails)
+logger.BusinessEvent(ctx, "user.created", "user", userID, nil)
+```
+
+### Frontend (Pino)
+
+```typescript
+import { log, createLogger } from "@shared/lib/logger"
+
+// Simple logging
+log.info("Page loaded")
+log.error("API failed", { endpoint: "/api/users" })
+
+// Component-specific logger
+const authLogger = createLogger("auth")
+authLogger.info("Login submitted")
+```
+
+### Configuration
+
+```bash
+# Backend
+LOG_LEVEL=info          # debug, info, warn, error
+ENVIRONMENT=production  # development = pretty output
+
+# Frontend
+LOG_LEVEL=info
+NODE_ENV=production
+```
+
+### Request ID Tracing
+
+Every HTTP request gets `X-Request-ID` header for distributed tracing.
+
+### Log Aggregation (Grafana + Loki)
+
+Self-hosted log aggregation stack included:
+
+```bash
+make logs-up      # Start Grafana + Loki + Promtail
+make logs-open    # Open Grafana at localhost:3001
+```
+
+Query logs in Grafana with LogQL:
+```logql
+{service="next-go-pg-api"}                    # All backend logs
+{level="error"}                               # Errors only
+{category="auth"}                             # Auth events
+{service="next-go-pg-api"} |= "user_id"       # Filter by content
+```
+
+See `.docs/logging.md` for full documentation.
 
 ---
 

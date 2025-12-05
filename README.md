@@ -16,7 +16,8 @@ Full-Stack Monorepo with Next.js Frontend and Go Backend.
 ├── orval.md            # Orval API Generator
 ├── shadcn.md           # shadcn/ui
 ├── tailwind.md         # Tailwind CSS 4
-└── kamal-deploy.md     # Kamal Deployment
+├── kamal-deploy.md     # Kamal Deployment
+└── logging.md          # Logging (zerolog + Pino)
 ```
 
 > **Always check `.docs/` first** before searching the internet!
@@ -32,6 +33,8 @@ Full-Stack Monorepo with Next.js Frontend and Go Backend.
 | Database | PostgreSQL 16 |
 | Auth | Better Auth |
 | API | Swagger/swag → Orval |
+| Logging | zerolog (Go) + Pino (Next.js) |
+| Log Aggregation | Grafana + Loki + Promtail |
 | Linting | Biome + Steiger (FSD) |
 
 ## Prerequisites
@@ -89,7 +92,8 @@ next-go-pg/
 │   │   ├── usecase/         # Business Logic (goca make usecase)
 │   │   ├── repository/      # Data Access (goca make repository)
 │   │   ├── handler/         # HTTP Handler (goca make handler)
-│   │   └── middleware/      # Auth, CORS
+│   │   └── middleware/      # Auth, CORS, Logging
+│   ├── pkg/logger/          # zerolog Logger
 │   └── docs/                # Swagger (generated)
 ├── frontend/                # Next.js Frontend (FSD Architecture)
 │   ├── src/
@@ -97,9 +101,13 @@ next-go-pg/
 │   │   ├── widgets/         # Composite UI (Header)
 │   │   ├── features/        # User Interactions (Auth, Stats)
 │   │   ├── entities/        # Business Objects (User)
-│   │   └── shared/          # Reusable (UI, API, Lib)
+│   │   └── shared/          # Reusable (UI, API, Lib, Logger)
 │   └── orval.config.ts      # API Generator Config
 ├── docker-compose.dev.yml   # Dev Database
+├── docker-compose.logging.yml # Logging Stack (Grafana + Loki)
+├── deploy/
+│   ├── loki/                # Loki & Promtail Config
+│   └── grafana/             # Grafana Provisioning
 ├── Makefile                 # Build Commands
 └── README.md
 ```
@@ -189,6 +197,15 @@ make search-docs q="query"          # Search docs with semantic search
 make search-docs q="query" n=10     # Search with custom result count
 make fetch-docs url=<url>           # Fetch LLM-friendly docs
 make fetch-docs url=<url> name=<n>  # With custom filename
+```
+
+### Logging Stack
+
+```bash
+make logs-up      # Start Grafana + Loki + Promtail
+make logs-down    # Stop logging stack
+make logs-open    # Open Grafana (localhost:3001)
+make logs-query q='{level="error"}'  # Query logs via CLI
 ```
 
 ## API Workflow

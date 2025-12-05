@@ -23,3 +23,5 @@ env:
     GO_ENV: staging
     NODE_ENV: staging
     LOG_LEVEL: debug
+    # Loki URL - references the loki accessory on same host
+    LOKI_URL: http://next-go-pg-loki:3100/loki/api/v1/push

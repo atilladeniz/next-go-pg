@@ -13,7 +13,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -30,6 +29,7 @@ import (
 	"github.com/gorilla/mux"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+	gormlogger "gorm.io/gorm/logger"
 )
 
 var (
@@ -54,41 +54,58 @@ func main() {
 	// Load configuration
 	cfg := config.Load()
 
-	// Initialize logger
-	logger.Init()
+	// Initialize structured logger with optional Loki integration
+	logger.Init(logger.Config{
+		Level:        cfg.LogLevel,
+		Environment:  cfg.Environment,
+		ServiceName:  "next-go-pg-api",
+		Version:      Version,
+		AnonymizeIPs: cfg.Logging.AnonymizeIPs,
+		WithCaller:   cfg.Logging.WithCaller,
+		LokiURL:      os.Getenv("LOKI_URL"), // e.g., http://localhost:3100/loki/api/v1/push
+	})
+	defer logger.Close()
 
-	log.Printf("Starting application v%s (built: %s)", Version, BuildTime)
-	log.Printf("Environment: %s", cfg.Environment)
+	logger.Info().
+		Str("version", Version).
+		Str("build_time", BuildTime).
+		Str("environment", cfg.Environment).
+		Msg("Starting application")
 
 	// Connect to database with retry
 	var err error
 	db, err = connectToDatabase(cfg)
 	if err != nil {
-		log.Printf("Warning: Database connection failed: %v", err)
-		log.Printf("Server will start in degraded mode. Check your database configuration.")
-		log.Printf("Tip: Configure database environment variables in .env file")
+		logger.Warn().
+			Err(err).
+			Msg("Database connection failed - server will start in degraded mode")
 		db = nil // Ensure db is nil for health checks
 	} else {
-		log.Printf("Database connected successfully")
+		logger.Info().Msg("Database connected successfully")
 
 		// Run auto-migrations if database is connected
 		if err := runAutoMigrations(db); err != nil {
-			log.Printf("Warning: Auto-migration failed: %v", err)
-			log.Printf("Tip: You may need to run migrations manually")
+			logger.Warn().
+				Err(err).
+				Msg("Auto-migration failed - you may need to run migrations manually")
 		} else {
-			log.Printf("Database schema is up to date")
+			logger.Info().Msg("Database schema is up to date")
 		}
 	}
 
 	// Setup SSE broker
 	sseBroker = sse.NewBroker()
-	log.Println("SSE broker initialized")
+	logger.Info().Msg("SSE broker initialized")
 
 	// Setup router
 	router := mux.NewRouter()
 
-	// Setup CORS middleware
+	// Setup middlewares
+	loggingMiddleware := middleware.NewLoggingMiddleware()
 	corsMiddleware := middleware.NewCORSMiddleware(cfg.FrontendURL)
+
+	// Apply middlewares (order matters: logging first to capture all requests)
+	router.Use(loggingMiddleware.Handler)
 	router.Use(corsMiddleware.Handler)
 
 	// Health check endpoint with comprehensive checks
@@ -143,9 +160,12 @@ func main() {
 
 	// Start server in goroutine
 	go func() {
-		log.Printf("Server starting on port %s", cfg.Port)
+		logger.Info().
+			Str("port", cfg.Port).
+			Str("frontend_url", cfg.FrontendURL).
+			Msg("Server starting")
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("Server startup failed: %v", err)
+			logger.Fatal().Err(err).Msg("Server startup failed")
 		}
 	}()
 
@@ -154,42 +174,52 @@ func main() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
-	log.Println("Shutting down server...")
+	logger.Info().Msg("Shutting down server...")
 
 	// Graceful shutdown with timeout
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
 	if err := server.Shutdown(ctx); err != nil {
-		log.Printf("Server forced to shutdown: %v", err)
+		logger.Error().Err(err).Msg("Server forced to shutdown")
 	}
 
-	log.Println("Server exited")
+	logger.Info().Msg("Server exited")
 }
 
 func connectToDatabase(cfg *config.Config) (*gorm.DB, error) {
 	dsn := cfg.GetDatabaseURL()
 
-	log.Printf("Connecting to database at %s:%s/%s", cfg.Database.Host, cfg.Database.Port, cfg.Database.Name)
+	logger.Info().
+		Str("host", cfg.Database.Host).
+		Str("port", cfg.Database.Port).
+		Str("database", cfg.Database.Name).
+		Msg("Connecting to database")
 
 	// Check if this is development mode without database
 	if cfg.Environment == "development" && cfg.Database.Password == "" {
-		log.Println("Warning: Development mode detected: No database password set")
-		log.Println("To connect to PostgreSQL, set environment variables:")
-		log.Println("   DB_HOST=localhost")
-		log.Println("   DB_PORT=5432")
-		log.Println("   DB_USER=postgres")
-		log.Println("   DB_PASSWORD=your_password")
-		log.Println("   DB_NAME=your_database")
-		log.Println("Server will continue without database connection...")
+		logger.Warn().
+			Msg("Development mode: No database password set - server will continue without database")
 		return nil, fmt.Errorf("development mode: database not configured")
+	}
+
+	// Configure GORM logger to suppress "record not found" messages
+	gormConfig := &gorm.Config{
+		Logger: gormlogger.Default.LogMode(gormlogger.Silent),
+	}
+	if cfg.Environment == "development" {
+		// In development, only log errors (not ErrRecordNotFound)
+		gormConfig.Logger = gormlogger.Default.LogMode(gormlogger.Error)
 	}
 
 	// Retry connection up to 5 times
 	for i := 0; i < 5; i++ {
-		db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+		db, err := gorm.Open(postgres.Open(dsn), gormConfig)
 		if err != nil {
-			log.Printf("Attempt %d: Failed to open database connection: %v", i+1, err)
+			logger.Warn().
+				Int("attempt", i+1).
+				Err(err).
+				Msg("Failed to open database connection")
 			time.Sleep(time.Duration(i+1) * time.Second)
 			continue
 		}
@@ -197,7 +227,10 @@ func connectToDatabase(cfg *config.Config) (*gorm.DB, error) {
 		// Get underlying sql.DB for connection pool configuration
 		sqlDB, err := db.DB()
 		if err != nil {
-			log.Printf("Attempt %d: Failed to get underlying SQL DB: %v", i+1, err)
+			logger.Warn().
+				Int("attempt", i+1).
+				Err(err).
+				Msg("Failed to get underlying SQL DB")
 			time.Sleep(time.Duration(i+1) * time.Second)
 			continue
 		}
@@ -216,7 +249,10 @@ func connectToDatabase(cfg *config.Config) (*gorm.DB, error) {
 			return db, nil
 		}
 
-		log.Printf("Attempt %d: Database ping failed: %v", i+1, err)
+		logger.Warn().
+			Int("attempt", i+1).
+			Err(err).
+			Msg("Database ping failed")
 		sqlDBClose, _ := db.DB()
 		if sqlDBClose != nil {
 			sqlDBClose.Close()
@@ -239,8 +275,7 @@ func healthCheckHandler(w http.ResponseWriter, r *http.Request) {
 	if err := checkDatabase(); err != nil {
 		status.Status = "degraded"
 		status.Services["database"] = fmt.Sprintf("error: %v", err)
-		// Don't fail the whole health check for database issues in development
-		log.Printf("Database health check failed: %v", err)
+		logger.Debug().Err(err).Msg("Database health check failed")
 	} else {
 		status.Services["database"] = "healthy"
 	}
@@ -288,8 +323,7 @@ func runAutoMigrations(database *gorm.DB) error {
 		return fmt.Errorf("database connection is nil")
 	}
 
-	// Auto-migrate domain entities using GORM
-	log.Println("Running GORM auto-migrations...")
+	logger.Info().Msg("Running GORM auto-migrations")
 
 	// Get all entities from the domain registry
 	// New entities only need to be added to domain.AllEntities()
@@ -312,6 +346,8 @@ func runAutoMigrations(database *gorm.DB) error {
 		return fmt.Errorf("database ping failed: %w", err)
 	}
 
-	log.Println("GORM auto-migrations completed successfully")
+	logger.Info().
+		Int("entity_count", len(entities)).
+		Msg("GORM auto-migrations completed")
 	return nil
 }

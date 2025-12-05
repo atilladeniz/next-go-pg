@@ -1,0 +1,112 @@
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://host.docker.internal:3100/loki/api/v1/push
+
+scrape_configs:
+  # Docker container logs (nur DB - Loki/Grafana/Promtail ausgeschlossen)
+  - job_name: docker
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: docker
+          __path__: /var/lib/docker/containers/*/*.log
+
+    pipeline_stages:
+      # Parse Docker JSON log format
+      - json:
+          expressions:
+            output: log
+            stream: stream
+            timestamp: time
+
+      # Drop Loki, Grafana, Promtail logs to prevent feedback loop
+      - drop:
+          expression: ".*(loki|grafana|promtail|metrics\\.go|spanlogger|querier|frontend|index_set).*"
+          drop_counter_reason: "internal_logs"
+
+      # Parse our application JSON logs
+      - json:
+          expressions:
+            level: level
+            service: service
+            version: version
+            category: category
+            request_id: request_id
+            user_id: user_id
+            user_name: user_name
+            method: method
+            path: path
+            status: status
+            latency: latency
+            message: message
+          source: output
+
+      # Add labels for filtering
+      - labels:
+          level:
+          service:
+          category:
+
+      # Set timestamp
+      - timestamp:
+          source: timestamp
+          format: RFC3339Nano
+
+      # Final output
+      - output:
+          source: output
+
+  # Backend application logs (if running outside Docker)
+  - job_name: backend
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: backend
+          service: next-go-pg-api
+          __path__: /var/log/next-go-pg/*.log
+
+    pipeline_stages:
+      - json:
+          expressions:
+            level: level
+            service: service
+            category: category
+            request_id: request_id
+            user_id: user_id
+            message: message
+
+      - labels:
+          level:
+          service:
+          category:
+
+  # Frontend application logs
+  - job_name: frontend
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: frontend
+          service: next-go-pg-frontend
+          __path__: /var/log/next-go-pg/frontend/*.log
+
+    pipeline_stages:
+      - json:
+          expressions:
+            level: level
+            category: category
+            component: component
+            message: msg
+
+      - labels:
+          level:
+          category:
+          component:
