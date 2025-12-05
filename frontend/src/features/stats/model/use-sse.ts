@@ -25,12 +25,10 @@ export function useSSE() {
 		eventSourceRef.current = eventSource
 
 		eventSource.onopen = () => {
-			console.log("[SSE] Connected")
 			setIsConnected(true)
 		}
 
 		eventSource.onerror = () => {
-			console.log("[SSE] Connection error, reconnecting in 5s...")
 			setIsConnected(false)
 			eventSource.close()
 
@@ -40,14 +38,8 @@ export function useSSE() {
 			}, 5000)
 		}
 
-		// Handle connection event
-		eventSource.addEventListener("connected", () => {
-			console.log("[SSE] Server confirmed connection")
-		})
-
 		// Handle stats-updated event
 		eventSource.addEventListener("stats-updated", () => {
-			console.log("[SSE] Stats updated, invalidating cache...")
 			queryClient.invalidateQueries({ queryKey: getGetStatsQueryKey() })
 		})
 	}, [queryClient])
