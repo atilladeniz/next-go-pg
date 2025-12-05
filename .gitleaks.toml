@@ -10,7 +10,7 @@ useDefault = true
 # Custom rules for this project
 [[rules]]
 id = "absolute-path-username"
-description = "Absolute path containing username (e.g., /Users/username/)"
+description = "Absolute path containing username"
 regex = '''/Users/[a-zA-Z0-9_-]+/|/home/[a-zA-Z0-9_-]+/|C:\\Users\\[a-zA-Z0-9_-]+\\'''
 tags = ["path", "privacy"]
 
@@ -22,27 +22,26 @@ tags = ["secret", "auth"]
 
 [[rules]]
 id = "database-url-with-password"
-description = "Database URL with embedded password (non-localhost)"
+description = "Database URL with real credentials (not localhost dev)"
 regex = '''postgres(ql)?://[^:]+:[^@]+@[a-zA-Z][^/]+/'''
 tags = ["database", "credentials"]
+# Allow localhost dev URLs
+[rules.allowlist]
+regexes = [
+    '''postgres(ql)?://[^:]+:[^@]+@localhost''',
+    '''postgres(ql)?://postgres:postgres@'''
+]
 
-# Allowlist - files/patterns to ignore
+# Global Allowlist - only truly generated/vendor files
 [allowlist]
-description = "Global allowlist"
+description = "Generated and vendor files"
 paths = [
-    '''\.gitleaks\.toml$''',
     '''go\.sum$''',
     '''bun\.lockb$''',
     '''package-lock\.json$''',
-    '''\.docs/.*\.md$''',
     '''node_modules/''',
     '''frontend/src/api/endpoints/''',
     '''frontend/src/api/models/''',
     '''backend/docs/swagger\.json$''',
-    '''backend/docs/swagger\.yaml$''',
-    '''\.env\.example$''',
-    '''\.env\.sample$''',
-    '''README\.md$''',
-    '''frontend/README\.md$''',
-    '''backend/README\.md$'''
+    '''backend/docs/swagger\.yaml$'''
 ]
