@@ -1,4 +1,4 @@
-.PHONY: help dev dev-frontend dev-backend build build-frontend build-backend test clean install install-tools api lint docker-build docker-up docker-down goca-feature deploy deploy-staging deploy-production deploy-rollback deploy-logs deploy-console setup-hooks security-scan security-scan-history fetch-docs
+.PHONY: help dev dev-frontend dev-backend build build-frontend build-backend test clean install install-tools api lint docker-build docker-up docker-down goca-feature deploy deploy-staging deploy-production deploy-rollback deploy-logs deploy-console setup-hooks security-scan security-scan-history fetch-docs search-docs
 
 .DEFAULT_GOAL := help
 
@@ -62,7 +62,7 @@ help: ## Show available commands
 	@echo "$(CYAN)━━━ Documentation ━━━$(RESET)"
 	@echo ""
 	@echo "  $(GREEN)fetch-docs$(RESET)        Fetch LLM-friendly docs $(DIM)(url=<url> [name=<name>])$(RESET)"
-	@echo "                      $(DIM)Requires: bun i -g sitefetch$(RESET)"
+	@echo "  $(GREEN)search-docs$(RESET)       Search docs with reranking $(DIM)(q=\"query\" [n=5])$(RESET)"
 	@echo ""
 	@echo "$(CYAN)━━━ Docker ━━━$(RESET)"
 	@echo ""
@@ -266,4 +266,19 @@ ifndef url
 	@exit 1
 else
 	@./scripts/fetch-docs.sh "$(url)" "$(name)"
+endif
+
+search-docs:
+ifndef q
+	@echo "$(RED)Error: q parameter required$(RESET)"
+	@echo ""
+	@echo "Usage: make search-docs q=\"your query\" [n=5]"
+	@echo ""
+	@echo "Examples:"
+	@echo "  make search-docs q=\"how to use prefetchQuery\""
+	@echo "  make search-docs q=\"mutations\" n=3"
+	@echo "  make search-docs q=\"authentication\" n=10"
+	@exit 1
+else
+	@bun scripts/search-docs.js "$(q)" --top $(or $(n),5) --llm
 endif
