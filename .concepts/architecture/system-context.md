@@ -2,7 +2,7 @@
 
 ## Business Context
 
-GocaTest ist eine Full-Stack Webanwendung mit:
+Next-Go-PG ist eine Full-Stack Webanwendung mit:
 - **Frontend**: Next.js 16 SPA für User Interface
 - **Backend**: Go API für Business Logic
 - **Database**: PostgreSQL für Persistenz
@@ -12,20 +12,20 @@ GocaTest ist eine Full-Stack Webanwendung mit:
 
 ```mermaid
 C4Context
-    title GocaTest - System Context Diagram
+    title Next-Go-PG - System Context Diagram
 
     Person(user, "User", "Registrierter Benutzer der Anwendung")
     Person(admin, "Admin", "Administrator mit erweiterten Rechten")
 
-    System(gocatest, "GocaTest", "Full-Stack Webanwendung mit Next.js Frontend und Go Backend")
+    System(nextgopg, "Next-Go-PG", "Full-Stack Webanwendung mit Next.js Frontend und Go Backend")
 
     System_Ext(email, "Email Service", "SMTP/SendGrid für Transaktions-Emails")
     System_Ext(github, "GitHub", "OAuth Provider & Container Registry")
 
-    Rel(user, gocatest, "Nutzt", "HTTPS")
-    Rel(admin, gocatest, "Verwaltet", "HTTPS")
-    Rel(gocatest, email, "Sendet Emails", "SMTP/API")
-    Rel(gocatest, github, "Auth & Registry", "OAuth/HTTPS")
+    Rel(user, nextgopg, "Nutzt", "HTTPS")
+    Rel(admin, nextgopg, "Verwaltet", "HTTPS")
+    Rel(nextgopg, email, "Sendet Emails", "SMTP/API")
+    Rel(nextgopg, github, "Auth & Registry", "OAuth/HTTPS")
 
     UpdateLayoutConfig($c4ShapeInRow="3", $c4BoundaryInRow="1")
 ```
@@ -54,7 +54,7 @@ flowchart LR
         G[GitHub]
     end
 
-    subgraph GocaTest
+    subgraph Next-Go-PG
         F[Frontend :3000]
         B[Backend :8080]
         D[(PostgreSQL)]

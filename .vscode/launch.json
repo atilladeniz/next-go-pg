@@ -23,7 +23,7 @@
 			"program": "${workspaceFolder}/backend/cmd/server",
 			"cwd": "${workspaceFolder}/backend",
 			"env": {
-				"DATABASE_URL": "postgres://postgres:postgres@localhost:5432/gocatest",
+				"DATABASE_URL": "postgres://postgres:postgres@localhost:5432/nextgopg",
 				"PORT": "8080"
 			}
 		},

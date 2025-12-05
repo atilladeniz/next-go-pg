@@ -57,13 +57,13 @@ Better Auth uses these tables (auto-created via migration):
 ### Run Better Auth Migration
 
 ```bash
-cd frontend && DATABASE_URL="postgres://postgres:postgres@localhost:5432/gocatest" bunx @better-auth/cli migrate -y
+cd frontend && DATABASE_URL="postgres://postgres:postgres@localhost:5432/nextgopg" bunx @better-auth/cli migrate -y
 ```
 
 ### Generate Migration SQL (without applying)
 
 ```bash
-cd frontend && DATABASE_URL="postgres://postgres:postgres@localhost:5432/gocatest" bunx @better-auth/cli generate
+cd frontend && DATABASE_URL="postgres://postgres:postgres@localhost:5432/nextgopg" bunx @better-auth/cli generate
 ```
 
 ## Direct Database Access
@@ -71,25 +71,25 @@ cd frontend && DATABASE_URL="postgres://postgres:postgres@localhost:5432/gocates
 ### Connect to PostgreSQL
 
 ```bash
-docker exec gocatest-db-1 psql -U postgres -d gocatest
+docker exec nextgopg-db-1 psql -U postgres -d nextgopg
 ```
 
 ### List Tables
 
 ```bash
-docker exec gocatest-db-1 psql -U postgres -d gocatest -c "\dt"
+docker exec nextgopg-db-1 psql -U postgres -d nextgopg -c "\dt"
 ```
 
 ### Describe Table
 
 ```bash
-docker exec gocatest-db-1 psql -U postgres -d gocatest -c "\d user"
+docker exec nextgopg-db-1 psql -U postgres -d nextgopg -c "\d user"
 ```
 
 ### Run SQL Query
 
 ```bash
-docker exec gocatest-db-1 psql -U postgres -d gocatest -c "SELECT * FROM \"user\""
+docker exec nextgopg-db-1 psql -U postgres -d nextgopg -c "SELECT * FROM \"user\""
 ```
 
 ## Database Connection
@@ -97,7 +97,7 @@ docker exec gocatest-db-1 psql -U postgres -d gocatest -c "SELECT * FROM \"user\
 ### Connection String
 
 ```
-postgres://postgres:postgres@localhost:5432/gocatest
+postgres://postgres:postgres@localhost:5432/nextgopg
 ```
 
 ### Environment Variable
@@ -105,7 +105,7 @@ postgres://postgres:postgres@localhost:5432/gocatest
 Set in `frontend/.env.local`:
 
 ```
-DATABASE_URL=postgres://postgres:postgres@localhost:5432/gocatest
+DATABASE_URL=postgres://postgres:postgres@localhost:5432/nextgopg
 ```
 
 ## Troubleshooting
@@ -115,7 +115,7 @@ DATABASE_URL=postgres://postgres:postgres@localhost:5432/gocatest
 Run Better Auth migration:
 
 ```bash
-cd frontend && DATABASE_URL="postgres://postgres:postgres@localhost:5432/gocatest" bunx @better-auth/cli migrate -y
+cd frontend && DATABASE_URL="postgres://postgres:postgres@localhost:5432/nextgopg" bunx @better-auth/cli migrate -y
 ```
 
 ### Connection refused
@@ -130,5 +130,5 @@ make db-up
 
 ```bash
 make db-reset
-cd frontend && DATABASE_URL="postgres://postgres:postgres@localhost:5432/gocatest" bunx @better-auth/cli migrate -y
+cd frontend && DATABASE_URL="postgres://postgres:postgres@localhost:5432/nextgopg" bunx @better-auth/cli migrate -y
 ```

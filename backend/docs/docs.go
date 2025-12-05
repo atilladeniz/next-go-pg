@@ -280,7 +280,7 @@ var SwaggerInfo = &swag.Spec{
 	Host:             "localhost:8080",
 	BasePath:         "/api/v1",
 	Schemes:          []string{},
-	Title:            "GocaTest API",
+	Title:            "Next-Go-PG API",
 	Description:      "Go Clean Architecture API with Better Auth integration",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,

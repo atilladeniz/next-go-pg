@@ -6,10 +6,10 @@
 #   kamal deploy -d staging    # Deploy to staging
 #   kamal deploy -d production # Deploy to production
 
-service: gocatest
+service: next-go-pg
 
 # Docker Registry (GitHub Container Registry)
-image: ghcr.io/<your-github-username>/gocatest
+image: ghcr.io/<your-github-username>/next-go-pg
 
 # Registry Login
 registry:

@@ -2,7 +2,7 @@
     "swagger": "2.0",
     "info": {
         "description": "Go Clean Architecture API with Better Auth integration",
-        "title": "GocaTest API",
+        "title": "Next-Go-PG API",
         "contact": {},
         "version": "1.0"
     },

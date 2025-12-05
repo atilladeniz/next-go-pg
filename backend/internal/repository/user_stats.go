@@ -1,7 +1,7 @@
 package repository
 
 import (
-	"github.com/atilladeniz/gocatest/backend/internal/domain"
+	"github.com/atilladeniz/next-go-pg/backend/internal/domain"
 	"gorm.io/gorm"
 )
 

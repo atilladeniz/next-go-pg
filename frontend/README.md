@@ -155,7 +155,7 @@ import { ModeToggle } from "@/components/mode-toggle"
 Create `.env.local`:
 
 ```
-DATABASE_URL=postgres://postgres:postgres@localhost:5432/gocatest
+DATABASE_URL=postgres://postgres:postgres@localhost:5432/nextgopg
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 NEXT_PUBLIC_API_URL=http://localhost:8080
 BETTER_AUTH_SECRET=<at-least-32-characters>

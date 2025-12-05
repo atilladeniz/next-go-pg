@@ -1,9 +1,9 @@
-# Multi-stage Dockerfile for GocaTest
+# Multi-stage Dockerfile for Next-Go-PG
 # Builds both Frontend (Next.js) and Backend (Go) in a single container
 # Supervised by a lightweight process manager
 #
-# Build: docker build -f deploy/Dockerfile -t gocatest .
-# Run:   docker run -p 80:80 gocatest
+# Build: docker build -f deploy/Dockerfile -t next-go-pg .
+# Run:   docker run -p 80:80 next-go-pg
 
 # ============================================
 # Stage 1: Build Frontend (Next.js)

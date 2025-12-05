@@ -1,6 +1,6 @@
 package main
 
-// @title GocaTest API
+// @title Next-Go-PG API
 // @version 1.0
 // @description Go Clean Architecture API with Better Auth integration
 // @host localhost:8080
@@ -20,13 +20,13 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/atilladeniz/gocatest/backend/internal/domain"
-	"github.com/atilladeniz/gocatest/backend/internal/handler"
-	"github.com/atilladeniz/gocatest/backend/internal/middleware"
-	"github.com/atilladeniz/gocatest/backend/internal/repository"
-	"github.com/atilladeniz/gocatest/backend/internal/sse"
-	"github.com/atilladeniz/gocatest/backend/pkg/config"
-	"github.com/atilladeniz/gocatest/backend/pkg/logger"
+	"github.com/atilladeniz/next-go-pg/backend/internal/domain"
+	"github.com/atilladeniz/next-go-pg/backend/internal/handler"
+	"github.com/atilladeniz/next-go-pg/backend/internal/middleware"
+	"github.com/atilladeniz/next-go-pg/backend/internal/repository"
+	"github.com/atilladeniz/next-go-pg/backend/internal/sse"
+	"github.com/atilladeniz/next-go-pg/backend/pkg/config"
+	"github.com/atilladeniz/next-go-pg/backend/pkg/logger"
 	"github.com/gorilla/mux"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"

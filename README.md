@@ -1,4 +1,4 @@
-# GocaTest
+# Next-Go-PG
 
 Full-Stack Monorepo with Next.js Frontend and Go Backend.
 
@@ -57,7 +57,7 @@ bun install -g sitefetch
 ```bash
 # Clone repository
 git clone <repo-url>
-cd gocatest
+cd next-go-pg
 
 # Install dependencies
 make install
@@ -66,7 +66,7 @@ make install
 make db-up
 
 # Create Better Auth tables
-cd frontend && DATABASE_URL="postgres://postgres:postgres@localhost:5432/gocatest" bunx @better-auth/cli migrate -y
+cd frontend && DATABASE_URL="postgres://postgres:postgres@localhost:5432/nextgopg" bunx @better-auth/cli migrate -y
 
 # Start development
 make dev
@@ -79,7 +79,7 @@ Open:
 ## Project Structure
 
 ```
-gocatest/
+next-go-pg/
 ├── backend/                 # Go Backend
 │   ├── api/
 │   │   └── openapi.yaml     # API Specification (Source of Truth)
@@ -234,7 +234,7 @@ await signOut()
 ### Frontend (`frontend/.env.local`)
 
 ```
-DATABASE_URL=postgres://postgres:postgres@localhost:5432/gocatest
+DATABASE_URL=postgres://postgres:postgres@localhost:5432/nextgopg
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 NEXT_PUBLIC_API_URL=http://localhost:8080
 BETTER_AUTH_SECRET=<at-least-32-characters>
@@ -243,7 +243,7 @@ BETTER_AUTH_SECRET=<at-least-32-characters>
 ### Backend
 
 ```
-DATABASE_URL=postgres://postgres:postgres@localhost:5432/gocatest
+DATABASE_URL=postgres://postgres:postgres@localhost:5432/nextgopg
 PORT=8080
 ```
 

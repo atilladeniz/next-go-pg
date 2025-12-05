@@ -10,7 +10,7 @@ description: Run database migrations (Better Auth + GORM AutoMigrate)
 Run Better Auth schema migration:
 
 ```bash
-cd frontend && DATABASE_URL="postgres://postgres:postgres@localhost:5432/gocatest" bunx @better-auth/cli migrate -y
+cd frontend && DATABASE_URL="postgres://postgres:postgres@localhost:5432/nextgopg" bunx @better-auth/cli migrate -y
 ```
 
 ## GORM AutoMigrate
@@ -41,5 +41,5 @@ GORM migrations run automatically on backend startup. To add a new entity:
 ## Check Tables
 
 ```bash
-docker exec gocatest-db-1 psql -U postgres -d gocatest -c "\dt"
+docker exec nextgopg-db-1 psql -U postgres -d nextgopg -c "\dt"
 ```

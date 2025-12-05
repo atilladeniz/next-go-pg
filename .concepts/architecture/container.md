@@ -8,11 +8,11 @@ Detaillierte Sicht auf die Container (deploybare Einheiten) des Systems.
 
 ```mermaid
 C4Container
-    title GocaTest - Container Diagram
+    title Next-Go-PG - Container Diagram
 
     Person(user, "User", "Benutzer der Anwendung")
 
-    System_Boundary(gocatest, "GocaTest System") {
+    System_Boundary(nextgopg, "Next-Go-PG System") {
         Container(proxy, "kamal-proxy", "Go", "Reverse Proxy, SSL Termination, Zero-Downtime Deploys")
         Container(frontend, "Frontend", "Next.js 16, TypeScript", "React SPA mit App Router, TanStack Query")
         Container(backend, "Backend", "Go, Gorilla Mux", "REST API, Clean Architecture, SSE")

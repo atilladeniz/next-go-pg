@@ -15,7 +15,7 @@ flowchart TB
     subgraph Server["Hetzner CX22 (~€5/mo)"]
         subgraph Docker
             P[kamal-proxy :80/:443]
-            C[gocatest Container]
+            C[next-go-pg Container]
             subgraph Container
                 F[Frontend :3000]
                 B[Backend :8080]
@@ -55,12 +55,12 @@ flowchart TB
 
         subgraph Web1["Web Server 1"]
             P1[kamal-proxy]
-            C1[gocatest]
+            C1[next-go-pg]
         end
 
         subgraph Web2["Web Server 2"]
             P2[kamal-proxy]
-            C2[gocatest]
+            C2[next-go-pg]
         end
 
         subgraph Database["Database Cluster"]
@@ -159,7 +159,7 @@ flowchart LR
 ```mermaid
 flowchart TB
     subgraph Server
-        App[gocatest]
+        App[next-go-pg]
         Logs[/var/log/]
     end
 

@@ -1,7 +1,7 @@
 # Gitleaks Configuration
 # https://github.com/gitleaks/gitleaks
 
-title = "GocaTest Security Rules"
+title = "Next-Go-PG Security Rules"
 
 [extend]
 # Use default gitleaks rules as base

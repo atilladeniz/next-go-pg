@@ -1,4 +1,4 @@
-module github.com/atilladeniz/gocatest/backend
+module github.com/atilladeniz/next-go-pg/backend
 
 go 1.23
 

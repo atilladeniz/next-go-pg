@@ -1,4 +1,4 @@
-# GocaTest - Projekt Kontext
+# Next-Go-PG - Projekt Kontext
 
 ## WICHTIG: Technical Docs (.docs)
 
@@ -44,7 +44,7 @@ Full-Stack Monorepo mit Next.js 16 Frontend und Go Backend, PostgreSQL Datenbank
 - **ORM**: GORM
 - **Auth**: Better Auth Session Validation
 - **API Docs**: Swagger/swag
-- **Modul**: `github.com/atilladeniz/gocatest/backend`
+- **Modul**: `github.com/atilladeniz/next-go-pg/backend`
 
 ### Infrastruktur
 - **Datenbank**: PostgreSQL 16 (Docker)
@@ -101,7 +101,7 @@ goca version
 
 ### Goca Konfiguration
 Die Konfiguration liegt in `backend/.goca.yaml`:
-- `module`: Go Modul-Pfad (github.com/atilladeniz/gocatest/backend)
+- `module`: Go Modul-Pfad (github.com/atilladeniz/next-go-pg/backend)
 - `architecture.layers`: Aktivierte Layer (domain, usecase, repository, handler)
 - `database.type`: postgres
 - `generation.swagger.enabled`: true
@@ -375,7 +375,7 @@ git commit --no-verify
 ## Projektstruktur
 
 ```
-gocatest/
+next-go-pg/
 ├── backend/
 │   ├── api/
 │   │   └── openapi.yaml      # API Specification
@@ -425,7 +425,7 @@ gocatest/
 
 ### Frontend (.env.local)
 ```
-DATABASE_URL=postgres://postgres:postgres@localhost:5432/gocatest
+DATABASE_URL=postgres://postgres:postgres@localhost:5432/nextgopg
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 NEXT_PUBLIC_API_URL=http://localhost:8080
 BETTER_AUTH_SECRET=<secret>
@@ -433,6 +433,6 @@ BETTER_AUTH_SECRET=<secret>
 
 ### Backend
 ```
-DATABASE_URL=postgres://postgres:postgres@localhost:5432/gocatest
+DATABASE_URL=postgres://postgres:postgres@localhost:5432/nextgopg
 PORT=8080
 ```

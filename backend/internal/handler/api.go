@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/atilladeniz/gocatest/backend/internal/middleware"
-	"github.com/atilladeniz/gocatest/backend/internal/repository"
-	"github.com/atilladeniz/gocatest/backend/internal/sse"
+	"github.com/atilladeniz/next-go-pg/backend/internal/middleware"
+	"github.com/atilladeniz/next-go-pg/backend/internal/repository"
+	"github.com/atilladeniz/next-go-pg/backend/internal/sse"
 )
 
 type APIHandler struct {

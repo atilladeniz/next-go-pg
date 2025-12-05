@@ -107,7 +107,7 @@ erDiagram
 C4Context
     title System Context Diagram
     Person(user, "User", "App User")
-    System(app, "GocaTest", "Main Application")
+    System(app, "Next-Go-PG", "Main Application")
     System_Ext(email, "Email Service", "SendGrid")
 
     Rel(user, app, "Uses")
