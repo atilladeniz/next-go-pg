@@ -9,7 +9,7 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "biome check .",
+    "lint": "biome check . && bunx steiger src",
     "lint:fix": "biome check --write .",
     "format": "biome format --write .",
     "typecheck": "bun run scripts/typecheck.ts",
