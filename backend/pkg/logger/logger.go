@@ -43,15 +43,41 @@ const (
 
 // Config holds logger configuration
 type Config struct {
-	Level       string // debug, info, warn, error
-	Environment string // development, production
-	ServiceName string
-	Version     string
-	WithCaller  bool // Include file:line in logs
+	Level        string // debug, info, warn, error
+	Environment  string // development, production
+	ServiceName  string
+	Version      string
+	WithCaller   bool // Include file:line in logs
+	AnonymizeIPs bool // GDPR: Anonymize IP addresses in logs
+}
+
+// Global config reference for runtime checks
+var globalConfig Config
+
+// Sensitive headers that should never be logged
+var sensitiveHeaders = map[string]bool{
+	"authorization":       true,
+	"cookie":              true,
+	"set-cookie":          true,
+	"x-api-key":           true,
+	"x-auth-token":        true,
+	"x-csrf-token":        true,
+	"proxy-authorization": true,
+}
+
+// Sensitive field patterns for redaction
+var sensitiveFieldPatterns = []string{
+	"password", "passwd", "pwd",
+	"secret", "token", "key",
+	"credential", "auth",
+	"credit_card", "creditcard", "card_number",
+	"cvv", "cvc", "ssn", "pin",
+	"private", "api_key", "apikey",
 }
 
 // Init initializes the global logger with the given configuration
 func Init(cfg Config) {
+	globalConfig = cfg
 	var output io.Writer = os.Stdout
 
 	// Pretty printing for development
@@ -458,22 +484,98 @@ func TimedWithThreshold(ctx context.Context, operation string, threshold time.Du
 }
 
 // ============================================================================
-// Helper functions
+// Helper functions - Privacy & Security
 // ============================================================================
 
-// maskEmail masks email for privacy in logs
+// maskEmail masks email for privacy in logs (GDPR compliant)
 func maskEmail(email string) string {
 	if len(email) < 5 {
-		return "***"
+		return "***@***"
 	}
 	atIdx := strings.Index(email, "@")
 	if atIdx <= 0 {
-		return "***"
+		return "***@***"
 	}
+
+	// Get domain
+	domain := email[atIdx:]
+	// Mask local part, show first char only
 	if atIdx <= 2 {
-		return email[:1] + "***" + email[atIdx:]
+		return email[:1] + "***" + domain
 	}
-	return email[:2] + "***" + email[atIdx:]
+	return email[:2] + "***" + domain
+}
+
+// AnonymizeIP anonymizes an IP address for GDPR compliance
+// IPv4: 192.168.1.100 -> 192.168.1.0
+// IPv6: 2001:db8::1 -> 2001:db8::0
+func AnonymizeIP(ip string) string {
+	if !globalConfig.AnonymizeIPs {
+		return ip
+	}
+
+	// IPv4
+	if strings.Contains(ip, ".") && !strings.Contains(ip, ":") {
+		parts := strings.Split(ip, ".")
+		if len(parts) == 4 {
+			return parts[0] + "." + parts[1] + "." + parts[2] + ".0"
+		}
+	}
+
+	// IPv6
+	if strings.Contains(ip, ":") {
+		// Simple approach: zero out last 80 bits (keep /48)
+		parts := strings.Split(ip, ":")
+		if len(parts) >= 3 {
+			return parts[0] + ":" + parts[1] + ":" + parts[2] + "::0"
+		}
+	}
+
+	return ip
+}
+
+// RedactSensitive checks if a field name is sensitive and returns redacted value
+func RedactSensitive(fieldName string, value string) string {
+	fieldLower := strings.ToLower(fieldName)
+	for _, pattern := range sensitiveFieldPatterns {
+		if strings.Contains(fieldLower, pattern) {
+			return "[REDACTED]"
+		}
+	}
+	return value
+}
+
+// IsSensitiveHeader checks if a header should not be logged
+func IsSensitiveHeader(headerName string) bool {
+	return sensitiveHeaders[strings.ToLower(headerName)]
+}
+
+// RedactMap redacts sensitive fields from a map
+func RedactMap(data map[string]any) map[string]any {
+	if data == nil {
+		return nil
+	}
+
+	result := make(map[string]any, len(data))
+	for k, v := range data {
+		fieldLower := strings.ToLower(k)
+		isSensitive := false
+		for _, pattern := range sensitiveFieldPatterns {
+			if strings.Contains(fieldLower, pattern) {
+				isSensitive = true
+				break
+			}
+		}
+
+		if isSensitive {
+			result[k] = "[REDACTED]"
+		} else if nestedMap, ok := v.(map[string]any); ok {
+			result[k] = RedactMap(nestedMap)
+		} else {
+			result[k] = v
+		}
+	}
+	return result
 }
 
 // truncate truncates a string to maxLen

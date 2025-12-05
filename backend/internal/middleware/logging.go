@@ -115,14 +115,14 @@ func (m *LoggingMiddleware) Handler(next http.Handler) http.Handler {
 		// Calculate latency
 		latency := time.Since(start)
 
-		// Log the request with full details
+		// Log the request with full details (IP anonymized if configured)
 		logger.HTTPRequest(ctx, logger.HTTPRequestLog{
 			Method:       r.Method,
 			Path:         r.URL.Path,
 			Query:        r.URL.RawQuery,
 			StatusCode:   wrapped.statusCode,
 			Latency:      latency,
-			ClientIP:     getClientIP(r),
+			ClientIP:     logger.AnonymizeIP(getClientIP(r)),
 			UserAgent:    r.UserAgent(),
 			Referer:      r.Referer(),
 			RequestSize:  r.ContentLength,
