@@ -60,11 +60,56 @@ logging:
     max-size: "10m"
     max-file: "3"
 
-# Accessories (Database, Redis, etc.)
-# Uncomment if you want Kamal to manage PostgreSQL
+# Accessories (Database, Logging, etc.)
+# For production DB: Use managed DB (Hetzner, DO, AWS RDS)
+accessories:
+  # Loki - Log Aggregation (self-hosted)
+  loki:
+    image: grafana/loki:2.9.0
+    roles:
+      - web
+    port: 3100
+    files:
+      - deploy/loki/loki-config.prod.yml:/etc/loki/local-config.yaml
+    directories:
+      - loki_data:/loki
+    cmd: -config.file=/etc/loki/local-config.yaml
+    options:
+      user: "0"
+      restart: unless-stopped
+      memory: 512m
+      cpus: 1
+
+  # Grafana - Log Visualization
+  grafana:
+    image: grafana/grafana:10.2.0
+    roles:
+      - web
+    port: 3001:3000
+    env:
+      clear:
+        GF_SECURITY_ADMIN_USER: admin
+        GF_USERS_ALLOW_SIGN_UP: "false"
+        GF_AUTH_ANONYMOUS_ENABLED: "false"
+        GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /etc/grafana/provisioning/dashboards/next-go-pg.json
+        GF_LOG_MODE: console
+        GF_LOG_LEVEL: warn
+      secret:
+        - GF_SECURITY_ADMIN_PASSWORD
+    files:
+      - deploy/grafana/provisioning/datasources/datasources.prod.yml:/etc/grafana/provisioning/datasources/datasources.yml
+      - deploy/grafana/provisioning/dashboards/dashboards.yml:/etc/grafana/provisioning/dashboards/dashboards.yml
+      - deploy/grafana/provisioning/dashboards/next-go-pg.json:/etc/grafana/provisioning/dashboards/next-go-pg.json
+    directories:
+      - grafana_data:/var/lib/grafana
+    options:
+      restart: unless-stopped
+      memory: 256m
+      cpus: 0.5
+
+# Optional: Uncomment to let Kamal manage PostgreSQL
 # For production: Use managed DB (Hetzner, DO, AWS RDS)
 #
-# accessories:
 #   db:
 #     image: postgres:16-alpine
 #     host: db.example.com

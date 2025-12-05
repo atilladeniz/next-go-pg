@@ -29,6 +29,9 @@ env:
     GO_ENV: production
     NODE_ENV: production
     LOG_LEVEL: info
+    # Loki URL - references the loki accessory on same host
+    # Kamal creates a Docker network, containers can reach each other by service name
+    LOKI_URL: http://next-go-pg-loki:3100/loki/api/v1/push
 
 # Production boot strategy (safer, slower)
 boot:

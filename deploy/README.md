@@ -35,8 +35,12 @@ make deploy-console
 │  ┌───────────────────▼───────────────────────────────────┐  │
 │  │              Docker Container (next-go-pg)            │  │
 │  │  ┌─────────────────┐    ┌─────────────────────────┐   │  │
-│  │  │   Backend :8080 │    │   Frontend :3000        │   │  │
-│  │  │   (Go + Mux)    │    │   (Next.js standalone)  │   │  │
+│  │  │   Backend :8080 │────▶   Loki :3100            │   │  │
+│  │  │   (Go + Mux)    │    │   (Log Aggregation)     │   │  │
+│  │  └─────────────────┘    └─────────────────────────┘   │  │
+│  │  ┌─────────────────┐    ┌─────────────────────────┐   │  │
+│  │  │   Frontend :3000│────▶   Grafana :3001         │   │  │
+│  │  │   (Next.js)     │    │   (Log Visualization)   │   │  │
 │  │  └─────────────────┘    └─────────────────────────┘   │  │
 │  │              Managed by supervisord                   │  │
 │  └───────────────────────────────────────────────────────┘  │
@@ -45,6 +49,24 @@ make deploy-console
 │  │            PostgreSQL (Managed DB recommended)        │  │
 │  └───────────────────────────────────────────────────────┘  │
 └─────────────────────────────────────────────────────────────┘
+```
+
+## Logging (Self-Hosted)
+
+Loki + Grafana run as Kamal accessories on the same server:
+
+- **Loki** (:3100) - Log aggregation, stores logs locally
+- **Grafana** (:3001) - Dashboard for viewing logs
+
+Both Backend and Frontend send logs directly to Loki via HTTP.
+
+### Access Grafana
+
+After deployment:
+```
+https://your-server:3001
+User: admin
+Password: (from GF_SECURITY_ADMIN_PASSWORD secret)
 ```
 
 ## Setup (Initial Deployment)

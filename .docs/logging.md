@@ -376,13 +376,75 @@ Promtail extracts these labels from JSON logs:
 
 Default: **31 days** (configurable in `loki-config.yml`)
 
-### Production Deployment
+### Production Deployment (Kamal)
 
-For production with Kamal:
+Loki and Grafana run as Kamal accessories on the same server. **No Promtail needed** - Backend and Frontend send logs directly to Loki via HTTP.
 
-1. Deploy Loki + Grafana on your server
-2. Update Promtail config to ship logs to Loki
-3. Configure retention and storage based on volume
+#### Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                        Your Server                          │
+│  ┌─────────────────────────────────────────────────────────┐│
+│  │ next-go-pg (main container)                             ││
+│  │  ├── Backend :8080 ──────────────▶ Loki :3100           ││
+│  │  └── Frontend :3000 ─────────────▶ (via LOKI_URL)       ││
+│  └─────────────────────────────────────────────────────────┘│
+│  ┌─────────────────────┐  ┌─────────────────────────────────┐│
+│  │ Loki (accessory)    │  │ Grafana (accessory)            ││
+│  │ :3100               │  │ :3001                          ││
+│  │ Persistent storage  │  │ Pre-configured dashboard       ││
+│  └─────────────────────┘  └─────────────────────────────────┘│
+└─────────────────────────────────────────────────────────────┘
+```
+
+#### Setup
+
+1. **Add Grafana password to secrets**:
+   ```bash
+   # deploy/.kamal/secrets
+   GF_SECURITY_ADMIN_PASSWORD=your-secure-password
+   ```
+
+2. **Deploy with accessories**:
+   ```bash
+   kamal setup -d production
+   # or
+   kamal accessory boot all -d production
+   ```
+
+3. **Access Grafana**:
+   - URL: `https://your-server:3001`
+   - User: `admin`
+   - Password: (from `GF_SECURITY_ADMIN_PASSWORD`)
+
+#### Configuration Files
+
+| File | Purpose |
+|------|---------|
+| `deploy/config/deploy.yml` | Loki + Grafana accessories definition |
+| `deploy/loki/loki-config.prod.yml` | Loki production config (30 days retention) |
+| `deploy/grafana/provisioning/datasources/datasources.prod.yml` | Grafana → Loki connection |
+
+#### Environment Variable
+
+The `LOKI_URL` is automatically set in production:
+```bash
+LOKI_URL=http://next-go-pg-loki:3100/loki/api/v1/push
+```
+
+Kamal's Docker network allows containers to reach each other by service name.
+
+#### Resource Usage
+
+| Service | Memory | CPU |
+|---------|--------|-----|
+| Loki | 512 MB | 1 core |
+| Grafana | 256 MB | 0.5 core |
+
+#### Log Retention
+
+Default: **30 days** (configurable in `deploy/loki/loki-config.prod.yml`)
 
 ---
 
