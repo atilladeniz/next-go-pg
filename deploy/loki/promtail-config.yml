@@ -9,7 +9,7 @@ clients:
   - url: http://host.docker.internal:3100/loki/api/v1/push
 
 scrape_configs:
-  # Docker container logs
+  # Docker container logs (nur DB - Loki/Grafana/Promtail ausgeschlossen)
   - job_name: docker
     static_configs:
       - targets:
@@ -25,6 +25,11 @@ scrape_configs:
             output: log
             stream: stream
             timestamp: time
+
+      # Drop Loki, Grafana, Promtail logs to prevent feedback loop
+      - drop:
+          expression: ".*(loki|grafana|promtail|metrics\\.go|spanlogger|querier|frontend|index_set).*"
+          drop_counter_reason: "internal_logs"
 
       # Parse our application JSON logs
       - json:
