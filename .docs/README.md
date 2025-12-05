@@ -21,9 +21,38 @@ LLM-friendly technical documentation for this project's tech stack.
 └── kamal-deploy.md     # Kamal Deployment (Docker)
 ```
 
+## Searching Documentation
+
+Use the semantic search tool to find relevant sections:
+
+```bash
+# Search for specific topics
+make search-docs q="prefetchQuery" n=5
+make search-docs q="HydrationBoundary" n=3
+make search-docs q="authentication" n=5
+
+# Returns LLM-optimized output with:
+# - File and section info
+# - Relevance scores
+# - Code snippets
+```
+
+### Examples
+
+```bash
+# Find TanStack Query patterns
+make search-docs q="useQuery options"
+
+# Find deployment configuration
+make search-docs q="docker environment variables"
+
+# Find authentication flows
+make search-docs q="session validation"
+```
+
 ## Usage
 
-1. **Claude/LLM:** Read the relevant file before starting a task
+1. **Claude/LLM:** Use `make search-docs` to find relevant sections, then read the specific file
 2. **Developer:** Quick reference without internet
 
 ## Fetching Documentation

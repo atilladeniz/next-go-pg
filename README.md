@@ -181,6 +181,8 @@ make build-backend    # Go Binary
 ### Documentation
 
 ```bash
+make search-docs q="query"          # Search docs with semantic search
+make search-docs q="query" n=10     # Search with custom result count
 make fetch-docs url=<url>           # Fetch LLM-friendly docs
 make fetch-docs url=<url> name=<n>  # With custom filename
 ```
