@@ -57,13 +57,19 @@ Better Auth uses these tables (auto-created via migration):
 ### Run Better Auth Migration
 
 ```bash
-cd frontend && DATABASE_URL="postgres://postgres:postgres@localhost:5432/nextgopg" bunx @better-auth/cli migrate -y
+make db-migrate
+```
+
+Or manually:
+
+```bash
+cd frontend && bunx dotenv-cli -e .env.local -- bunx @better-auth/cli@latest migrate --config src/shared/lib/auth-server/auth.ts --yes
 ```
 
 ### Generate Migration SQL (without applying)
 
 ```bash
-cd frontend && DATABASE_URL="postgres://postgres:postgres@localhost:5432/nextgopg" bunx @better-auth/cli generate
+cd frontend && bunx dotenv-cli -e .env.local -- bunx @better-auth/cli@latest generate --config src/shared/lib/auth-server/auth.ts
 ```
 
 ## Direct Database Access
@@ -130,5 +136,5 @@ make db-up
 
 ```bash
 make db-reset
-cd frontend && DATABASE_URL="postgres://postgres:postgres@localhost:5432/nextgopg" bunx @better-auth/cli migrate -y
+make db-migrate
 ```
