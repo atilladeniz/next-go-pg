@@ -1,4 +1,4 @@
-.PHONY: help dev dev-frontend dev-backend build build-frontend build-backend test clean install api lint docker-build docker-up docker-down goca-feature deploy deploy-staging deploy-production deploy-rollback deploy-logs deploy-console setup-hooks security-scan security-scan-history
+.PHONY: help dev dev-frontend dev-backend build build-frontend build-backend test clean install install-tools api lint docker-build docker-up docker-down goca-feature deploy deploy-staging deploy-production deploy-rollback deploy-logs deploy-console setup-hooks security-scan security-scan-history fetch-docs
 
 .DEFAULT_GOAL := help
 
@@ -58,6 +58,11 @@ help: ## Show available commands
 	@echo ""
 	@echo "  $(GREEN)security-scan$(RESET)     Scan current files for secrets"
 	@echo "  $(GREEN)security-scan-history$(RESET)  Scan entire git history"
+	@echo ""
+	@echo "$(CYAN)━━━ Documentation ━━━$(RESET)"
+	@echo ""
+	@echo "  $(GREEN)fetch-docs$(RESET)        Fetch LLM-friendly docs $(DIM)(url=<url> [name=<name>])$(RESET)"
+	@echo "                      $(DIM)Requires: bun i -g sitefetch$(RESET)"
 	@echo ""
 	@echo "$(CYAN)━━━ Docker ━━━$(RESET)"
 	@echo ""
@@ -163,10 +168,17 @@ goca-feature:
 
 # ━━━ Setup ━━━
 
-install: setup-hooks
+install: setup-hooks install-tools
 	bun install
 	cd frontend && bun install
 	cd backend && go mod tidy
+
+install-tools:
+	@echo "$(YELLOW)📦 Checking CLI tools...$(RESET)"
+	@command -v goca >/dev/null 2>&1 || { echo "$(YELLOW)Installing goca...$(RESET)" && go install github.com/sazardev/goca@latest; }
+	@command -v gitleaks >/dev/null 2>&1 || { echo "$(YELLOW)Installing gitleaks...$(RESET)" && brew install gitleaks 2>/dev/null || echo "$(DIM)  Skip: brew not available$(RESET)"; }
+	@command -v sitefetch >/dev/null 2>&1 || { echo "$(YELLOW)Installing sitefetch...$(RESET)" && bun install -g sitefetch 2>/dev/null || npm install -g sitefetch; }
+	@echo "$(GREEN)✓ CLI tools ready$(RESET)"
 
 setup-hooks:
 	@./scripts/setup-hooks.sh
@@ -238,3 +250,20 @@ security-scan-history:
 		echo "$(RED)gitleaks not installed. Install with:$(RESET)"; \
 		echo "  brew install gitleaks"; \
 	fi
+
+# ━━━ Documentation ━━━
+
+fetch-docs:
+ifndef url
+	@echo "$(RED)Error: url parameter required$(RESET)"
+	@echo ""
+	@echo "Usage: make fetch-docs url=<url> [name=<name>]"
+	@echo ""
+	@echo "Examples:"
+	@echo "  make fetch-docs url=https://tanstack.com/query/latest"
+	@echo "  make fetch-docs url=https://nextjs.org/docs name=nextjs"
+	@echo "  make fetch-docs url=https://orm.drizzle.team name=drizzle"
+	@exit 1
+else
+	@./scripts/fetch-docs.sh "$(url)" "$(name)"
+endif

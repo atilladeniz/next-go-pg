@@ -39,11 +39,17 @@ Full-Stack Monorepo with Next.js Frontend and Go Backend.
 - [Goca CLI](https://github.com/sazardev/goca) (Backend Code Generation)
 - [Docker](https://www.docker.com/) (Database)
 
-### Install Goca
+### Install CLI Tools
 
 ```bash
+# Goca (Backend Code Generation)
 go install github.com/sazardev/goca@latest
-goca version
+
+# Gitleaks (Security Scanning)
+brew install gitleaks
+
+# Sitefetch (Documentation Fetching)
+bun install -g sitefetch
 ```
 
 ## Quick Start
@@ -170,6 +176,13 @@ make security-scan    # Scan for secrets
 make build            # Frontend + Backend
 make build-frontend   # Next.js Production Build
 make build-backend    # Go Binary
+```
+
+### Documentation
+
+```bash
+make fetch-docs url=<url>           # Fetch LLM-friendly docs
+make fetch-docs url=<url> name=<n>  # With custom filename
 ```
 
 ## API Workflow
