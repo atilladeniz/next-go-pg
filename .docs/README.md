@@ -2,13 +2,13 @@
 
 LLM-friendly technical documentation for this project's tech stack.
 
-**WICHTIG:** Immer ZUERST hier nachschauen bevor im Internet recherchiert wird!
+**IMPORTANT:** Always check here FIRST before searching the internet!
 
-## Struktur
+## Structure
 
 ```
 .docs/
-├── README.md           # Diese Datei
+├── README.md           # This file
 ├── nextjs.md           # Next.js 16 App Router
 ├── tanstack-query.md   # TanStack Query (React Query)
 ├── better-auth.md      # Better Auth
@@ -21,26 +21,26 @@ LLM-friendly technical documentation for this project's tech stack.
 └── kamal-deploy.md     # Kamal Deployment (Docker)
 ```
 
-## Verwendung
+## Usage
 
-1. **Claude/LLM:** Lese die relevante Datei bevor du eine Aufgabe startest
-2. **Entwickler:** Schnelle Referenz ohne Internet
+1. **Claude/LLM:** Read the relevant file before starting a task
+2. **Developer:** Quick reference without internet
 
-## Docs hinzufuegen
+## Adding Docs
 
-Wenn du eine neue Technologie verwendest oder Docs aktualisieren willst:
+When using a new technology or updating docs:
 
 ```bash
-# Docs von llms.txt holen (falls verfuegbar)
+# Fetch docs from llms.txt (if available)
 curl https://example.com/llms.txt > .docs/example.md
 
-# Oder manuell erstellen mit den wichtigsten Patterns
+# Or create manually with the most important patterns
 ```
 
-## Tech Stack Uebersicht
+## Tech Stack Overview
 
-| Technologie | Version | Docs |
-|-------------|---------|------|
+| Technology | Version | Docs |
+|------------|---------|------|
 | Next.js | 16 | `.docs/nextjs.md` |
 | TanStack Query | 5 | `.docs/tanstack-query.md` |
 | Better Auth | latest | `.docs/better-auth.md` |

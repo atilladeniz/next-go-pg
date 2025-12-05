@@ -1,20 +1,20 @@
 # Backend
 
-Go Backend mit Clean Architecture, generiert mit [Goca CLI](https://github.com/sazardev/goca).
+Go Backend with Clean Architecture, generated with [Goca CLI](https://github.com/sazardev/goca).
 
-> **Tipp:** LLM-friendly Dokumentation für GORM, Gorilla Mux, Goca, etc. findest du in `../.docs/`
+> **Tip:** LLM-friendly documentation for GORM, Gorilla Mux, Goca, etc. can be found in `../.docs/`
 
 ## Tech Stack
 
-- **Go 1.23** - Programmiersprache
+- **Go 1.23** - Programming Language
 - **Gorilla Mux** - HTTP Router
-- **GORM** - ORM für PostgreSQL
-- **Swagger/swag** - API Dokumentation
-- **Goca CLI** - Code Generator für Clean Architecture
+- **GORM** - ORM for PostgreSQL
+- **Swagger/swag** - API Documentation
+- **Goca CLI** - Code Generator for Clean Architecture
 
 ## Architecture
 
-Clean Architecture mit strikter Layer-Trennung:
+Clean Architecture with strict layer separation:
 
 ```
 internal/
@@ -26,8 +26,8 @@ internal/
 └── sse/              # Server-Sent Events
 ```
 
-| Layer | Beschreibung | Goca Befehl |
-|-------|--------------|-------------|
+| Layer | Description | Goca Command |
+|-------|-------------|--------------|
 | Domain | Entities, Value Objects | `goca make entity` |
 | UseCase | Business Logic | `goca make usecase` |
 | Repository | Database Operations | `goca make repository` |
@@ -119,61 +119,61 @@ backend/
 ```
 
 
-## Goca Befehle
+## Goca Commands
 
-### Neues Feature generieren
+### Generate New Feature
 
 ```bash
-# Komplettes Feature mit allen Layers
+# Complete feature with all layers
 goca feature Product --fields "name:string,price:float64,stock:int"
 
-# Feature mit Validierung
+# Feature with validation
 goca feature Order --fields "userId:string,total:float64" --validation
 
-# Alle Features integrieren (Routes, DI)
+# Integrate all features (Routes, DI)
 goca integrate --all
 ```
 
-### Einzelne Layer generieren
+### Generate Individual Layers
 
 ```bash
-# Nur Entity (Domain Layer)
+# Entity only (Domain Layer)
 goca make entity Product
 
-# Nur Repository (Data Layer)
+# Repository only (Data Layer)
 goca make repository Product
 
-# Nur UseCase (Business Logic)
+# UseCase only (Business Logic)
 goca make usecase Product
 
-# Nur Handler (HTTP Layer)
+# Handler only (HTTP Layer)
 goca make handler Product
 ```
 
 ### Entity Registry (AutoMigrate)
 
-Nach `goca feature` muss die neue Entity in `internal/domain/registry.go` registriert werden:
+After `goca feature`, the new entity must be registered in `internal/domain/registry.go`:
 
 ```go
 // internal/domain/registry.go
 func AllEntities() []interface{} {
     return []interface{}{
         &UserStats{},
-        &Product{},  // ← Neue Entity hier hinzufuegen
+        &Product{},  // ← Add new entity here
     }
 }
 ```
 
-Das ist die **EINZIGE** Stelle - `main.go` bleibt unveraendert!
+This is the **ONLY** place - `main.go` remains unchanged!
 
-### Nach Goca/API-Änderungen
+### After Goca/API Changes
 
 ```bash
-# Swagger + Orval in einem Befehl (vom Root-Verzeichnis)
+# Swagger + Orval in one command (from root directory)
 cd ..
 make api
 
-# Das macht automatisch:
+# This automatically runs:
 # 1. swag init → backend/docs/swagger.json
 # 2. orval → frontend/src/api/endpoints/
 ```
@@ -194,7 +194,7 @@ make build
 make lint
 make fmt
 
-# Swagger generieren
+# Generate Swagger
 make swagger
 ```
 
@@ -202,7 +202,7 @@ make swagger
 ## Troubleshooting
 
 ### Error: "dial tcp [::1]:5432: connection refused"
-PostgreSQL database is not running. 
+PostgreSQL database is not running.
 
 **Solution:**
 ```bash

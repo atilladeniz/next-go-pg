@@ -1,10 +1,10 @@
 # GocaTest
 
-Full-Stack Monorepo mit Next.js Frontend und Go Backend.
+Full-Stack Monorepo with Next.js Frontend and Go Backend.
 
 ## Technical Documentation
 
-**WICHTIG:** LLM-friendly Dokumentation für den gesamten Tech Stack findest du in `.docs/`:
+**IMPORTANT:** LLM-friendly documentation for the entire tech stack can be found in `.docs/`:
 
 ```
 .docs/
@@ -19,58 +19,58 @@ Full-Stack Monorepo mit Next.js Frontend und Go Backend.
 └── kamal-deploy.md     # Kamal Deployment
 ```
 
-→ **Immer zuerst `.docs/` prüfen** bevor im Internet recherchiert wird!
+> **Always check `.docs/` first** before searching the internet!
 
 ## Tech Stack
 
-| Komponente | Technologie |
-|------------|-------------|
+| Component | Technology |
+|-----------|------------|
 | Frontend | Next.js 16, TypeScript, Tailwind CSS, shadcn/ui |
 | Backend | Go, Gorilla Mux, Clean Architecture, GORM |
 | Code Generator | **Goca CLI** (Go Clean Architecture) |
-| Datenbank | PostgreSQL 16 |
+| Database | PostgreSQL 16 |
 | Auth | Better Auth |
 | API | Swagger/swag → Orval |
 
-## Voraussetzungen
+## Prerequisites
 
 - [Bun](https://bun.sh/) (Frontend)
 - [Go 1.21+](https://go.dev/) (Backend)
 - [Goca CLI](https://github.com/sazardev/goca) (Backend Code Generation)
-- [Docker](https://www.docker.com/) (Datenbank)
+- [Docker](https://www.docker.com/) (Database)
 
-### Goca installieren
+### Install Goca
 
 ```bash
 go install github.com/sazardev/goca@latest
 goca version
 ```
 
-## Schnellstart
+## Quick Start
 
 ```bash
-# Repository klonen
+# Clone repository
 git clone <repo-url>
 cd gocatest
 
-# Dependencies installieren
+# Install dependencies
 make install
 
-# Datenbank starten
+# Start database
 make db-up
 
-# Better Auth Tabellen erstellen
+# Create Better Auth tables
 cd frontend && DATABASE_URL="postgres://postgres:postgres@localhost:5432/gocatest" bunx @better-auth/cli migrate -y
 
-# Development starten
+# Start development
 make dev
 ```
 
-Öffne:
+Open:
 - Frontend: [http://localhost:3000](http://localhost:3000)
 - Backend: [http://localhost:8080](http://localhost:8080)
 
-## Projektstruktur
+## Project Structure
 
 ```
 gocatest/
@@ -84,7 +84,7 @@ gocatest/
 │   └── pkg/config/          # Configuration
 ├── frontend/                # Next.js Frontend
 │   ├── src/
-│   │   ├── api/             # Generierte API Clients
+│   │   ├── api/             # Generated API Clients
 │   │   ├── app/             # Next.js App Router
 │   │   ├── components/      # React Components
 │   │   └── lib/             # Utilities, Auth
@@ -99,23 +99,23 @@ gocatest/
 ### Development
 
 ```bash
-make dev              # DB + Frontend + Backend starten
-make dev-frontend     # Nur Frontend (localhost:3000)
-make dev-backend      # Nur Backend (localhost:8080)
+make dev              # Start DB + Frontend + Backend
+make dev-frontend     # Frontend only (localhost:3000)
+make dev-backend      # Backend only (localhost:8080)
 ```
 
-### Datenbank
+### Database
 
 ```bash
-make db-up            # PostgreSQL starten
-make db-down          # PostgreSQL stoppen
-make db-reset         # Datenbank zurücksetzen
+make db-up            # Start PostgreSQL
+make db-down          # Stop PostgreSQL
+make db-reset         # Reset database
 ```
 
 ### API
 
 ```bash
-make api              # TypeScript Client aus OpenAPI generieren
+make api              # Generate TypeScript client from OpenAPI
 ```
 
 ### Quality
@@ -124,7 +124,7 @@ make api              # TypeScript Client aus OpenAPI generieren
 make lint             # Linting
 make lint-fix         # Auto-fix
 make typecheck        # TypeScript Check
-make test             # Tests ausführen
+make test             # Run tests
 ```
 
 ### Build
@@ -137,9 +137,9 @@ make build-backend    # Go Binary
 
 ## API Workflow
 
-1. OpenAPI Spec bearbeiten: `backend/api/openapi.yaml`
-2. TypeScript Client generieren: `make api`
-3. Generierte Hooks nutzen:
+1. Edit OpenAPI Spec: `backend/api/openapi.yaml`
+2. Generate TypeScript client: `make api`
+3. Use generated hooks:
 
 ```tsx
 import { useGetHello } from "@/api/endpoints/public/public"
@@ -150,30 +150,30 @@ function MyComponent() {
 }
 ```
 
-## Authentifizierung
+## Authentication
 
-Better Auth mit Email/Passwort Login.
+Better Auth with Email/Password Login.
 
-### Seiten
-- `/login` - Anmeldung
-- `/register` - Registrierung
-- `/dashboard` - Protected Bereich
+### Pages
+- `/login` - Sign in
+- `/register` - Sign up
+- `/dashboard` - Protected area
 
 ### Client Usage
 
 ```tsx
 import { signIn, signUp, signOut, useSession } from "@/lib/auth-client"
 
-// Session abrufen
+// Get session
 const { data: session } = useSession()
 
-// Anmelden
+// Sign in
 await signIn.email({ email, password })
 
-// Registrieren
+// Sign up
 await signUp.email({ name, email, password })
 
-// Abmelden
+// Sign out
 await signOut()
 ```
 
@@ -185,7 +185,7 @@ await signOut()
 DATABASE_URL=postgres://postgres:postgres@localhost:5432/gocatest
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 NEXT_PUBLIC_API_URL=http://localhost:8080
-BETTER_AUTH_SECRET=<mindestens-32-zeichen>
+BETTER_AUTH_SECRET=<at-least-32-characters>
 ```
 
 ### Backend
@@ -200,45 +200,45 @@ PORT=8080
 ### Development
 
 ```bash
-make db-up    # Nur PostgreSQL
+make db-up    # PostgreSQL only
 ```
 
 ### Production
 
 ```bash
-make docker-build   # Images bauen
-make docker-up      # Container starten
-make docker-down    # Container stoppen
+make docker-build   # Build images
+make docker-up      # Start containers
+make docker-down    # Stop containers
 ```
 
-## Backend Features generieren (Goca)
+## Generate Backend Features (Goca)
 
 ```bash
 cd backend
 
-# Neues Feature mit allen Layers
+# New feature with all layers
 goca feature Product --fields "name:string,price:float64,stock:int"
 
-# Nur Entity
+# Entity only
 goca make entity Product
 
-# Nur Repository
+# Repository only
 goca make repository Product
 
-# Swagger + Orval (ein Befehl vom Root!)
+# Swagger + Orval (one command from root!)
 cd ..
 make api
 ```
 
 ### API Workflow
 
-`make api` führt automatisch aus:
-1. **swag init** → Generiert Swagger aus Go-Kommentaren
-2. **orval** → Generiert TypeScript React Query Hooks
+`make api` automatically runs:
+1. **swag init** → Generates Swagger from Go comments
+2. **orval** → Generates TypeScript React Query Hooks
 
-## Weitere Dokumentation
+## Further Documentation
 
 - [Technical Docs (.docs)](./.docs/README.md) - LLM-friendly Tech Stack Docs
 - [Frontend README](./frontend/README.md)
 - [Backend README](./backend/README.md)
-- [Goca Dokumentation](https://github.com/sazardev/goca)
+- [Goca Documentation](https://github.com/sazardev/goca)
