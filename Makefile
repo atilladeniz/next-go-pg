@@ -1,4 +1,4 @@
-.PHONY: help dev dev-frontend dev-backend build build-frontend build-backend test clean install install-tools api lint docker-build docker-up docker-down goca-feature deploy deploy-staging deploy-production deploy-rollback deploy-logs deploy-console setup-hooks security-scan security-scan-history fetch-docs search-docs search-docs-index
+.PHONY: help dev dev-full dev-frontend dev-backend build build-frontend build-backend test clean install install-tools api lint docker-build docker-up docker-down goca-feature deploy deploy-staging deploy-production deploy-rollback deploy-logs deploy-console setup-hooks security-scan security-scan-history fetch-docs search-docs search-docs-index logs-up logs-down logs-open logs-query db-migrate
 
 .DEFAULT_GOAL := help
 
@@ -31,6 +31,7 @@ help: ## Show available commands
 	@echo "  $(GREEN)db-up$(RESET)             Start PostgreSQL database"
 	@echo "  $(GREEN)db-down$(RESET)           Stop PostgreSQL database"
 	@echo "  $(GREEN)db-reset$(RESET)          Reset database (delete all data)"
+	@echo "  $(GREEN)db-migrate$(RESET)        Run Better Auth + GORM migrations"
 	@echo ""
 	@echo "$(CYAN)━━━ Build ━━━$(RESET)"
 	@echo ""
@@ -112,6 +113,11 @@ db-down:
 db-reset:
 	@docker compose -f docker-compose.dev.yml down -v
 	@docker compose -f docker-compose.dev.yml up -d --wait
+
+db-migrate:
+	@echo "$(YELLOW)Running Better Auth migrations...$(RESET)"
+	cd frontend && bunx dotenv-cli -e .env.local -- bunx @better-auth/cli@latest migrate --config src/shared/lib/auth-server/auth.ts --yes
+	@echo "$(GREEN)✓ Migrations complete$(RESET)"
 
 # ━━━ Build ━━━
 

@@ -3,8 +3,10 @@ module github.com/atilladeniz/next-go-pg/backend
 go 1.23
 
 require (
+	github.com/google/uuid v1.6.0
 	github.com/gorilla/mux v1.8.0
 	github.com/joho/godotenv v1.5.1
+	github.com/rs/zerolog v1.34.0
 	github.com/swaggo/swag v1.16.6
 	gorm.io/driver/postgres v1.5.4
 	gorm.io/gorm v1.25.5
