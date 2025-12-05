@@ -13,7 +13,8 @@
 		"naumovs.color-highlight",
 		"aaron-bond.better-comments",
 		"pkief.material-icon-theme",
-		"bierner.markdown-mermaid"
+		"bierner.markdown-mermaid",
+		"tamasfe.even-better-toml"
 	],
 	"unwantedRecommendations": []
 }
