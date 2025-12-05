@@ -10,7 +10,7 @@ Create complete full-stack features following Clean Architecture with Goca.
 
 ## Feature Structure
 
-### Backend (Go mit Goca)
+### Backend (Go with Goca)
 
 1. **Entity** in `backend/internal/domain/` → `goca make entity`
 2. **Repository** in `backend/internal/repository/` → `goca make repository`
@@ -19,12 +19,12 @@ Create complete full-stack features following Clean Architecture with Goca.
 
 ### Frontend (React)
 
-1. **Server Component** für initiales Laden (kein Flicker)
-2. **Client Component** für Interaktivität
+1. **Server Component** for initial loading (no flicker)
+2. **Client Component** for interactivity
 3. **Generated API hooks** via Orval
-4. **UI components** mit shadcn/ui
+4. **UI components** with shadcn/ui
 
-## Schnellstart: Neues Feature mit Goca
+## Quick Start: New Feature with Goca
 
 ```bash
 cd backend
@@ -32,54 +32,54 @@ cd backend
 # Komplettes Feature generieren
 goca feature Product --fields "name:string,price:float64,stock:int"
 
-# Oder einzelne Layer
+# Or individual layers
 goca make entity Product
 goca make repository Product
 goca make usecase Product
 goca make handler Product
 
-# API Client generieren
+# Generate API Client
 cd ..
 make api
 ```
 
 ## Entity Registry (AutoMigrate)
 
-Nach `goca feature` muss die neue Entity in `backend/internal/domain/registry.go` registriert werden:
+After `goca feature`, the new entity must be registered in `backend/internal/domain/registry.go`:
 
 ```go
 // internal/domain/registry.go
 func AllEntities() []interface{} {
     return []interface{}{
         &UserStats{},
-        &Product{},  // ← Neue Entity hier hinzufuegen!
+        &Product{},  // ← Add new entity here!
     }
 }
 ```
 
-Das ist die **EINZIGE** Stelle wo neue Entities registriert werden muessen!
+This is the **ONLY** place where new entities need to be registered!
 
-## Kompletter Workflow
+## Complete Workflow
 
 ```bash
-# 1. Feature generieren
+# 1. Generate feature
 cd backend
 goca feature Product --fields "name:string,price:float64,stock:int"
 
-# 2. Entity in Registry hinzufuegen
-# backend/internal/domain/registry.go → &Product{} hinzufuegen
+# 2. Add entity to registry
+# backend/internal/domain/registry.go → add &Product{}
 
-# 3. API generieren
+# 3. Generate API
 cd ..
 make api
 
-# 4. Backend neu starten (Migration laeuft automatisch)
+# 4. Restart backend (migration runs automatically)
 make dev-backend
 ```
 
 ## Server-Side Data Loading Pattern (HydrationBoundary)
 
-### Schritt 1: Server Component mit prefetchQuery
+### Step 1: Server Component with prefetchQuery
 
 ```tsx
 // app/(protected)/products/page.tsx (Server Component)
@@ -92,26 +92,26 @@ import { getSession } from "@/lib/auth-server"
 import { ProductList } from "./product-list"
 
 export default async function ProductsPage() {
-  // 1. Session prüfen
+  // 1. Check session
   const session = await getSession()
   if (!session) redirect("/login")
 
-  // 2. Cookies für Auth
+  // 2. Cookies for auth
   const cookieStore = await cookies()
   const cookieHeader = cookieStore.getAll().map((c) => `${c.name}=${c.value}`).join("; ")
 
-  // 3. Prefetch mit Orval-Funktion
+  // 3. Prefetch with Orval function
   const queryClient = getQueryClient()
   await queryClient.prefetchQuery({
     queryKey: getGetProductsQueryKey(),
     queryFn: () => getProducts({ headers: { Cookie: cookieHeader }, cache: "no-store" }),
   })
 
-  // 4. HydrationBoundary wrappen
+  // 4. Wrap with HydrationBoundary
   return (
     <HydrationBoundary state={dehydrate(queryClient)}>
       <div className="container py-8">
-        <h1 className="text-2xl font-bold mb-4">Produkte</h1>
+        <h1 className="text-2xl font-bold mb-4">Products</h1>
         <ProductList />
       </div>
     </HydrationBoundary>
@@ -119,7 +119,7 @@ export default async function ProductsPage() {
 }
 ```
 
-### Schritt 2: Client Component (kein initialData nötig!)
+### Step 2: Client Component (no initialData needed!)
 
 ```tsx
 // app/(protected)/products/product-list.tsx
@@ -131,7 +131,7 @@ import { useSSE } from "@/hooks/use-sse"
 export function ProductList() {
   useSSE() // Real-time Updates
 
-  // Daten sind bereits hydriert - kein initialData nötig!
+  // Data is already hydrated - no initialData needed!
   const { data: productsResponse } = useGetProducts()
 
   const products = productsResponse?.status === 200 ? productsResponse.data : null
@@ -166,19 +166,19 @@ func (h *ProductHandler) GetProducts(w http.ResponseWriter, r *http.Request) {
 }
 ```
 
-## Nach Backend-Änderungen
+## After Backend Changes
 
 ```bash
-# Immer ausführen nach Handler-Änderungen:
+# Always run after handler changes:
 make api
 ```
 
-## Konventionen
+## Conventions
 
-### Datei-Benennung
+### File Naming
 
 - Go: `snake_case.go`
-- React Pages: `page.tsx` im Route-Ordner
+- React Pages: `page.tsx` in route folder
 - Client Components: `kebab-case.tsx`
 
 ### Route Protection
@@ -187,9 +187,9 @@ make api
 - Protected: `frontend/src/app/(protected)/`
 - Auth: `frontend/src/app/(auth)/`
 
-### Kein Skeleton/Flicker
+### No Skeleton/Flicker
 
-- Server Component lädt Daten vor dem Rendern
-- Client Component erhält `initialData`
-- React Query übernimmt für Updates
-- SSE für Real-time Sync
+- Server Component loads data before rendering
+- Client Component receives `initialData`
+- React Query takes over for updates
+- SSE for real-time sync

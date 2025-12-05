@@ -8,70 +8,70 @@ arguments:
 
 # Create System Design Concept
 
-Erstelle ein neues Concept-Dokument mit Mermaid-Diagrammen in `.concepts/`.
+Create a new concept document with Mermaid diagrams in `.concepts/`.
 
 ## Workflow
 
-1. **User beschreibt** was er visualisieren möchte: `$ARGUMENTS.topic`
-2. **Du analysierst** und erkennst automatisch:
-   - Welcher **Typ** passt (architecture, flow, data-model)
-   - Welches **Mermaid-Diagramm** am besten geeignet ist
-   - Einen passenden **Dateinamen** (kebab-case)
-3. **Du erstellst** das Dokument mit Business Context + Mermaid
+1. **User describes** what they want to visualize: `$ARGUMENTS.topic`
+2. **You analyze** and automatically detect:
+   - Which **type** fits (architecture, flow, data-model)
+   - Which **Mermaid diagram** is best suited
+   - An appropriate **filename** (kebab-case)
+3. **You create** the document with Business Context + Mermaid
 
 ## Type Detection Guide
 
 ### → `architecture/`
-**Wenn es um geht:**
-- Wie Systeme/Services zusammenhängen
-- Deployment, Server, Infrastructure
-- Technische Komponenten und ihre Verbindungen
-- "Big Picture" / Übersicht
+**When it's about:**
+- How systems/services connect
+- Deployment, server, infrastructure
+- Technical components and their connections
+- "Big picture" / overview
 
-**Mermaid:** C4Context, C4Container, flowchart mit Subgraphs
+**Mermaid:** C4Context, C4Container, flowchart with subgraphs
 
 ### → `flows/`
-**Wenn es um geht:**
-- Wie etwas abläuft (Prozess, Workflow)
-- Wer mit wem kommuniziert (API Calls, Events)
-- User Journey / UX Flow
-- Zeitliche Abfolge von Aktionen
+**When it's about:**
+- How something works (process, workflow)
+- Who communicates with whom (API calls, events)
+- User journey / UX flow
+- Chronological sequence of actions
 
 **Mermaid:** sequenceDiagram, flowchart, journey, stateDiagram-v2
 
 ### → `data-models/`
-**Wenn es um geht:**
-- Datenbank-Struktur, Tabellen, Relationen
-- Entity/Domain Models
-- Zustände eines Objekts (State Machine)
-- Klassen und ihre Beziehungen
+**When it's about:**
+- Database structure, tables, relations
+- Entity/domain models
+- States of an object (state machine)
+- Classes and their relationships
 
 **Mermaid:** erDiagram, classDiagram, stateDiagram-v2
 
 ## Response Format
 
-Nachdem du den Typ erkannt hast:
+After detecting the type:
 
-1. **Kurz bestätigen** was du verstanden hast
-2. **Datei erstellen** in `.concepts/<type>/<name>.md`
-3. **Inhalt:**
-   - `## Business Context` - Was ist das Problem/Kontext
-   - `## [Diagram]` - Mermaid Diagramm(e)
-   - `## Details` - Tabelle mit Erklärungen (optional)
+1. **Briefly confirm** what you understood
+2. **Create file** in `.concepts/<type>/<name>.md`
+3. **Content:**
+   - `## Business Context` - What is the problem/context
+   - `## [Diagram]` - Mermaid diagram(s)
+   - `## Details` - Table with explanations (optional)
 
 ## Examples
 
-| User sagt | Du erkennst | Output |
-|-----------|-------------|--------|
-| "wie funktioniert der login" | flow + sequenceDiagram | `.concepts/flows/login-flow.md` |
-| "zeig mir die datenbank struktur" | data-model + erDiagram | `.concepts/data-models/database-schema.md` |
-| "wie hängen frontend und backend zusammen" | architecture + C4Container | `.concepts/architecture/system-overview.md` |
-| "was passiert wenn user bestellt" | flow + sequenceDiagram | `.concepts/flows/order-process.md` |
-| "welche zustände hat eine bestellung" | data-model + stateDiagram | `.concepts/data-models/order-states.md` |
-| "wie deployen wir" | architecture + flowchart | `.concepts/architecture/deployment.md` |
+| User says | You detect | Output |
+|-----------|------------|--------|
+| "how does the login work" | flow + sequenceDiagram | `.concepts/flows/login-flow.md` |
+| "show me the database structure" | data-model + erDiagram | `.concepts/data-models/database-schema.md` |
+| "how do frontend and backend connect" | architecture + C4Container | `.concepts/architecture/system-overview.md` |
+| "what happens when user orders" | flow + sequenceDiagram | `.concepts/flows/order-process.md` |
+| "what states does an order have" | data-model + stateDiagram | `.concepts/data-models/order-states.md` |
+| "how do we deploy" | architecture + flowchart | `.concepts/architecture/deployment.md` |
 
 ---
 
-**User möchte visualisieren:** `$ARGUMENTS.topic`
+**User wants to visualize:** `$ARGUMENTS.topic`
 
-Analysiere was der User braucht, wähle den passenden Typ und Diagramm-Art, und erstelle das Concept-Dokument.
+Analyze what the user needs, choose the appropriate type and diagram style, and create the concept document.

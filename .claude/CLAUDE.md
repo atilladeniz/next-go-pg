@@ -1,8 +1,8 @@
-# Next-Go-PG - Projekt Kontext
+# Next-Go-PG - Project Context
 
-## WICHTIG: Technical Docs (.docs)
+## IMPORTANT: Technical Docs (.docs)
 
-**IMMER ZUERST in `.docs/` nachschauen** bevor im Internet recherchiert wird!
+**ALWAYS check `.docs/` first** before searching the internet!
 
 ```
 .docs/
@@ -13,96 +13,104 @@
 ├── goca.md             # Goca CLI
 ├── orval.md            # Orval API Client Generator
 ├── kamal-deploy.md     # Kamal Deployment (Docker)
-└── ...                 # Weitere Tech Stack Docs
+└── ...                 # More Tech Stack Docs
 ```
 
-Dort findest du LLM-friendly Dokumentation fuer den gesamten Tech Stack.
+LLM-friendly documentation for the entire tech stack can be found there.
 
 ---
 
-## Projektübersicht
+## Project Overview
 
-Full-Stack Monorepo mit Next.js 16 Frontend und Go Backend, PostgreSQL Datenbank und Better Auth für Authentifizierung.
+Full-Stack Monorepo with Next.js 16 Frontend and Go Backend, PostgreSQL database and Better Auth for authentication.
 
 ## Tech Stack
 
 ### Frontend (`/frontend`)
-- **Framework**: Next.js 16 mit App Router und Turbopack
-- **Sprache**: TypeScript 5.9
+
+- **Framework**: Next.js 16 with App Router and Turbopack
+- **Architecture**: Feature-Sliced Design (FSD)
+- **Language**: TypeScript 5.9
 - **Styling**: Tailwind CSS 4 + shadcn/ui (neutral theme)
 - **State**: TanStack Query (React Query)
 - **Auth Client**: Better Auth React Client
-- **API Client**: Orval-generierte Hooks aus OpenAPI Spec
-- **Linting**: Biome
+- **API Client**: Orval-generated hooks from OpenAPI Spec
+- **Linting**: Biome + Steiger (FSD Linting)
 - **Package Manager**: Bun
 
 ### Backend (`/backend`)
-- **Sprache**: Go
+
+- **Language**: Go
 - **Framework**: Gorilla Mux Router
-- **Architektur**: Clean Architecture (Handler → Usecase → Repository → Domain)
+- **Architecture**: Clean Architecture (Handler → Usecase → Repository → Domain)
 - **Code Generator**: **Goca CLI** (Go Clean Architecture)
 - **ORM**: GORM
 - **Auth**: Better Auth Session Validation
 - **API Docs**: Swagger/swag
-- **Modul**: `github.com/atilladeniz/next-go-pg/backend`
+- **Module**: `github.com/atilladeniz/next-go-pg/backend`
 
-### Infrastruktur
-- **Datenbank**: PostgreSQL 16 (Docker)
-- **Dev Environment**: Docker Compose für DB
+### Infrastructure
+
+- **Database**: PostgreSQL 16 (Docker)
+- **Dev Environment**: Docker Compose for DB
 
 ---
 
-## WICHTIG: Goca für Backend-Entwicklung
+## IMPORTANT: Goca for Backend Development
 
-### Was ist Goca?
-Goca ist ein CLI-Tool für Go Clean Architecture Code-Generierung. Es generiert konsistente, typsichere Code-Strukturen mit korrekten Import-Pfaden.
+### What is Goca?
 
-### Wann Goca verwenden?
-**IMMER** wenn im Backend neue Strukturen erstellt werden:
+Goca is a CLI tool for Go Clean Architecture code generation. It generates consistent, type-safe code structures with correct import paths.
 
-| Aufgabe | Goca Befehl |
-|---------|-------------|
-| Neues Entity/Model | `goca make entity <Name>` |
-| Neues Repository | `goca make repository <Name>` |
-| Neuer UseCase | `goca make usecase <Name>` |
-| Neuer Handler | `goca make handler <Name>` |
-| Komplettes Feature | `goca feature <Name> --fields "..."` |
+### When to use Goca?
 
-### Goca Befehle
+**ALWAYS** when creating new structures in the backend:
+
+| Task | Goca Command |
+|------|--------------|
+| New Entity/Model | `goca make entity <Name>` |
+| New Repository | `goca make repository <Name>` |
+| New UseCase | `goca make usecase <Name>` |
+| New Handler | `goca make handler <Name>` |
+| Complete Feature | `goca feature <Name> --fields "..."` |
+
+### Goca Commands
 
 ```bash
-# Im backend/ Verzeichnis ausführen!
+# Run in backend/ directory!
 cd backend
 
-# Entity erstellen (Domain Layer)
+# Create Entity (Domain Layer)
 goca make entity UserStats
 
-# Repository erstellen (Data Layer)
+# Create Repository (Data Layer)
 goca make repository UserStats
 
-# UseCase erstellen (Business Logic Layer)
+# Create UseCase (Business Logic Layer)
 goca make usecase UserStats
 
-# Handler erstellen (HTTP Layer)
+# Create Handler (HTTP Layer)
 goca make handler UserStats
 
-# Komplettes Feature mit allen Layers
+# Complete Feature with all Layers
 goca feature Product --fields "name:string,price:float64,stock:int"
 
-# Feature mit Validierung
+# Feature with Validation
 goca feature Order --fields "userId:string,total:float64" --validation
 
-# Alle Features integrieren
+# Integrate all Features
 goca integrate --all
 
-# Goca Version prüfen
+# Check Goca Version
 goca version
 ```
 
-### Goca Konfiguration
-Die Konfiguration liegt in `backend/.goca.yaml`:
-- `module`: Go Modul-Pfad (github.com/atilladeniz/next-go-pg/backend)
-- `architecture.layers`: Aktivierte Layer (domain, usecase, repository, handler)
+### Goca Configuration
+
+Configuration is in `backend/.goca.yaml`:
+
+- `module`: Go module path (github.com/atilladeniz/next-go-pg/backend)
+- `architecture.layers`: Enabled layers (domain, usecase, repository, handler)
 - `database.type`: postgres
 - `generation.swagger.enabled`: true
 
@@ -117,73 +125,175 @@ backend/internal/
 └── middleware/       # Cross-cutting concerns
 ```
 
-### Warum Goca statt manuell?
-1. **Korrekte Imports**: Liest Modul-Pfad aus .goca.yaml
-2. **Konsistenz**: Gleiche Struktur für alle Features
-3. **Clean Architecture**: Erzwingt Layer-Trennung
-4. **Swagger**: Generiert API-Dokumentation automatisch
-5. **Tests**: Kann Test-Stubs generieren
+### Why Goca instead of manual?
 
-### Beispiel: Neues Feature hinzufügen
+1. **Correct Imports**: Reads module path from .goca.yaml
+2. **Consistency**: Same structure for all features
+3. **Clean Architecture**: Enforces layer separation
+4. **Swagger**: Generates API documentation automatically
+5. **Tests**: Can generate test stubs
+
+### Example: Adding a New Feature
 
 ```bash
-# 1. Feature generieren
+# 1. Generate feature
 cd backend
 goca feature Invoice --fields "userId:string,amount:float64,status:string"
 
-# 2. Entity in Registry hinzufuegen (internal/domain/registry.go)
-# &Invoice{} zur AllEntities() Funktion hinzufuegen
+# 2. Add entity to registry (internal/domain/registry.go)
+# Add &Invoice{} to AllEntities() function
 
-# 3. Swagger + Orval (ein Befehl!)
+# 3. Swagger + Orval (one command!)
 cd ..
 make api
 
-# 4. Backend neu starten (Migration laeuft automatisch)
+# 4. Restart backend (migration runs automatically)
 make dev-backend
 ```
 
 ### Entity Registry
 
-Neue Entities muessen in `backend/internal/domain/registry.go` registriert werden:
+New entities must be registered in `backend/internal/domain/registry.go`:
 
 ```go
 func AllEntities() []interface{} {
     return []interface{}{
         &UserStats{},
-        &Invoice{},  // ← Neue Entity hier
+        &Invoice{},  // ← New entity here
     }
 }
 ```
 
-Das ist die **EINZIGE** Stelle fuer AutoMigrate!
+This is the **ONLY** place for AutoMigrate!
 
-### API Generierung Workflow
+### API Generation Workflow
 
-`make api` führt automatisch aus:
-1. **swag init** → Generiert `backend/docs/swagger.json` aus Go-Kommentaren
-2. **orval** → Generiert TypeScript Hooks in `frontend/src/api/`
+`make api` automatically runs:
+
+1. **swag init** → Generates `backend/docs/swagger.json` from Go comments
+2. **orval** → Generates TypeScript Hooks in `frontend/src/shared/api/`
 
 ```bash
-# Nach jeder API-Änderung ausführen:
+# Run after every API change:
 make api
 
-# Oder einzeln:
-make swagger     # Nur Swagger generieren
-cd frontend && bunx orval  # Nur Orval ausführen
+# Or separately:
+make swagger     # Only generate Swagger
+cd frontend && bunx orval  # Only run Orval
 ```
 
-### Wichtig für Claude
+### Important for Claude
 
-Wenn du Backend-Endpoints änderst:
-1. Swagger-Kommentare in Handler hinzufügen (`// @Summary`, `// @Router`, etc.)
-2. `make api` ausführen
-3. Frontend kann die neuen Hooks nutzen (`useGetX`, `usePostX`, etc.)
+When you modify backend endpoints:
+
+1. Add Swagger comments to Handler (`// @Summary`, `// @Router`, etc.)
+2. Run `make api`
+3. Frontend can use the new hooks (`useGetX`, `usePostX`, etc.)
 
 ---
 
-## WICHTIG: HydrationBoundary Pattern (TanStack Recommended)
+## IMPORTANT: Feature-Sliced Design (FSD) in Frontend
 
-### Architektur-Prinzip
+### Layer Hierarchy
+
+```
+app/        → widgets, features, entities, shared
+widgets/    → features, entities, shared
+features/   → entities, shared
+entities/   → shared
+shared/     → (only external libs)
+```
+
+### FSD Structure
+
+```
+frontend/src/
+├── app/                        # Next.js App Router (outside FSD)
+├── widgets/
+│   └── header/                 # Header + ModeToggle
+│       ├── ui/
+│       └── index.ts
+├── features/
+│   ├── auth/                   # Login, Register, AuthSync
+│   │   ├── ui/
+│   │   ├── model/
+│   │   └── index.ts
+│   └── stats/                  # Stats Grid, SSE
+│       ├── ui/
+│       ├── model/
+│       └── index.ts
+├── entities/
+│   └── user/                   # User Types, UserInfo
+│       ├── ui/
+│       ├── model/
+│       └── index.ts
+└── shared/
+    ├── ui/                     # shadcn/ui
+    ├── api/                    # Orval-generated
+    ├── lib/
+    │   ├── auth-client/        # Client-safe Auth
+    │   ├── auth-server/        # Server-only Auth
+    │   └── ...
+    └── config/                 # Providers, Theme
+```
+
+### Import Rules (STRICT)
+
+```tsx
+// ✅ ALLOWED: Import from lower layer
+import { Button } from "@shared/ui/button"
+import { User } from "@entities/user"
+import { LoginForm } from "@features/auth"
+
+// ❌ FORBIDDEN: Import from higher layer
+// In shared/ NEVER import features/!
+// In entities/ NEVER import features/!
+// In features/ NEVER import other features/!
+```
+
+### TypeScript Path Aliases
+
+```tsx
+// Always use layer aliases:
+import { Button } from "@shared/ui/button"
+import { useAuthSync } from "@features/auth"
+import { SessionUser } from "@entities/user"
+import { Header } from "@widgets/header"
+```
+
+### Public API Pattern
+
+Every slice MUST have an `index.ts`:
+
+```tsx
+// features/auth/index.ts
+export { LoginForm } from "./ui/login-form"
+export { RegisterForm } from "./ui/register-form"
+export { useAuthSync, broadcastSignOut } from "./model/use-auth-sync"
+```
+
+### Linting
+
+```bash
+# FSD rules check (integrated in lint)
+bun run lint
+
+# Only Steiger
+bunx steiger src
+```
+
+### Adding a New Feature
+
+1. Create feature folder: `src/features/<name>/`
+2. Add segments: `ui/`, `model/`, `api/` (as needed)
+3. Public API: `index.ts` with all exports
+4. Import only from `shared/` or `entities/`
+
+---
+
+## IMPORTANT: HydrationBoundary Pattern (TanStack Recommended)
+
+### Architecture Principle
 
 ```
 Server Component (prefetchQuery) → HydrationBoundary → Client Component (useQuery)
@@ -196,27 +306,27 @@ Server Component (prefetchQuery) → HydrationBoundary → Client Component (use
 import { dehydrate, HydrationBoundary } from "@tanstack/react-query"
 import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
-import { getStats, getGetStatsQueryKey } from "@/api/endpoints/users/users"
-import { getQueryClient } from "@/lib/get-query-client"
-import { getSession } from "@/lib/auth-server"
+import { getStats, getGetStatsQueryKey } from "@shared/api/endpoints/users/users"
+import { getQueryClient } from "@shared/lib/query-client"
+import { getSession } from "@shared/lib/auth-server"
 
 export default async function DashboardPage() {
-  // 1. Session prüfen
+  // 1. Check session
   const session = await getSession()
   if (!session) redirect("/login")
 
-  // 2. Cookies für Auth
+  // 2. Get cookies for auth
   const cookieStore = await cookies()
   const cookieHeader = cookieStore.getAll().map((c) => `${c.name}=${c.value}`).join("; ")
 
-  // 3. Prefetch mit Orval-Funktion
+  // 3. Prefetch with Orval function
   const queryClient = getQueryClient()
   await queryClient.prefetchQuery({
     queryKey: getGetStatsQueryKey(),
     queryFn: () => getStats({ headers: { Cookie: cookieHeader }, cache: "no-store" }),
   })
 
-  // 4. HydrationBoundary wrappen
+  // 4. Wrap with HydrationBoundary
   return (
     <HydrationBoundary state={dehydrate(queryClient)}>
       <Header user={session.user} />
@@ -226,47 +336,47 @@ export default async function DashboardPage() {
 }
 ```
 
-### Client Component (kein initialData nötig!)
+### Client Component (no initialData needed!)
 
 ```tsx
 // content.tsx - CLIENT COMPONENT
 "use client"
 
-import { useGetStats } from "@/api/endpoints/users/users"
-import { useSSE } from "@/hooks/use-sse"
+import { useGetStats } from "@shared/api/endpoints/users/users"
+import { useSSE } from "@features/stats"
 
 export function Content() {
   useSSE() // Real-time Updates
 
-  // Daten sind bereits hydriert!
+  // Data is already hydrated!
   const { data } = useGetStats()
-  // Kein Loading State nötig!
+  // No loading state needed!
 }
 ```
 
-### Was NICHT tun
+### What NOT to do
 
 ❌ `useSession()` in Protected Pages → Flicker
-❌ Skeleton für Session Loading
-❌ Client-seitiger Redirect
-❌ Manuelle `fetch()` Aufrufe → IMMER Orval nutzen!
+❌ Skeleton for Session Loading
+❌ Client-side Redirect
+❌ Manual `fetch()` calls → ALWAYS use Orval!
 
-### Was STATTDESSEN
+### What to do INSTEAD
 
-✅ Server Component prüft Session mit `getSession()`
-✅ `redirect()` wenn keine Session
-✅ `prefetchQuery` mit Orval-Funktion
-✅ `HydrationBoundary` für Cache-Hydration
+✅ Server Component checks Session with `getSession()`
+✅ `redirect()` if no session
+✅ `prefetchQuery` with Orval function
+✅ `HydrationBoundary` for cache hydration
 
 ---
 
 ## SSE + React Query Pattern
 
-Real-time Updates ohne Polling:
+Real-time updates without polling:
 
-1. **Backend** sendet SSE Events bei Änderungen
-2. **Frontend** `useSSE()` Hook hört auf Events
-3. **React Query** wird automatisch invalidiert
+1. **Backend** sends SSE events on changes
+2. **Frontend** `useSSE()` hook listens for events
+3. **React Query** is automatically invalidated
 
 ```tsx
 // Backend: SSE Broadcast
@@ -287,59 +397,64 @@ export function useSSE() {
 
 ---
 
-## Wichtige Dateien
+## Important Files
 
 ### API Definition
-- `backend/docs/swagger.json` - Generiert aus Go-Kommentaren
-- `frontend/orval.config.ts` - Orval Config für API Client Generierung
 
-### Data Fetching
-- `frontend/src/lib/get-query-client.ts` - Shared QueryClient für Server + Client
-- `frontend/src/api/custom-fetch.ts` - Fetch Wrapper für Orval
-- **WICHTIG**: IMMER Orval-Funktionen mit `prefetchQuery` + `HydrationBoundary` nutzen!
+- `backend/docs/swagger.json` - Generated from Go comments
+- `frontend/orval.config.ts` - Orval config for API client generation
 
-### Authentifizierung
-- `frontend/src/lib/auth.ts` - Better Auth Server Config
-- `frontend/src/lib/auth-client.ts` - Better Auth Client (nur für Actions!)
-- `frontend/src/proxy.ts` - Route Protection (Cookie-basiert)
-- `frontend/src/hooks/use-auth-sync.ts` - Cross-Tab Logout Synchronisation (broadcast-channel)
+### Data Fetching (FSD Paths)
+
+- `frontend/src/shared/lib/query-client.ts` - Shared QueryClient for Server + Client
+- `frontend/src/shared/api/custom-fetch.ts` - Fetch wrapper for Orval
+- `frontend/src/shared/api/endpoints/` - Orval-generated hooks
+- **IMPORTANT**: ALWAYS use Orval functions with `prefetchQuery` + `HydrationBoundary`!
+
+### Authentication (FSD Paths)
+
+- `frontend/src/shared/lib/auth-server/` - Better Auth Server Config + Session Helper
+- `frontend/src/shared/lib/auth-client/` - Better Auth Client (only for actions!)
+- `frontend/src/features/auth/` - Login/Register Forms + Cross-Tab Sync
 
 ### Real-time
+
 - `backend/internal/sse/broker.go` - SSE Broker
-- `frontend/src/hooks/use-sse.ts` - SSE Client Hook
+- `frontend/src/features/stats/model/use-sse.ts` - SSE Client Hook
 
-### UI Komponenten
-- `frontend/src/components/ui/` - shadcn/ui Komponenten (alle installiert)
-- `frontend/src/components/mode-toggle.tsx` - Dark Mode Toggle
-- `frontend/src/components/theme-provider.tsx` - Theme Provider
+### UI Components (FSD Paths)
 
-## Befehle
+- `frontend/src/shared/ui/` - shadcn/ui components
+- `frontend/src/widgets/header/` - App Header with Mode Toggle
+- `frontend/src/shared/config/` - Providers, Theme Config
+
+## Commands
 
 ```bash
 # Development
 make dev              # Start DB + Frontend + Backend
-make dev-frontend     # Nur Frontend (localhost:3000)
-make dev-backend      # Nur Backend (localhost:8080)
+make dev-frontend     # Frontend only (localhost:3000)
+make dev-backend      # Backend only (localhost:8080)
 
 # Database
-make db-up            # PostgreSQL starten
-make db-down          # PostgreSQL stoppen
-make db-reset         # Datenbank zurücksetzen
+make db-up            # Start PostgreSQL
+make db-down          # Stop PostgreSQL
+make db-reset         # Reset database
 
 # API Generation
-make api              # TypeScript Client aus OpenAPI generieren
+make api              # Generate TypeScript client from OpenAPI
 
 # Quality
-make lint             # Biome Linting
+make lint             # Biome + Steiger Linting
 make lint-fix         # Auto-fix Lint Errors
 make typecheck        # TypeScript Check
 
 # Security
-make security-scan    # Scan auf Secrets/sensitive Daten
-make setup-hooks      # Git Hooks einrichten
+make security-scan    # Scan for secrets/sensitive data
+make setup-hooks      # Setup Git Hooks
 
 # Build
-make build            # Frontend + Backend bauen
+make build            # Build Frontend + Backend
 make build-frontend   # Next.js Production Build
 make build-backend    # Go Binary
 ```
@@ -348,82 +463,86 @@ make build-backend    # Go Binary
 
 ## Security: Gitleaks Pre-Commit Hook
 
-Das Projekt verwendet **gitleaks** um Secrets vor dem Commit zu erkennen.
+This project uses **gitleaks** to detect secrets before commit.
 
-### Was wird blockiert?
+### What is blocked?
 
 - API Keys, Tokens, Passwords
-- Absolute Pfade mit Usernamen
-- Database URLs mit echten Credentials
+- Absolute paths with usernames
+- Database URLs with real credentials
 - Private Keys
 
-### Wichtig fuer Claude
-- **NIEMALS** absolute Pfade mit Usernamen in Code/Docs schreiben
-- **NIEMALS** echte Secrets hardcoden
-- Beispiel-URLs immer mit `localhost` oder Platzhaltern
+### Important for Claude
+
+- **NEVER** write absolute paths with usernames in code/docs
+- **NEVER** hardcode real secrets
+- Example URLs always with `localhost` or placeholders
 - Config: `.gitleaks.toml`
 
-### Bei Commit-Blockierung
+### On Commit Block
+
 ```bash
-# Zeigt was blockiert wurde
+# Show what was blocked
 make security-scan
 
-# Notfall-Bypass (NICHT EMPFOHLEN)
+# Emergency bypass (NOT RECOMMENDED)
 git commit --no-verify
 ```
 
-## Projektstruktur
+## Project Structure
 
 ```
 next-go-pg/
 ├── backend/
-│   ├── api/
-│   │   └── openapi.yaml      # API Specification
 │   ├── cmd/server/           # Entrypoint
 │   ├── internal/
-│   │   ├── handler/          # HTTP Handler
+│   │   ├── domain/           # Entities (goca make entity)
+│   │   ├── usecase/          # Business Logic (goca make usecase)
+│   │   ├── repository/       # Data Access (goca make repository)
+│   │   ├── handler/          # HTTP Handler (goca make handler)
 │   │   └── middleware/       # Auth, CORS
-│   └── pkg/config/           # Configuration
+│   └── docs/                 # Swagger JSON (generated)
 ├── frontend/
 │   ├── src/
-│   │   ├── api/              # Generierte API Clients
-│   │   ├── app/
-│   │   │   ├── (auth)/       # Login, Register
-│   │   │   ├── (protected)/  # Dashboard
-│   │   │   └── api/auth/     # Better Auth Handler
-│   │   ├── components/
-│   │   │   └── ui/           # shadcn Komponenten
-│   │   └── lib/              # Auth, Utils
+│   │   ├── app/              # Next.js App Router
+│   │   ├── widgets/          # Composite UI (Header)
+│   │   ├── features/         # User Interactions (Auth, Stats)
+│   │   ├── entities/         # Business Objects (User)
+│   │   └── shared/           # Reusable (UI, API, Lib)
 │   └── orval.config.ts
 └── docker-compose.dev.yml
 ```
 
-## Konventionen
+## Conventions
 
 ### Code Style
-- Tabs für Indentation (Biome Config)
-- Double Quotes für Strings
-- Keine Semicolons (außer nötig)
-- Deutsche UI Texte
+
+- Tabs for indentation (Biome Config)
+- Double quotes for strings
+- No semicolons (unless required)
+- German UI texts
 
 ### Git Commits
-- Englische Commit Messages
-- Präfix: Add, Update, Fix, Remove
-- Keine "Generated by" Tags
+
+- English commit messages
+- Prefix: Add, Update, Fix, Remove
+- No "Generated by" tags
 
 ### API
-- OpenAPI 3.0 als Source of Truth
-- `make api` nach Spec-Änderungen ausführen
-- Generated Files nicht manuell editieren
 
-## Biome Ignores
-- `src/api/endpoints/` - Orval generiert
-- `src/api/models/` - Orval generiert
-- `src/components/ui/` - shadcn generiert
+- OpenAPI 3.0 as source of truth
+- Run `make api` after spec changes
+- Never manually edit generated files
+
+## Linting Ignores
+
+- `src/shared/api/` - Orval generated
+- `src/shared/ui/` - shadcn generated
 
 ## Environment Variables
 
 ### Frontend (.env.local)
+
 ```
 DATABASE_URL=postgres://postgres:postgres@localhost:5432/nextgopg
 NEXT_PUBLIC_APP_URL=http://localhost:3000
@@ -432,6 +551,7 @@ BETTER_AUTH_SECRET=<secret>
 ```
 
 ### Backend
+
 ```
 DATABASE_URL=postgres://postgres:postgres@localhost:5432/nextgopg
 PORT=8080
