@@ -23,6 +23,7 @@ help: ## Show available commands
 	@echo "$(CYAN)━━━ Development ━━━$(RESET)"
 	@echo ""
 	@echo "  $(GREEN)dev$(RESET)               Start DB, frontend and backend"
+	@echo "  $(GREEN)dev-full$(RESET)          Start everything $(DIM)(+ Grafana, Loki, Promtail)$(RESET)"
 	@echo "  $(GREEN)dev-frontend$(RESET)      Start frontend only (localhost:3000)"
 	@echo "  $(GREEN)dev-backend$(RESET)       Start DB and backend only (localhost:8080)"
 	@echo ""
@@ -101,6 +102,16 @@ help: ## Show available commands
 
 dev: db-up api
 	@echo "Starting frontend and backend..."
+	bun run dev:all
+
+dev-full: db-up logs-up api
+	@echo ""
+	@echo "$(GREEN)✓ Full dev environment ready$(RESET)"
+	@echo ""
+	@echo "  Frontend:  $(CYAN)http://localhost:3000$(RESET)"
+	@echo "  Backend:   $(CYAN)http://localhost:8080$(RESET)"
+	@echo "  Grafana:   $(CYAN)http://localhost:3001$(RESET) $(DIM)(admin/admin)$(RESET)"
+	@echo ""
 	bun run dev:all
 
 dev-frontend:
