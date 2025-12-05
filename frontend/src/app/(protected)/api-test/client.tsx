@@ -1,9 +1,9 @@
 "use client"
 
+import { Badge } from "@shared/ui/badge"
+import { Button } from "@shared/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@shared/ui/card"
 import { useState } from "react"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080"
 
