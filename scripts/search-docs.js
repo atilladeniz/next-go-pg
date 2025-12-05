@@ -295,50 +295,79 @@ async function semanticSearch(query, passages, topK, verbose) {
 	return results.slice(0, topK)
 }
 
-// Build index only (no search)
+// Build index only (no search) - incremental update
 async function buildIndex() {
 	const docsDir = findDocsDir()
 	const cachePath = getCachePath(docsDir)
 	const passages = loadDocuments(docsDir)
 
 	console.error(`📁 Docs directory: ${docsDir}`)
-	console.error(`📄 Found ${passages.length} chunks to index`)
-	console.error("🧠 Loading embedding model...")
+	console.error(`📄 Found ${passages.length} chunks`)
 
-	const { pipeline } = await import("@xenova/transformers")
+	// Load existing cache for incremental update
+	const existingCache = loadCache(cachePath)
+	const existingEmbeddings = existingCache?.embeddings || {}
+	const existingIds = new Set(Object.keys(existingEmbeddings))
 
-	const embedder = await pipeline("feature-extraction", "Xenova/all-MiniLM-L6-v2", {
-		cache_dir: join(homedir(), ".cache", "transformers"),
-	})
+	// Find new chunks that need embedding
+	const newPassages = passages.filter(p => !existingIds.has(p.id))
+	// Find removed chunks
+	const currentIds = new Set(passages.map(p => p.id))
+	const removedIds = [...existingIds].filter(id => !currentIds.has(id))
 
-	console.error(`🔄 Building embeddings for ${passages.length} chunks...`)
-
-	const passageEmbeddings = {}
-
-	for (let i = 0; i < passages.length; i++) {
-		const passage = passages[i]
-		if (i % 100 === 0) {
-			console.error(`   Processing ${i}/${passages.length}...`)
-		}
-
-		const passageOutput = await embedder(passage.text.slice(0, 512), {
-			pooling: "mean",
-			normalize: true,
-		})
-		passageEmbeddings[passage.id] = Array.from(passageOutput.data)
+	if (newPassages.length === 0 && removedIds.length === 0) {
+		console.error("✅ Index is already up to date!")
+		return
 	}
 
-	const passageIds = passages.map(p => p.id).sort().join(",")
-	const passageHash = passageIds.length.toString()
+	console.error(`   ⚡ ${Object.keys(existingEmbeddings).length - removedIds.length} existing embeddings reused`)
+	console.error(`   ➕ ${newPassages.length} new chunks to embed`)
+	if (removedIds.length > 0) {
+		console.error(`   ➖ ${removedIds.length} old chunks removed`)
+	}
 
+	// Start with existing embeddings (minus removed)
+	const passageEmbeddings = {}
+	for (const [id, embedding] of Object.entries(existingEmbeddings)) {
+		if (currentIds.has(id)) {
+			passageEmbeddings[id] = embedding
+		}
+	}
+
+	// Only load model if we have new chunks
+	if (newPassages.length > 0) {
+		console.error("🧠 Loading embedding model...")
+
+		const { pipeline } = await import("@xenova/transformers")
+
+		const embedder = await pipeline("feature-extraction", "Xenova/all-MiniLM-L6-v2", {
+			cache_dir: join(homedir(), ".cache", "transformers"),
+		})
+
+		console.error(`🔄 Embedding ${newPassages.length} new chunks...`)
+
+		for (let i = 0; i < newPassages.length; i++) {
+			const passage = newPassages[i]
+			if (i % 100 === 0 && i > 0) {
+				console.error(`   Processing ${i}/${newPassages.length}...`)
+			}
+
+			const passageOutput = await embedder(passage.text.slice(0, 512), {
+				pooling: "mean",
+				normalize: true,
+			})
+			passageEmbeddings[passage.id] = Array.from(passageOutput.data)
+		}
+	}
+
+	// Save updated cache
 	saveCache(cachePath, {
 		version: "v1",
-		hash: passageHash,
 		embeddings: passageEmbeddings,
 	})
 
 	console.error(`✅ Index saved to ${cachePath}`)
-	console.error(`📊 Size: ${Math.round(JSON.stringify(passageEmbeddings).length / 1024 / 1024)}MB`)
+	console.error(`📊 Total: ${Object.keys(passageEmbeddings).length} embeddings (${Math.round(JSON.stringify(passageEmbeddings).length / 1024 / 1024)}MB)`)
 }
 
 // Fuzzy search with Fuse.js
