@@ -1,0 +1,1584 @@
+This file is a merged representation of a subset of the codebase, containing specifically included files, combined into a single document by Repomix.
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of a subset of the repository's contents that is considered the most important context.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Only files matching these patterns are included: **/*.md
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+ambiguous-slice-names/
+  README.md
+excessive-slicing/
+  README.md
+forbidden-imports/
+  README.md
+import-locality/
+  README.md
+inconsistent-naming/
+  README.md
+insignificant-slice/
+  README.md
+no-cross-imports/
+  README.md
+no-file-segments/
+  README.md
+no-higher-level-imports/
+  README.md
+no-layer-public-api/
+  README.md
+no-processes/
+  README.md
+no-public-api-sidestep/
+  README.md
+no-reserved-folder-names/
+  README.md
+no-segmentless-slices/
+  README.md
+no-segments-on-sliced-layers/
+  README.md
+no-ui-in-app/
+  README.md
+public-api/
+  README.md
+repetitive-naming/
+  README.md
+segments-by-purpose/
+  README.md
+shared-lib-grouping/
+  README.md
+typo-in-layer-name/
+  README.md
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="ambiguous-slice-names/README.md">
+# `ambiguous-slice-names`
+
+Forbid slice names that that match some segment’s name in the Shared layer. For example, if you have a folder `shared/i18n`, this rule forbids having an entity or feature with the name `i18n`.
+
+Examples of project structures that pass this rule:
+
+```
+📂 shared
+  📂 ui
+    📄 index.ts
+  📂 i18n
+    📄 index.ts
+📂 entities
+  📂 user
+    📂 ui
+    📂 model
+    📄 index.ts
+📂 pages
+  📂 home
+    📂 ui
+    📄 index.ts
+```
+
+Examples of project structures that fail this rule:
+
+```
+📂 shared
+  📂 ui
+    📄 index.ts
+  📂 i18n // ❗️
+    📄 index.ts
+📂 entities
+  📂 user
+    📂 ui
+    📂 model
+    📄 index.ts
+📂 features
+  📂 i18n // ❌
+    📂 ui
+    📄 index.ts
+📂 pages
+  📂 home
+    📂 ui
+    📄 index.ts
+```
+
+```
+📂 shared
+  📂 ui
+    📄 index.ts
+  📂 i18n // ❗️ (1)
+    📄 index.ts
+  📂 store // ❗️ (2)
+    📄 index.ts
+📂 features
+  📂 i18n // ❌ (1)
+    📂 grouped
+      📂 ui
+      📄 index.ts
+  📂 test
+    📂 store // ❌ (2)
+      📂 ui
+      📄 index.ts
+📂 pages
+  📂 home
+    📂 ui
+    📄 index.ts
+```
+
+## Rationale
+
+When there is a segment in shared with the same name as a slice, it becomes ambiguous where new code should be written, and also obscures the search for code.
+</file>
+
+<file path="excessive-slicing/README.md">
+# `excessive-slicing`
+
+Forbid having too many ungrouped slices or too many slices in a group.
+
+> [!NOTE]
+> For now, the threshold has been set to 20 arbitrarily. If this rule is too strict or too lenient, please open an issue.
+
+Example of a project structure that passes this rule:
+
+```
+📂 shared
+  📂 ui
+    📄 index.ts
+  📂 i18n
+    📄 index.ts
+📂 entities
+  📂 user
+    📂 ui
+    📂 model
+    📄 index.ts
+📂 pages
+  📂 home
+    📂 ui
+    📄 index.ts
+```
+
+(Cartoonish) Example of a project structure that fails this rule:
+
+```
+📂 shared
+  📂 ui
+    📄 index.ts
+  📂 i18n
+    📄 index.ts
+📂 features // ❌
+  📂 comments
+  📂 posts
+  📂 users
+  📂 cars
+  📂 alligators
+  📂 whales
+  📂 giraffes
+  📂 buses
+  📂 trains
+  📂 planes
+  📂 boats
+  📂 submarines
+  📂 helicopters
+  📂 rockets
+  📂 satellites
+  📂 space-stations
+  📂 planets
+  📂 galaxies
+  📂 universes
+  📂 multiverses
+  📂 metaverses
+  📂 ai
+  📂 bitcoin
+```
+
+## Rationale
+
+Having too many slices in a group or too many ungrouped slices makes it harder to discover features in a project and promotes excessive decomposition.
+</file>
+
+<file path="forbidden-imports/README.md">
+# `forbidden-imports`
+
+This rule forbids imports from higher layers and cross-imports between slices on the same layer. This is in accordance to the import rule on layers:
+
+> A module in a slice can only import other slices when they are located on layers strictly below.
+>
+> https://feature-sliced.design/docs/reference/layers#import-rule-on-layers
+
+> [!NOTE]
+> If you need more granular control, this rule's functionality is split into two separate rules that you can use independently:
+>
+> - `no-higher-level-imports`: Only checks for imports from higher layers (e.g., features importing from pages)
+> - `no-cross-imports`: Only checks for cross-imports between slices on the same layer (e.g., one entity importing from another entity)
+>
+> ```javascript
+> // steiger.config.js
+> import { defineConfig } from 'steiger'
+> import fsd from '@feature-sliced/steiger-plugin'
+>
+> export default defineConfig([
+>   ...fsd.configs.recommended,
+>   {
+>     rules: {
+>       'fsd/forbidden-imports': 'off',
+>       'fsd/no-cross-imports': 'error',
+>       'fsd/no-higher-level-imports': 'error',
+>     },
+>   },
+>   {
+>     // Allow cross-imports between widgets, for example
+>     files: ['src/widgets/**'],
+>     rules: {
+>       'fsd/no-cross-imports': 'off',
+>     },
+>   },
+> ])
+> ```
+
+Example of a project structure that passes this rule (arrows signify imports):
+
+```mermaid
+flowchart BT
+  subgraph shared
+    subgraph shared/ui[ui]
+      shared/ui/styles.ts[styles.ts]
+      shared/ui/Button.tsx[Button.tsx]
+      shared/ui/TextField.tsx[TextField.tsx]
+      shared/ui/index.ts[index.ts]
+    end
+  end
+
+  subgraph pages
+    subgraph pages/editor[editor]
+      subgraph pages/editor/ui[ui]
+        pages/editor/ui/EditorPage.tsx[EditorPage.tsx]
+        pages/editor/ui/Editor.tsx[Editor.tsx]
+      end
+      pages/editor/index.ts[index.ts]
+    end
+  end
+
+  shared/ui/Button.tsx --> shared/ui/styles.ts
+  shared/ui/TextField.tsx --> shared/ui/styles.ts
+  pages/editor/ui/Editor.tsx --> shared/ui/index.ts
+  pages/editor/ui/EditorPage.tsx --> shared/ui/index.ts
+  pages/editor/ui/EditorPage.tsx --> pages/editor/ui/Editor.tsx
+```
+
+```mermaid
+flowchart BT
+  subgraph shared
+    subgraph shared/ui[ui]
+      shared/ui/styles.ts[styles.ts]
+      shared/ui/Button.tsx[Button.tsx]
+      shared/ui/TextField.tsx[TextField.tsx]
+      shared/ui/index.ts[index.ts]
+    end
+  end
+
+  subgraph entities
+    subgraph entities/user[user]
+      subgraph entities/user/at-x[@x]
+        entities/user/at-x/product.ts[product.ts]
+      end
+      subgraph entities/user/ui[ui]
+        entities/user/ui/UserAvatar.tsx[UserAvatar.tsx]
+      end
+      entities/user/index.ts[index.ts]
+    end
+    subgraph entities/product[product]
+      subgraph entities/product/ui[ui]
+        entities/product/ui/ProductCard.tsx[ProductCard.tsx]
+      end
+      entities/product/index.ts[index.ts]
+    end
+  end
+
+  subgraph pages
+    subgraph pages/editor[editor]
+      subgraph pages/editor/ui[ui]
+        pages/editor/ui/EditorPage.tsx[EditorPage.tsx]
+        pages/editor/ui/Editor.tsx[Editor.tsx]
+      end
+      pages/editor/index.ts[index.ts]
+    end
+  end
+
+  shared/ui/Button.tsx --> shared/ui/styles.ts
+  shared/ui/TextField.tsx --> shared/ui/styles.ts
+  entities/user/ui/UserAvatar.tsx --> shared/ui/index.ts
+  entities/product/ui/ProductCard.tsx --> entities/user/at-x/product.ts
+  pages/editor/ui/Editor.tsx --> shared/ui/index.ts
+  pages/editor/ui/EditorPage.tsx --> shared/ui/index.ts
+  pages/editor/ui/EditorPage.tsx --> pages/editor/ui/Editor.tsx
+```
+
+Examples of project structures that fail this rule:
+
+```mermaid
+flowchart BT
+  subgraph shared
+    subgraph shared/ui[ui]
+      shared/ui/styles.ts[styles.ts]
+      shared/ui/Button.tsx[Button.tsx]
+      shared/ui/TextField.tsx[TextField.tsx]
+      shared/ui/index.ts[index.ts]
+    end
+  end
+
+  subgraph entities
+    subgraph entities/user[user]
+      subgraph entities/user/ui[ui]
+        entities/user/ui/UserAvatar.tsx[UserAvatar.tsx]
+      end
+      entities/user/index.ts[index.ts]
+    end
+    subgraph entities/product[product]
+      subgraph entities/product/ui[ui]
+        entities/product/ui/ProductCard.tsx[ProductCard.tsx]
+      end
+      entities/product/index.ts[index.ts]
+    end
+  end
+
+  subgraph pages
+    subgraph pages/editor[editor]
+      subgraph pages/editor/ui[ui]
+        pages/editor/ui/EditorPage.tsx[EditorPage.tsx]
+        pages/editor/ui/Editor.tsx[Editor.tsx]
+      end
+      pages/editor/index.ts[index.ts]
+    end
+  end
+
+  shared/ui/Button.tsx --> shared/ui/styles.ts
+  shared/ui/TextField.tsx --> shared/ui/styles.ts
+  entities/user/ui/UserAvatar.tsx --> shared/ui/index.ts
+  entities/product/ui/ProductCard.tsx --❌--> entities/user/index.ts
+  pages/editor/ui/Editor.tsx --> shared/ui/index.ts
+  pages/editor/ui/EditorPage.tsx --> shared/ui/index.ts
+  pages/editor/ui/EditorPage.tsx --> pages/editor/ui/Editor.tsx
+```
+
+```mermaid
+flowchart BT
+  subgraph shared
+    subgraph shared/ui[ui]
+      shared/ui/styles.ts[styles.ts]
+      shared/ui/Button.tsx[Button.tsx]
+      shared/ui/TextField.tsx[TextField.tsx]
+      shared/ui/index.ts[index.ts]
+    end
+  end
+
+  subgraph features
+    subgraph features/comments[comments]
+      subgraph features/comments/ui[ui]
+        features/comments/ui/CommentCard.tsx[CommentCard.tsx]
+      end
+      features/comments/index.ts[index.ts]
+    end
+  end
+
+  subgraph pages
+    subgraph pages/editor[editor]
+      subgraph pages/editor/ui[ui]
+        pages/editor/ui/EditorPage.tsx[EditorPage.tsx]
+        pages/editor/ui/Editor.tsx[Editor.tsx]
+      end
+      pages/editor/index.ts[index.ts]
+    end
+  end
+
+  shared/ui/Button.tsx --> shared/ui/styles.ts
+  shared/ui/TextField.tsx --> shared/ui/styles.ts
+  features/comments/ui/CommentCard.tsx --❌--> pages/editor/index.ts
+  pages/editor/ui/Editor.tsx --> shared/ui/index.ts
+  pages/editor/ui/EditorPage.tsx --> shared/ui/index.ts
+  pages/editor/ui/EditorPage.tsx --> pages/editor/ui/Editor.tsx
+```
+
+## Rationale
+
+This is one of the main rules of Feature-Sliced Design, it ensures low coupling and predictability in refactoring.
+</file>
+
+<file path="import-locality/README.md">
+# `import-locality`
+
+Require that imports from the same slice be relative and imports from one slice to another be absolute.
+
+For example, `entities/user/ui/Avatar.tsx` should use relative imports when importing from `entities/user/ui/Avatar.styles.ts`, but use absolute imports when importing from `shared/ui`.
+
+Aliases are considered absolute imports, so setting up an alias is a nice way to do absolute imports.
+
+Example of a file whose imports pass this rule:
+
+```ts
+// entities/user/ui/Avatar.tsx
+import classes from './Avatar.styles'
+import { shadows } from '@/shared/ui'
+```
+
+Examples of files whose imports violate this rule:
+
+```ts
+// entities/user/ui/Avatar.tsx
+import classes from '@/entities/user/ui/Avatar.styles.ts'
+```
+
+```ts
+// entities/user/ui/Avatar.tsx
+import classes from '@/entities/user'
+```
+
+```ts
+// entities/user/ui/Avatar.tsx
+import { shadows } from '../../../shared/ui'
+```
+
+## Rationale
+
+Imports between slices should be absolute to stay stable during refactors. If you change the folder structure inside your slice, imports from other slices should not change.
+
+Imports within a slice should not be absolute because having them absolute leads to one of the following cases:
+
+1. If the team wants to keep imports short (i.e. only `@/entities/user`), this leads to everything internal being exposed in the public API of the slice.
+2. If the public API is kept to the necessary minimum, imports become unnecessarily longer because they include the layer, slice, and segment names. Usually the folder tree in a slice is not too deep, so relative imports will be short and also stable during slice renames.
+</file>
+
+<file path="inconsistent-naming/README.md">
+# `inconsistent-naming`
+
+This rule ensures that all entities are named consistently in terms of pluralization.
+
+> [!WARNING]
+> This rule is in early development. It currently assumes that the slice name is a single English word. In the future it will be able to understand more complex names like `images-of-cats`.
+
+Example of a project structure that passes this rule:
+
+```
+📂 entities
+  📂 users
+    📂 ui
+    📄 index.ts
+  📂 posts
+    📂 ui
+    📄 index.ts
+```
+
+Example of a project structure that fails this rule:
+
+```
+📂 entities
+  📂 users // ❗️
+    📂 ui
+    📄 index.ts
+  📂 post // ❌
+    📂 ui
+    📄 index.ts
+```
+
+## Rationale
+
+When existing entities are named inconsistently, the convention to name future entities becomes unclear, which leads to friction during code review.
+</file>
+
+<file path="insignificant-slice/README.md">
+# `insignificant-slice`
+
+It detects slices that have no references to suggest removing them, and also slices that have just one reference, to suggest merging it into the layer above.
+
+Note that pages are allowed to only have one reference, as they are the almost like entry points to the application. Another exception is when slices are only used on the App layer — this doesn't count as a violation of the rule because the App layer shouldn't contain UI, so there's a valid reason for the code to remain on the lower layers.
+
+Example of a project structure that passes this rule (arrows signify imports):
+
+```mermaid
+flowchart BT
+  subgraph shared
+    subgraph shared/ui[ui]
+      shared/ui/styles.ts[styles.ts]
+      shared/ui/Button.tsx[Button.tsx]
+      shared/ui/TextField.tsx[TextField.tsx]
+      shared/ui/index.ts[index.ts]
+    end
+  end
+
+  subgraph pages
+    subgraph pages/editor[editor]
+      subgraph pages/editor/ui[ui]
+        pages/editor/ui/EditorPage.tsx[EditorPage.tsx]
+        pages/editor/ui/Editor.tsx[Editor.tsx]
+      end
+      pages/editor/index.ts[index.ts]
+    end
+  end
+
+  shared/ui/Button.tsx --> shared/ui/styles.ts
+  shared/ui/TextField.tsx --> shared/ui/styles.ts
+  pages/editor/ui/Editor.tsx --> shared/ui/index.ts
+  pages/editor/ui/EditorPage.tsx --> shared/ui/index.ts
+  pages/editor/ui/EditorPage.tsx --> pages/editor/ui/Editor.tsx
+```
+
+```mermaid
+flowchart BT
+  subgraph widgets
+    subgraph widgets/sidebar[sidebar]
+      subgraph widgets/sidebar/ui[ui]
+        widgets/sidebar/ui/Sidebar.tsx[Sidebar.tsx]
+      end
+      widgets/sidebar/index.ts[index.ts]
+    end
+  end
+
+  subgraph app
+    subgraph app/routing[routing]
+      app/routing/routes.ts[routes.ts]
+    end
+  end
+
+  app/routing/routes.ts --> widgets/sidebar/index.ts
+```
+
+Example of a project structure that fails this rule:
+
+```mermaid
+flowchart BT
+  subgraph shared
+    subgraph shared/ui[ui]
+      shared/ui/styles.ts[styles.ts]
+      shared/ui/Button.tsx[Button.tsx]
+      shared/ui/TextField.tsx[TextField.tsx]
+      shared/ui/index.ts[index.ts]
+    end
+  end
+
+  subgraph entities
+    subgraph entities/user["user (only one reference, @x doesn't count)"]
+      subgraph entities/user/at-x["@x"]
+        entities/user/at-x/product.ts[product.ts]
+      end
+      subgraph entities/user/ui[ui]
+        entities/user/ui/UserAvatar.tsx[UserAvatar.tsx]
+      end
+      entities/user/index.ts[index.ts]
+    end
+
+    subgraph entities/product["product (no references)"]
+      subgraph entities/product/ui[ui]
+        entities/product/ui/ProductCard.tsx[ProductCard.tsx]
+      end
+      entities/product/index.ts[index.ts]
+    end
+  end
+
+  subgraph pages
+    subgraph pages/editor[editor]
+      subgraph pages/editor/ui[ui]
+        pages/editor/ui/EditorPage.tsx[EditorPage.tsx]
+        pages/editor/ui/Editor.tsx[Editor.tsx]
+      end
+      pages/editor/index.ts[index.ts]
+    end
+  end
+
+  shared/ui/Button.tsx --> shared/ui/styles.ts
+  shared/ui/TextField.tsx --> shared/ui/styles.ts
+  entities/user/ui/UserAvatar.tsx --> shared/ui/index.ts
+  entities/product/ui/ProductCard.tsx --> entities/user/at-x/product.ts
+  pages/editor/ui/Editor.tsx --❗️--> entities/user/index.ts
+  pages/editor/ui/EditorPage.tsx --> shared/ui/index.ts
+  pages/editor/ui/EditorPage.tsx --> pages/editor/ui/Editor.tsx
+
+  style entities/user fill:pink
+  style entities/user/ui fill:pink
+  style entities/user/at-x fill:pink
+  style entities/product fill:pink
+  style entities/product/ui fill:pink
+```
+
+## Rationale
+
+Trying to decompose everything into as many layers and slices as possible leads to the logic spreading out needlessly, which negates the high cohesion benefit of Feature-Sliced Design. That's why if a slice is only used once, it's probably not worth having it as a separate slice.
+</file>
+
+<file path="no-cross-imports/README.md">
+# `no-cross-imports`
+
+This rule forbids cross-imports between slices on the same layer. This is in accordance to the import rule on layers:
+
+> A module in a slice can only import other slices when they are located on layers strictly below.
+>
+> https://feature-sliced.design/docs/reference/layers#import-rule-on-layers
+
+Example of a project structure that passes this rule (arrows signify imports):
+
+```mermaid
+flowchart BT
+  subgraph entities
+    subgraph entities/user[user]
+      subgraph entities/user/ui[ui]
+        entities/user/ui/UserAvatar.tsx[UserAvatar.tsx]
+      end
+      entities/user/index.ts[index.ts]
+    end
+    subgraph entities/product[product]
+      subgraph entities/product/ui[ui]
+        entities/product/ui/ProductCard.tsx[ProductCard.tsx]
+      end
+      entities/product/index.ts[index.ts]
+    end
+  end
+
+  subgraph shared
+    subgraph shared/ui[ui]
+      shared/ui/index.ts[index.ts]
+    end
+  end
+
+  entities/user/ui/UserAvatar.tsx --> shared/ui/index.ts
+  entities/product/ui/ProductCard.tsx --> shared/ui/index.ts
+```
+
+```mermaid
+flowchart BT
+  subgraph entities
+    subgraph entities/user[user]
+      subgraph entities/user/at-x["@x"]
+        entities/user/at-x/product.ts[product.ts]
+      end
+      subgraph entities/user/ui[ui]
+        entities/user/ui/UserAvatar.tsx[UserAvatar.tsx]
+      end
+      entities/user/index.ts[index.ts]
+    end
+    subgraph entities/product[product]
+      subgraph entities/product/ui[ui]
+        entities/product/ui/ProductCard.tsx[ProductCard.tsx]
+      end
+      entities/product/index.ts[index.ts]
+    end
+  end
+
+  entities/user/ui/UserAvatar.tsx --> shared/ui/index.ts
+  entities/product/ui/ProductCard.tsx --> entities/user/at-x/product.ts
+```
+
+Examples of project structures that fail this rule:
+
+```mermaid
+flowchart BT
+  subgraph entities
+    subgraph entities/user[user]
+      subgraph entities/user/ui[ui]
+        entities/user/ui/UserAvatar.tsx[UserAvatar.tsx]
+      end
+      entities/user/index.ts[index.ts]
+    end
+    subgraph entities/product[product]
+      subgraph entities/product/ui[ui]
+        entities/product/ui/ProductCard.tsx[ProductCard.tsx]
+      end
+      entities/product/index.ts[index.ts]
+    end
+  end
+
+  entities/user/ui/UserAvatar.tsx --> shared/ui/index.ts
+  entities/product/ui/ProductCard.tsx --❌--> entities/user/index.ts
+```
+
+```mermaid
+flowchart BT
+  subgraph features
+    subgraph features/auth[auth]
+      subgraph features/auth/ui[ui]
+        features/auth/ui/LoginForm.tsx[LoginForm.tsx]
+      end
+      features/auth/index.ts[index.ts]
+    end
+    subgraph features/registration[registration]
+      subgraph features/registration/ui[ui]
+        features/registration/ui/RegistrationForm.tsx[RegistrationForm.tsx]
+      end
+      features/registration/index.ts[index.ts]
+    end
+  end
+
+  features/auth/ui/LoginForm.tsx --> shared/ui/index.ts
+  features/registration/ui/RegistrationForm.tsx --❌--> features/auth/ui/LoginForm.tsx
+```
+
+## Rationale
+
+This is one of the main rules of Feature-Sliced Design, it ensures low coupling and predictability in refactoring.
+</file>
+
+<file path="no-file-segments/README.md">
+# `no-file-segments`
+
+Discourage the usage of file segments, suggesting folder segments instead.
+
+Example of a project structure that passes this rule:
+
+```
+📂 shared
+  📂 ui
+    📄 styles.ts
+    📄 Button.tsx
+    📄 TextField.tsx
+    📄 index.ts
+📂 pages
+  📂 editor
+    📂 ui
+      📄 EditorPage.tsx
+      📄 Editor.tsx
+    📄 index.ts
+```
+
+Examples of project structures that violate this rule:
+
+```
+📂 shared
+  📂 ui
+    📄 styles.ts
+    📄 Button.tsx
+    📄 TextField.tsx
+    📄 index.ts
+📂 features
+  📂 comments
+    📄 ui.tsx // ❌
+    📄 index.ts
+📂 pages
+  📂 editor
+    📄 ui.tsx // ❌
+    📄 index.ts
+  📂 settings
+    📂 ui
+      📄 SettingsPage.tsx
+    📄 index.ts
+```
+
+```
+📂 shared
+  📄 routes.ts // ❌
+  📂 ui
+    📄 styles.ts
+    📄 Button.tsx
+    📄 TextField.tsx
+    📄 index.ts
+📂 entities
+  📂 user
+    📂 ui
+      📄 UserAvatar.tsx
+    📄 index.ts
+  📂 product
+    📂 ui
+      📄 ProductCard.tsx
+    📄 index.ts
+📂 features
+  📂 comments
+    📂 ui
+      📄 CommentCard.tsx
+    📄 index.ts
+📂 pages
+  📂 editor
+    📂 ui
+      📄 EditorPage.tsx
+      📄 Editor.tsx
+    📄 index.ts
+```
+
+## Rationale
+
+File segments are limited in their growth potential because everything has to be put in one file. This can get in the way of using this segment in the future for adjacent purposes. In this way, folder segments are better for the project long-term.
+</file>
+
+<file path="no-higher-level-imports/README.md">
+# `no-higher-level-imports`
+
+This rule forbids imports from higher layers. This is in accordance to the import rule on layers:
+
+> A module in a slice can only import other slices when they are located on layers strictly below.
+>
+> https://feature-sliced.design/docs/reference/layers#import-rule-on-layers
+
+Example of a project structure that passes this rule (arrows signify imports):
+
+```mermaid
+flowchart BT
+  subgraph shared
+    subgraph shared/ui[ui]
+      shared/ui/styles.ts[styles.ts]
+      shared/ui/Button.tsx[Button.tsx]
+      shared/ui/TextField.tsx[TextField.tsx]
+      shared/ui/index.ts[index.ts]
+    end
+  end
+
+  subgraph entities
+    subgraph entities/user[user]
+      subgraph entities/user/ui[ui]
+        entities/user/ui/UserAvatar.tsx[UserAvatar.tsx]
+      end
+      entities/user/index.ts[index.ts]
+    end
+  end
+
+  subgraph features
+    subgraph features/auth[auth]
+      subgraph features/auth/ui[ui]
+        features/auth/ui/LoginForm.tsx[LoginForm.tsx]
+      end
+      features/auth/index.ts[index.ts]
+    end
+  end
+
+  subgraph pages
+    subgraph pages/editor[editor]
+      subgraph pages/editor/ui[ui]
+        pages/editor/ui/EditorPage.tsx[EditorPage.tsx]
+      end
+      pages/editor/index.ts[index.ts]
+    end
+  end
+
+  shared/ui/Button.tsx --> shared/ui/styles.ts
+  entities/user/ui/UserAvatar.tsx --> shared/ui/index.ts
+  features/auth/ui/LoginForm.tsx --> shared/ui/index.ts
+  features/auth/ui/LoginForm.tsx --> entities/user/index.ts
+  pages/editor/ui/EditorPage.tsx --> shared/ui/index.ts
+  pages/editor/ui/EditorPage.tsx --> entities/user/index.ts
+  pages/editor/ui/EditorPage.tsx --> features/auth/index.ts
+```
+
+Examples of project structures that fail this rule:
+
+```mermaid
+flowchart BT
+  subgraph shared
+    subgraph shared/ui[ui]
+      shared/ui/styles.ts[styles.ts]
+      shared/ui/Button.tsx[Button.tsx]
+      shared/ui/TextField.tsx[TextField.tsx]
+      shared/ui/index.ts[index.ts]
+    end
+  end
+
+  subgraph features
+    subgraph features/comments[comments]
+      subgraph features/comments/ui[ui]
+        features/comments/ui/CommentCard.tsx[CommentCard.tsx]
+      end
+      features/comments/index.ts[index.ts]
+    end
+  end
+
+  subgraph pages
+    subgraph pages/editor[editor]
+      subgraph pages/editor/ui[ui]
+        pages/editor/ui/EditorPage.tsx[EditorPage.tsx]
+        pages/editor/ui/Editor.tsx[Editor.tsx]
+      end
+      pages/editor/index.ts[index.ts]
+    end
+  end
+
+  shared/ui/Button.tsx --> shared/ui/styles.ts
+  shared/ui/TextField.tsx --> shared/ui/styles.ts
+  features/comments/ui/CommentCard.tsx --❌--> pages/editor/index.ts
+  pages/editor/ui/Editor.tsx --> shared/ui/index.ts
+  pages/editor/ui/EditorPage.tsx --> shared/ui/index.ts
+```
+
+```mermaid
+flowchart BT
+  subgraph shared
+    subgraph shared/ui[ui]
+      shared/ui/styles.ts[styles.ts]
+      shared/ui/Button.tsx[Button.tsx]
+      shared/ui/TextField.tsx[TextField.tsx]
+      shared/ui/index.ts[index.ts]
+    end
+  end
+
+  subgraph entities
+    subgraph entities/cart[cart]
+      subgraph entities/cart/ui[ui]
+        entities/cart/ui/SmallCart.tsx[SmallCart.tsx]
+      end
+      entities/cart/index.ts[index.ts]
+    end
+  end
+
+  subgraph app
+    subgraph app/ui[ui]
+      app/ui/index.ts[index.ts]
+    end
+    app/index.ts[index.ts]
+    app/root.ts[root.ts]
+  end
+
+  shared/ui/Button.tsx --> shared/ui/styles.ts
+  entities/cart/ui/SmallCart.tsx --❌--> app/index.ts
+  app/ui/index.ts --> shared/ui/index.ts
+```
+
+## Rationale
+
+This is one of the main rules of Feature-Sliced Design, it ensures low coupling and predictability in refactoring.
+</file>
+
+<file path="no-layer-public-api/README.md">
+# `no-layer-public-api`
+
+Forbid index files on the layer level.
+
+According to the _public API rule on slices_:
+
+> Every slice (and segment on layers that don't have slices) must contain a public API definition.
+>
+> Modules outside of this slice/segment can only reference the public API, not the internal file structure of the slice/segment.
+> https://feature-sliced.design/docs/reference/slices-segments#public-api-rule-on-slices
+
+A corollary to this rule is that the layer itself should not have an index file.
+
+**Exception:** index files are allowed on `app` layer because some people prefer to have that as their app's entrypoint.
+
+Examples of project structures that pass this rule:
+
+```
+📂 shared
+  📂 ui
+    📄 index.ts
+  📂 lib
+    📄 index.ts
+📂 entities
+  📂 user
+    📂 ui
+    📂 model
+    📄 index.ts
+📂 pages
+  📂 home
+    📂 ui
+    📄 index.ts
+```
+
+Examples of project structures that fail this rule:
+
+```
+📂 shared
+  📂 ui
+    📄 index.ts
+  📄 index.ts // ❌
+📂 entities
+  📂 user
+    📂 ui
+    📄 index.ts
+📂 pages
+  📂 home
+    📂 ui
+    📄 index.ts
+  📂 editor
+    📂 ui
+    📄 index.ts
+  📄 index.ts // ❌
+```
+
+## Rationale
+
+Layers contain slices, and slices are meant to be independent partitions of code by their business domain. It doesn't make much sense to import things from two different business domains from the same place. In addition to that, index files cause issues with tree-shaking for some bundlers, so having as little of them as possible helps to keep the bundle size down.
+</file>
+
+<file path="no-processes/README.md">
+# `no-processes`
+
+Discourage the use of the deprecated Processes layer.
+
+Examples of project structures that pass this rule:
+
+```
+📂 shared
+  📂 ui
+    📄 index.ts
+  📂 lib
+    📄 index.ts
+📂 entities
+  📂 user
+    📂 ui
+    📂 model
+    📄 index.ts
+📂 pages
+  📂 home
+    📂 ui
+    📄 index.ts
+```
+
+Examples of project structures that fail this rule:
+
+```
+📂 shared
+  📂 ui
+    📄 index.ts
+  📂 lib
+    📄 index.ts
+📂 entities
+  📂 user
+    📂 ui
+    📂 model
+    📄 index.ts
+📂 pages
+  📂 home
+    📂 ui
+    📄 index.ts
+📂 processes // ❌
+  📂 cart
+```
+
+## Rationale
+
+The Processes layer was deprecated because there weren't enough use cases to justify its exitsence.
+
+If your project has this layer, consider moving the code from this layer into App or Features.
+</file>
+
+<file path="no-public-api-sidestep/README.md">
+# `no-public-api-sidestep`
+
+Forbid going around the public API of a slice to import directly from an internal module in a slice.
+
+Examples of imports that satisfy this rule:
+
+```ts
+import { Button } from '@/shared/ui'
+import { formatForHumans } from '@/shared/lib/dates' // shared/ui and shared/lib may have indexes one layer deeper
+import { translator } from '@/shared/i18n'
+import { UserAvatar } from '@/entities/user'
+import { UserAvatar } from '@/entities/user/@x/product'
+import { EditorPage } from '@/pages/editor'
+```
+
+Examples of imports that violate this rule:
+
+```ts
+import { translator } from '@/shared/i18n/translator'
+import { buttonStyles } from '@/shared/ui/button/styles'
+import { UserAvatar } from '@/entities/user/ui/UserAvatar'
+import { EditorPage } from '@/pages/editor/ui/EditorPage'
+```
+
+## Rationale
+
+The public API for slices exists as the only entrypoint into a slice, and that ensures that the internal structure of the slice can change freely as long as the public API stays the same. This ensures stability of the codebase during refactors. By sidestepping the public API, you are creating a direct dependency on the internal structure of the slice, which can lead to issues when the internal structure changes.
+</file>
+
+<file path="no-reserved-folder-names/README.md">
+# `no-reserved-folder-names`
+
+Forbid subfolders in segments that have the same name as other conventional segments. For example, `shared/ui/lib` is a folder inside `shared/ui` that has a name of a conventional segment `lib`, which might cause confusion about the segment structure.
+
+This rule forbids the following names:
+
+- `ui`
+- `model`
+- `api`
+- `lib`
+- `config`
+
+Examples of project structures that pass this rule:
+
+```
+📂 shared
+  📂 ui
+    📄 index.ts
+  📂 lib
+    📄 index.ts
+📂 entities
+  📂 user
+    📂 ui
+    📂 model
+    📄 index.ts
+📂 pages
+  📂 home
+    📂 ui
+    📄 index.ts
+```
+
+Examples of project structures that fail this rule:
+
+```
+📂 shared
+  📂 ui
+    📄 index.ts
+    📂 lib // ❌
+      📄 someUiFunction.ts
+    📂 @x // ❌
+      📄 justForFun.ts
+📂 entities
+  📂 user
+    📂 ui
+    📂 model
+    📄 index.ts
+📂 pages
+  📂 home
+    📂 ui
+    📄 index.ts
+```
+
+## Rationale
+
+While segment names aren't strictly regulated by Feature-Sliced Design, there is a number of conventional segment names that are widely recognized from project to project. Seeing these folder names might lead people to believe that they are looking at a slice, while in reality, they are looking at a subfolder of a slice. To maintain predictable project structure, we disallow naming internal folders with conventional segment names.
+</file>
+
+<file path="no-segmentless-slices/README.md">
+# `no-segmentless-slices`
+
+Forbid slices that don't have any segments.
+
+Examples of project structures that pass this rule:
+
+```
+📂 shared
+  📂 ui
+    📄 index.ts
+  📂 lib
+    📄 index.ts
+📂 entities
+  📂 user
+    📂 ui
+    📂 model
+    📄 index.ts
+📂 pages
+  📂 home
+    📂 ui
+    📄 index.ts
+```
+
+Examples of project structures that fail this rule:
+
+```
+📂 shared
+  📂 ui
+    📄 index.ts
+  📂 lib
+    📄 index.ts
+📂 entities
+  📂 user
+    📂 ui
+    📂 model
+    📄 index.ts
+📂 pages
+  📂 home  // ❌
+    📄 HomePage.tsx
+```
+
+## Rationale
+
+Segments exist to separate the code inside a slice by its technical purpose. When a slice doesn't have this division, future growth of this slice becomes problematic, as people either won't be motivated to add this separation to avoid moving stuff around or they will add it and run up against Git conflicts and make the PR larger than necessary. When the slice grows and there's no separation by technical purpose, navigating this slice becomes more challenging.
+</file>
+
+<file path="no-segments-on-sliced-layers/README.md">
+# `no-segmentless-slices`
+
+Forbid segments that appear in direct children of sliced layers.
+
+Examples of project structures that pass this rule:
+
+```
+📂 shared
+  📂 ui
+    📄 index.ts
+  📂 lib
+    📄 index.ts
+📂 entities
+  📂 user
+    📂 ui
+    📂 model
+    📄 index.ts
+📂 pages
+  📂 home
+    📂 ui
+    📄 index.ts
+```
+
+Examples of project structures that fail this rule:
+
+```
+📂 shared
+  📂 ui
+    📄 index.ts
+  📂 lib
+    📄 index.ts
+📂 entities
+  📂 user
+    📂 ui
+    📂 model
+    📄 index.ts
+  📂 api // ❌
+    📄 index.ts
+📂 pages
+   📂 home
+     📂 ui
+     📄 index.ts
+```
+
+## Rationale
+
+Several folder names like `ui` or `api` are conventionally understood in FSD as segments. When you have segments as direct children, it's either because that's the name you chose for your slice, or because some code ended up unsliced. In the first case, where that is the name of your slice, such a name is likely to cause confusion among developers who are familiar with FSD. In the second case, where a segment on a layer is because there was no slice to put it in, it's a violation of FSD structure, which decreases the benefits of FSD and also causes confusion.
+</file>
+
+<file path="no-ui-in-app/README.md">
+# `no-ui-in-app`
+
+Forbid having <code>ui</code> segment in <code>app</code> layer.
+
+Examples of project structures that pass this rule:
+
+```
+📂 shared
+  📂 ui
+    📄 index.ts
+📂 pages
+  📂 home
+    📂 ui
+    📄 index.ts
+📂 app
+  📂 providers
+    📄 index.ts
+```
+
+Examples of project structures that fail this rule:
+
+```
+📂 shared
+  📂 ui
+    📄 index.ts
+📂 pages
+  📂 home
+    📂 ui
+    📄 index.ts
+📂 app
+  📂 providers
+    📄 index.ts
+  📂 ui  // ❌
+    📄 index.ts
+```
+
+## Rationale
+
+It's uncommon to define the `ui` segment on the App layer. The App layer is typically used to combine the application into a single entry point. The UI of your application should already be created on the layers below to avoid mixing up responsibilities. Therefore, the `ui` segment on the App layer is typically a mistake.
+
+For example, context providers are components, but they are not UI. Global styles are technically UI, but they aren't scoped to that segment, so the name `ui` might be a misdirection.
+
+As one possible exception, the `ui` segment can be used on the App layer if the entire application consists of only one page and there is no reason to define the Pages layer.
+</file>
+
+<file path="public-api/README.md">
+# `public-api`
+
+Require slices (and segments on Shared) to have a public API definition.
+
+According to the _public API rule on slices_:
+
+> Every slice (and segment on layers that don't have slices) must contain a public API definition.
+>
+> Modules outside of this slice/segment can only reference the public API, not the internal file structure of the slice/segment.
+> https://feature-sliced.design/docs/reference/slices-segments#public-api-rule-on-slices
+
+Examples of project structures that pass this rule:
+
+```
+📂 shared
+  📂 ui
+    📄 index.ts
+  📂 lib
+    📄 index.ts
+📂 entities
+  📂 user
+    📂 ui
+    📂 model
+    📄 index.ts
+📂 pages
+  📂 home
+    📂 ui
+    📄 index.ts
+```
+
+Examples of project structures that fail this rule:
+
+```
+📂 shared
+  📂 ui  // ❌
+    📄 Button.tsx
+  📂 lib
+    📄 index.ts
+📂 entities
+  📂 user  // ❌
+    📂 ui
+    📂 model
+📂 pages
+  📂 home
+    📂 ui
+    📄 index.ts
+```
+
+## Rationale
+
+The public API for slices exists as the only entrypoint into a slice, and that ensures that the internal structure of the slice can change freely as long as the public API stays the same. This ensures stability of the codebase during refactors. A slice that doesn't have one becomes a weak point for refactoring.
+</file>
+
+<file path="repetitive-naming/README.md">
+# `repetitive-naming`
+
+Discourage repetitive parts in slice names (e.g. adding page to every slice on Pages).
+
+Examples of project structures that pass this rule:
+
+```
+📂 pages
+  📂 home
+    📂 ui
+    📄 index.ts
+  📂 about
+    📂 ui
+    📄 index.ts
+  📂 contact
+    📂 ui
+    📄 index.ts
+```
+
+Examples of project structures that fail this rule:
+
+```
+📂 pages
+  📂 homePage  // ❌
+    📂 ui
+    📄 index.ts
+  📂 aboutPage  // ❌
+    📂 ui
+    📄 index.ts
+  📂 contactPage  // ❌
+    📂 ui
+    📄 index.ts
+```
+
+## Rationale
+
+Suffixes that appear in the name every slice don't add much meaning and instead get in the way of understanding the difference between the slices.
+</file>
+
+<file path="segments-by-purpose/README.md">
+# `segments-by-purpose`
+
+Discourage the use of segment names that group code by its essence, and instead encourage grouping by purpose. For example, `useResizeObserver` and `useQuery` are both React hooks, but they serve a very different purpose, one is for UI and the other is for data fetching. Grouping them together under a `hooks` segment would be unhelpful to someone who's searching for code that makes API requests.
+
+To pass this rule, avoid using the following segment names:
+
+- `utils`
+- `helpers`
+- `hooks`
+- `modals`
+- `components`
+
+Examples of project structures that pass this rule:
+
+```
+📂 shared
+  📂 ui
+    📄 index.ts
+  📂 lib
+    📄 index.ts
+📂 entities
+  📂 user
+    📂 ui
+    📂 model
+    📄 index.ts
+📂 pages
+  📂 home
+    📂 ui
+    📄 index.ts
+```
+
+Examples of project structures that fail this rule:
+
+```
+📂 shared
+  📂 ui
+    📄 index.ts
+  📂 modals  // ❌
+    📄 index.ts
+  📂 hooks  // ❌
+    📄 index.ts
+  📂 helpers  // ❌
+    📄 index.ts
+  📂 utils  // ❌
+    📄 index.ts
+📂 entities
+  📂 user
+    📂 components  // ❌
+    📂 model
+    📄 index.ts
+📂 pages
+  📂 home
+    📂 ui
+    📄 index.ts
+```
+
+## Rationale
+
+Segments group code by technical purpose, and the reason for that grouping is to make it easier to find things in a slice. Usually, when we are searching for code, we know at least broadly if we're looking for code that works with the API, or a display component, or a data store. Folders `components` may sound like they only contain UI components, but there are other things that affect UI, like date formatters, hooks for browser APIs, and so on, that are not components. They share the same purpose as components, so they should be grouped together under a semantic name. Folders `hooks` are problematic mostly because a hook is an abstract concept of a function, it doesn't tell anything about what that function can and can't do, so this name is no better than `functions`.
+
+Additionally, Sergey Sova has [a little article](https://dev.to/sergeysova/why-utils-helpers-is-a-dump-45fo) about why folders like `utils` and `helpers` risk getting turned into a dump.
+</file>
+
+<file path="shared-lib-grouping/README.md">
+# `shared-lib-grouping`
+
+Forbid having too many ungrouped modules in `shared/lib`.
+
+> [!NOTE]
+> For now, the threshold has been set to 15 arbitrarily. If this rule is too strict or too lenient, please open an issue.
+
+Examples of project structures that pass this rule:
+
+```
+📂 entities
+  📂 users
+    📂 ui
+    📄 index.ts
+  📂 posts
+    📂 ui
+    📄 index.ts
+📂 shared
+  📂 ui
+    📄 index.ts
+    📄 Button.tsx
+```
+
+```
+📂 entities
+  📂 users
+    📂 ui
+    📄 index.ts
+  📂 posts
+    📂 ui
+    📄 index.ts
+📂 shared
+  📂 ui
+    📄 index.ts
+    📄 Button.tsx
+  📂 lib
+    📄 index.ts
+    📄 dates.ts
+    📄 collections.ts
+```
+
+(Cartoonish) Example of a project structure that fails this rule:
+
+```
+📂 entities
+  📂 users
+    📂 ui
+    📄 index.ts
+  📂 posts
+    📂 ui
+    📄 index.ts
+📂 shared
+  📂 ui
+    📄 index.ts
+    📄 Button.tsx
+  📂 lib  // ❌
+    📄 index.ts
+    📄 dates.ts
+    📄 collections.ts
+    📄 utils.ts
+    📄 helpers.ts
+    📄 constants.ts
+    📄 types.ts
+    📄 api.ts
+    📄 hooks.ts
+    📄 selectors.ts
+    📄 actions.ts
+    📄 reducers.ts
+    📄 sagas.ts
+    📄 middleware.ts
+    📄 components.ts
+    📄 hell.ts
+    📄 is.ts
+    📄 other.ts
+    📄 people.ts
+```
+
+## Rationale
+
+The purpose of this rule is to prevent the `shared/lib` folder from becoming a dumping ground for all kinds of unrelated modules. This rule encourages developers to group related modules into their own folders, which makes it easier to find and understand the codebase.
+
+Sergey Sova has [a little article](https://dev.to/sergeysova/why-utils-helpers-is-a-dump-45fo) about why folders like `utils` and `helpers` risk getting turned into a dump, and `shared/lib` is also a potential candidate for becoming a dump.
+</file>
+
+<file path="typo-in-layer-name/README.md">
+# `typo-in-layer-name`
+
+Ensure that all layers are named consistently without any typos.
+
+Examples of project structures that pass this rule:
+
+```
+📂 shared
+📂 entities
+📂 features
+📂 widgets
+📂 pages
+📂 app
+```
+
+Examples of project structures that fail this rule:
+
+```
+📂 shraed  // ❌
+📂 entities
+📂 fietures  // ❌
+📂 wigdets  // ❌
+📂 page  // ❌
+📂 app
+```
+
+## Rationale
+
+The methodology contains a standardized set of layers. Enforcing these naming conventions is important for other developers, as well as for other rules of the linter to work correctly.
+</file>
+
+</files>

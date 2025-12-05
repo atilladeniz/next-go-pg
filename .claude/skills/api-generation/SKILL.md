@@ -14,19 +14,19 @@ Generate typed TypeScript API client from Go Swagger comments using swag + Orval
 Go Handler → swag init → swagger.json → Orval → TypeScript Hooks
 ```
 
-## Ein Befehl für alles
+## One Command for Everything
 
 ```bash
 make api
 ```
 
-Dies führt aus:
-1. `swag init` → Generiert `backend/docs/swagger.json` aus Go-Kommentaren
-2. `orval` → Generiert TypeScript Hooks in `frontend/src/api/`
+This executes:
+1. `swag init` → Generates `backend/docs/swagger.json` from Go comments
+2. `orval` → Generates TypeScript Hooks in `frontend/src/shared/api/`
 
-## Neuen Endpoint hinzufügen
+## Adding a New Endpoint
 
-### Schritt 1: Go Handler mit Swagger-Kommentaren
+### Step 1: Go Handler with Swagger Comments
 
 ```go
 // internal/handler/product.go
@@ -62,10 +62,10 @@ func (h *ProductHandler) CreateProduct(w http.ResponseWriter, r *http.Request) {
 }
 ```
 
-### Schritt 2: Response/Request Types definieren
+### Step 2: Define Response/Request Types
 
 ```go
-// In handler oder separater types.go
+// In handler or separate types.go
 
 type ProductResponse struct {
     ID    string  `json:"id" example:"prod_123"`
@@ -79,13 +79,13 @@ type CreateProductRequest struct {
 }
 ```
 
-### Schritt 3: API Client generieren
+### Step 3: Generate API Client
 
 ```bash
 make api
 ```
 
-### Schritt 4: Im Frontend nutzen
+### Step 4: Use in Frontend
 
 ```tsx
 import { useGetProducts, usePostProducts } from "@/api/endpoints/products/products"
@@ -104,35 +104,35 @@ function ProductsPage() {
 
 ## Swagger Annotation Reference
 
-| Annotation | Beschreibung |
-|------------|--------------|
-| `@Summary` | Kurze Beschreibung |
-| `@Description` | Ausführliche Beschreibung |
-| `@Tags` | Gruppierung (wird zu Ordner in endpoints/) |
+| Annotation | Description |
+|------------|-------------|
+| `@Summary` | Short description |
+| `@Description` | Detailed description |
+| `@Tags` | Grouping (becomes folder in endpoints/) |
 | `@Accept` | Request Content-Type |
 | `@Produce` | Response Content-Type |
 | `@Param` | Parameter (body, query, path) |
-| `@Success` | Erfolgs-Response |
-| `@Failure` | Fehler-Response |
-| `@Security` | Auth-Anforderung |
-| `@Router` | HTTP Path und Method |
+| `@Success` | Success response |
+| `@Failure` | Error response |
+| `@Security` | Auth requirement |
+| `@Router` | HTTP path and method |
 
-## Generierte Dateien
+## Generated Files
 
 ```
-frontend/src/api/
+frontend/src/shared/api/
 ├── endpoints/
-│   ├── products/        # Nach @Tags gruppiert
+│   ├── products/        # Grouped by @Tags
 │   │   └── products.ts  # useGetProducts, usePostProducts, etc.
 │   └── users/
 │       └── users.ts
 ├── models/              # TypeScript Types
-└── custom-fetch.ts      # Fetch Wrapper mit Auth
+└── custom-fetch.ts      # Fetch Wrapper with Auth
 ```
 
-## Wichtige Regeln
+## Important Rules
 
-- **Nie** generierte Dateien manuell editieren
-- **Immer** `make api` nach Handler-Änderungen
-- Tags werden zu Ordnernamen → `@Tags products` → `endpoints/products/`
-- operationId wird automatisch aus Router-Path generiert
+- **Never** manually edit generated files
+- **Always** run `make api` after handler changes
+- Tags become folder names → `@Tags products` → `endpoints/products/`
+- operationId is automatically generated from Router path

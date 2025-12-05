@@ -2,7 +2,7 @@
 
 ## Database Schema
 
-Das ER-Diagramm zeigt alle Datenbank-Entitäten und ihre Beziehungen.
+The ER diagram shows all database entities and their relationships.
 
 ## Core Entities
 
@@ -71,7 +71,7 @@ erDiagram
         timestamp updated_at
     }
 
-    %% Beispiel: Wenn du mehr Entities hast
+    %% Example: If you have more entities
     %% users ||--o{ projects : "owns"
     %% projects ||--o{ tasks : "contains"
 
@@ -98,7 +98,7 @@ erDiagram
 
 ## Better Auth Schema
 
-Better Auth erstellt automatisch diese Tabellen:
+Better Auth automatically creates these tables:
 
 ```mermaid
 erDiagram
@@ -223,8 +223,8 @@ flowchart TD
 
 ## Relationship Types
 
-| Beziehung | Beispiel | GORM |
-|-----------|----------|------|
+| Relationship | Example | GORM |
+|--------------|---------|------|
 | **1:1** | User ↔ UserStats | `hasOne` / `belongsTo` |
 | **1:N** | User ↔ Sessions | `hasMany` / `belongsTo` |
 | **N:M** | User ↔ Roles | `many2many` (Join Table) |

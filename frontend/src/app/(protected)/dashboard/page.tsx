@@ -1,12 +1,13 @@
+import { UserInfo } from "@entities/user"
+import { StatsGrid } from "@features/stats"
+import { getGetStatsQueryKey, getStats } from "@shared/api/endpoints/users/users"
+import { getQueryClient } from "@shared/lib"
+import { getSession } from "@shared/lib/auth-server"
+import { Card, CardContent, CardHeader, CardTitle } from "@shared/ui/card"
 import { dehydrate, HydrationBoundary } from "@tanstack/react-query"
+import { Header } from "@widgets/header"
 import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
-import { getGetStatsQueryKey, getStats } from "@/api/endpoints/users/users"
-import { Header } from "@/components/header"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { getSession } from "@/lib/auth-server"
-import { getQueryClient } from "@/lib/get-query-client"
-import { StatsGrid } from "./stats-grid"
 
 export default async function DashboardPage() {
 	const session = await getSession()
@@ -43,7 +44,7 @@ export default async function DashboardPage() {
 							<CardTitle>Willkommen, {user.name || "User"}!</CardTitle>
 						</CardHeader>
 						<CardContent>
-							<p className="text-muted-foreground">E-Mail: {user.email}</p>
+							<UserInfo user={user} showEmail />
 						</CardContent>
 					</Card>
 

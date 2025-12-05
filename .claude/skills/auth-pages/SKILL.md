@@ -4,82 +4,94 @@ description: Create and manage authentication pages with server-side session han
 allowed-tools: Read, Edit, Write, Glob
 ---
 
-# Authentication Pages
+# Authentication Pages (FSD)
 
-Better Auth integration mit Next.js 16 - **Server-Side First** für flicker-freie UX.
+Better Auth integration with Next.js 16 - **Server-Side First** for flicker-free UX.
 
-## Architektur-Prinzip
+## FSD Paths
 
 ```
-Server Component (Session prüfen) → Client Component (Interaktivität)
+src/
+├── features/auth/              # Auth Feature
+│   ├── ui/
+│   │   ├── login-form.tsx
+│   │   └── register-form.tsx
+│   ├── model/
+│   │   └── use-auth-sync.ts
+│   └── index.ts
+├── shared/lib/
+│   ├── auth-client/            # Client-safe: signIn, signOut
+│   └── auth-server/            # Server-only: getSession, auth
+└── widgets/header/             # Header with Auth Sync
 ```
 
-**KEIN useSession() in Protected Pages!** → Verursacht Flicker.
+## Architecture Principle
 
-## Bestehende Auth Pages
+```
+Server Component (check session) → Client Component (interactivity)
+```
 
-- `/login` - Login mit Email/Password
-- `/register` - Registrierung
+**NO useSession() in Protected Pages!** → Causes flicker.
+
+## Existing Auth Pages
+
+- `/login` - Login with Email/Password
+- `/register` - Registration
 - `/dashboard` - Protected Dashboard
 
-## Server-Side Session (KEIN FLICKER!)
+## Server-Side Session (NO FLICKER!)
 
 ### Protected Page Pattern
 
 ```tsx
 // app/(protected)/dashboard/page.tsx - SERVER COMPONENT
-import { auth } from "@/lib/auth"
-import { headers } from "next/headers"
+import { getSession } from "@shared/lib/auth-server"
 import { redirect } from "next/navigation"
-import { Header } from "./header"
-import { DashboardContent } from "./dashboard-content"
-
-async function getData() {
-  const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/data`, {
-    headers: { Cookie: (await headers()).get("cookie") ?? "" },
-    cache: "no-store",
-  })
-  if (!res.ok) return null
-  return res.json()
-}
+import { Header } from "@widgets/header"
+import { StatsGrid } from "@features/stats"
 
 export default async function DashboardPage() {
-  // Server-side Session Check - KEIN Flicker!
-  const session = await auth.api.getSession({ headers: await headers() })
+  // Server-side Session Check - NO Flicker!
+  const session = await getSession()
   if (!session) redirect("/login")
-
-  // Daten server-side laden
-  const data = await getData()
 
   return (
     <div className="min-h-screen bg-background">
-      {/* User als Prop übergeben, nicht useSession! */}
+      {/* Pass user as prop, not useSession! */}
       <Header user={session.user} />
-      {/* Initial Data für React Query */}
-      <DashboardContent initialData={data} />
+      {/* HydrationBoundary for React Query - see data-fetching skill */}
+      <StatsGrid />
     </div>
   )
 }
 ```
 
-### Header mit User Prop
+### Header Widget
 
 ```tsx
-// app/(protected)/dashboard/header.tsx
+// widgets/header/ui/header.tsx
 "use client"
 
-import { signOut } from "@/lib/auth-client"
-import { Button } from "@/components/ui/button"
+import type { SessionUser } from "@entities/user"
+import { broadcastSignOut, useAuthSync } from "@features/auth"
+import { signOut } from "@shared/lib/auth-client"
+import { Button } from "@shared/ui/button"
 
-type User = { name: string; email: string }
+export function Header({ user }: { user: SessionUser }) {
+  useAuthSync() // Cross-Tab Listener
 
-export function Header({ user }: { user: User }) {
+  const handleSignOut = async () => {
+    await signOut()
+    await broadcastSignOut()
+    router.push("/")
+  }
+
   return (
     <header className="border-b">
       <div className="container flex h-16 items-center justify-between">
-        <span>Willkommen, {user.name}</span>
-        <Button variant="outline" onClick={() => signOut()}>
-          Abmelden
+        <span>Welcome, {user.name}</span>
+        <Button variant="outline" onClick={handleSignOut}>
+          Sign Out
         </Button>
       </div>
     </header>
@@ -87,38 +99,10 @@ export function Header({ user }: { user: User }) {
 }
 ```
 
-### Client Component mit initialData
+## Auth Client (only for actions!)
 
 ```tsx
-// app/(protected)/dashboard/dashboard-content.tsx
-"use client"
-
-import { useGetData } from "@/api/endpoints/data/data"
-import { useSSE } from "@/hooks/use-sse"
-
-export function DashboardContent({ initialData }: { initialData: Data | null }) {
-  // Real-time Updates via SSE
-  useSSE()
-
-  // React Query mit Server-Daten als Initial
-  const { data: response } = useGetData({
-    query: {
-      initialData: initialData
-        ? { data: initialData, status: 200 as const, headers: new Headers() }
-        : undefined,
-    },
-  })
-
-  const data = response?.status === 200 ? response.data : initialData
-
-  return <div>{/* Render data */}</div>
-}
-```
-
-## Auth Client (nur für Actions!)
-
-```tsx
-import { signIn, signUp, signOut } from "@/lib/auth-client"
+import { signIn, signUp, signOut } from "@shared/lib/auth-client"
 
 // Sign In (in Login Page)
 await signIn.email({ email, password })
@@ -130,18 +114,18 @@ await signUp.email({ name, email, password })
 await signOut()
 ```
 
-## Cross-Tab Synchronisation
+## Cross-Tab Synchronization
 
-Better Auth hat **keine eingebaute Cross-Tab Synchronisation**. Nutze `broadcast-channel` Library:
+Better Auth has **no built-in cross-tab synchronization**. Use `broadcast-channel` library:
 
 ```bash
 bun add broadcast-channel
 ```
 
-### useAuthSync Hook
+### useAuthSync Hook (FSD)
 
 ```tsx
-// hooks/use-auth-sync.ts
+// features/auth/model/use-auth-sync.ts
 "use client"
 
 import { BroadcastChannel } from "broadcast-channel"
@@ -155,7 +139,7 @@ export function useAuthSync() {
 
   useEffect(() => {
     const channel = new BroadcastChannel<AuthMessage>("auth-sync", {
-      type: "localstorage", // Fallback für Safari Private Mode
+      type: "localstorage", // Fallback for Safari Private Mode
     })
 
     channel.onmessage = (msg) => {
@@ -175,28 +159,35 @@ export async function broadcastSignOut() {
 }
 ```
 
-### Integration im Header
+### Public API
 
 ```tsx
-// components/header.tsx
-"use client"
+// features/auth/index.ts
+export { LoginForm } from "./ui/login-form"
+export { RegisterForm } from "./ui/register-form"
+export { useAuthSync, broadcastSignOut, broadcastSignIn } from "./model/use-auth-sync"
+```
 
-import { broadcastSignOut, useAuthSync } from "@/hooks/use-auth-sync"
-import { signOut } from "@/lib/auth-client"
+### Integration in Header Widget
 
-export function Header({ user }: { user: User }) {
+```tsx
+// widgets/header/ui/header.tsx
+import { broadcastSignOut, useAuthSync } from "@features/auth"
+import { signOut } from "@shared/lib/auth-client"
+
+export function Header({ user }: { user: SessionUser }) {
   useAuthSync() // Cross-Tab Listener
 
   const handleSignOut = async () => {
     await signOut()
-    await broadcastSignOut() // Alle anderen Tabs benachrichtigen
+    await broadcastSignOut()
     router.push("/")
   }
   // ...
 }
 ```
 
-### Vorteile von broadcast-channel
+### Benefits of broadcast-channel
 
 - Safari Private Mode Support
 - localStorage Fallback
@@ -207,32 +198,32 @@ export function Header({ user }: { user: User }) {
 
 ### Proxy (middleware)
 
-`frontend/src/proxy.ts` prüft Cookie-basiert:
+`frontend/src/proxy.ts` checks cookie-based:
 
 ```typescript
 export function proxy(request: NextRequest) {
   const sessionCookie = request.cookies.get("better-auth.session_token")
 
-  // Protected Route ohne Session → Login
+  // Protected Route without Session → Login
   if (isProtectedRoute && !sessionCookie) {
     return NextResponse.redirect(new URL("/login", request.url))
   }
 
-  // Auth Route mit Session → Dashboard
+  // Auth Route with Session → Dashboard
   if (isAuthRoute && sessionCookie) {
     return NextResponse.redirect(new URL("/dashboard", request.url))
   }
 }
 ```
 
-### Ordner-Struktur
+### Folder Structure
 
 ```
 src/app/
-├── (auth)/           # Login, Register (redirect wenn eingeloggt)
+├── (auth)/           # Login, Register (redirect when logged in)
 │   ├── login/
 │   └── register/
-├── (protected)/      # Erfordert Auth
+├── (protected)/      # Requires Auth
 │   └── dashboard/
 │       ├── page.tsx           # Server Component
 │       ├── header.tsx         # Client Component
@@ -240,30 +231,31 @@ src/app/
 └── page.tsx          # Public Home
 ```
 
-## WICHTIG: Was NICHT tun
+## IMPORTANT: What NOT to do
 
-❌ **NICHT** `useSession()` in Protected Pages
-❌ **NICHT** Skeleton für Session Loading
-❌ **NICHT** `isPending` Check für Session
-❌ **NICHT** Client-seitiger Redirect
+❌ **DO NOT** use `useSession()` in Protected Pages
+❌ **DO NOT** use Skeleton for Session Loading
+❌ **DO NOT** use `isPending` check for Session
+❌ **DO NOT** use client-side redirect
 
-✅ **STATTDESSEN**:
-- Server Component prüft Session
-- `redirect()` wenn keine Session
-- User als Prop an Client Components
-- `initialData` für React Query
+✅ **INSTEAD**:
+
+- Server Component checks session
+- `redirect()` if no session
+- Pass user as prop to Client Components
+- Use `initialData` for React Query
 
 ## Real-Time Updates
 
-SSE Hook für automatische Daten-Aktualisierung:
+SSE Hook for automatic data updates:
 
 ```tsx
 "use client"
 
-import { useSSE } from "@/hooks/use-sse"
+import { useSSE } from "@features/stats"
 
 export function MyComponent() {
-  useSSE() // Verbindet zu /api/v1/events
-  // React Query wird automatisch invalidiert bei SSE Events
+  useSSE() // Connects to /api/v1/events
+  // React Query is automatically invalidated on SSE events
 }
 ```

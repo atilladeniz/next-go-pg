@@ -1,8 +1,8 @@
 # Container Diagram (C4 Level 2)
 
-## Technische Architektur
+## Technical Architecture
 
-Detaillierte Sicht auf die Container (deploybare Einheiten) des Systems.
+Detailed view of the containers (deployable units) of the system.
 
 ## Container Diagram
 
@@ -10,7 +10,7 @@ Detaillierte Sicht auf die Container (deploybare Einheiten) des Systems.
 C4Container
     title Next-Go-PG - Container Diagram
 
-    Person(user, "User", "Benutzer der Anwendung")
+    Person(user, "User", "Application user")
 
     System_Boundary(nextgopg, "Next-Go-PG System") {
         Container(proxy, "kamal-proxy", "Go", "Reverse Proxy, SSL Termination, Zero-Downtime Deploys")
@@ -33,32 +33,54 @@ C4Container
 
 ## Container Details
 
-### Frontend (Next.js)
+### Frontend (Next.js + FSD)
 
 ```mermaid
 flowchart TB
-    subgraph Frontend["Frontend Container"]
+    subgraph Frontend["Frontend Container - Feature-Sliced Design"]
         direction TB
-        AR[App Router]
-        RC[React Components]
-        TQ[TanStack Query]
-        BA[Better Auth Client]
-        OR[Orval API Client]
+        subgraph App["app/"]
+            AR[App Router]
+        end
 
-        AR --> RC
-        RC --> TQ
-        RC --> BA
-        TQ --> OR
+        subgraph Widgets["widgets/"]
+            Header[header]
+        end
+
+        subgraph Features["features/"]
+            Auth[auth]
+            Stats[stats]
+        end
+
+        subgraph Entities["entities/"]
+            User[user]
+        end
+
+        subgraph Shared["shared/"]
+            UI[ui - shadcn]
+            API[api - Orval]
+            Lib[lib - Utils]
+        end
+
+        AR --> Widgets
+        AR --> Features
+        Widgets --> Features
+        Widgets --> Shared
+        Features --> Entities
+        Features --> Shared
+        Entities --> Shared
     end
 ```
 
-| Komponente | Technologie | Verantwortung |
-|------------|-------------|---------------|
-| App Router | Next.js 16 | Routing, SSR, Server Components |
-| Components | React + shadcn/ui | UI Rendering |
-| TanStack Query | React Query | Server State, Caching |
-| Better Auth | Auth Client | Session Management |
-| Orval | Generated Hooks | Type-safe API Calls |
+| Layer | Technology | Responsibility |
+|-------|------------|----------------|
+| app/ | Next.js 16 App Router | Routing, SSR, Pages |
+| widgets/ | React Components | Composite UI (Header) |
+| features/ | React + Hooks | User Interactions (Auth, Stats) |
+| entities/ | TypeScript | Business Objects (User) |
+| shared/ui | shadcn/ui | UI Components |
+| shared/api | Orval + TanStack Query | Type-safe API Calls |
+| shared/lib | Better Auth, Utils | Auth, Helpers |
 
 ### Backend (Go)
 
@@ -81,8 +103,8 @@ flowchart TB
     end
 ```
 
-| Layer | Verantwortung | Goca Command |
-|-------|---------------|--------------|
+| Layer | Responsibility | Goca Command |
+|-------|----------------|--------------|
 | Handler | HTTP Endpoints, Swagger | `goca make handler` |
 | UseCase | Business Logic | `goca make usecase` |
 | Repository | Data Access | `goca make repository` |
@@ -118,9 +140,9 @@ erDiagram
     users ||--o| user_stats : has
 ```
 
-## Kommunikation
+## Communication
 
-### Synchrone Kommunikation
+### Synchronous Communication
 
 ```mermaid
 sequenceDiagram
@@ -141,7 +163,7 @@ sequenceDiagram
     P-->>U: Complete Page
 ```
 
-### Asynchrone Kommunikation (SSE)
+### Asynchronous Communication (SSE)
 
 ```mermaid
 sequenceDiagram

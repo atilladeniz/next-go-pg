@@ -4,13 +4,13 @@ description: Add and use shadcn/ui components. Use when building UI, adding new 
 allowed-tools: Read, Edit, Write, Bash, Glob
 ---
 
-# shadcn/ui Components
+# shadcn/ui Components (FSD)
 
 This project uses shadcn/ui with the neutral theme and all components pre-installed.
 
-## Available Components
+## FSD Pfad
 
-All components are in `frontend/src/components/ui/`:
+All components are in `frontend/src/shared/ui/`:
 
 ### Layout
 
@@ -85,7 +85,7 @@ All components are in `frontend/src/components/ui/`:
 ### Button Variants
 
 ```tsx
-import { Button } from "@/components/ui/button"
+import { Button } from "@shared/ui/button"
 
 <Button>Default</Button>
 <Button variant="secondary">Secondary</Button>
@@ -98,7 +98,7 @@ import { Button } from "@/components/ui/button"
 ### Card
 
 ```tsx
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card"
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@shared/ui/card"
 
 <Card>
   <CardHeader>
@@ -117,8 +117,8 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 ### Form with Input
 
 ```tsx
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+import { Input } from "@shared/ui/input"
+import { Label } from "@shared/ui/label"
 
 <div className="space-y-2">
   <Label htmlFor="email">Email</Label>
@@ -136,7 +136,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog"
+} from "@shared/ui/dialog"
 
 <Dialog>
   <DialogTrigger asChild>
@@ -166,12 +166,13 @@ toast.info("Info message")
 
 Components automatically support dark mode via ThemeProvider.
 
-Use `ModeToggle` for theme switching:
+Use `ModeToggle` from Header Widget:
 
 ```tsx
-import { ModeToggle } from "@/components/mode-toggle"
+import { Header } from "@widgets/header"
 
-<ModeToggle />
+// ModeToggle is integrated in the Header
+<Header user={session.user} />
 ```
 
 ## Adding New Components
@@ -193,7 +194,7 @@ Components use Tailwind CSS classes. Customize with `className`:
 Use `cn()` utility for conditional classes:
 
 ```tsx
-import { cn } from "@/lib/utils"
+import { cn } from "@shared/lib"
 
 <div className={cn("p-4", isActive && "bg-primary")}>
 ```

@@ -13,9 +13,9 @@
 			"*.tsx",
 			"*.js",
 			"*.jsx",
-			"!src/api/endpoints",
-			"!src/api/models",
-			"!src/components/ui"
+			"!src/shared/api/endpoints",
+			"!src/shared/api/models",
+			"!src/shared/ui"
 		]
 	},
 	"formatter": {

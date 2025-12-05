@@ -26,11 +26,13 @@ Full-Stack Monorepo with Next.js Frontend and Go Backend.
 | Component | Technology |
 |-----------|------------|
 | Frontend | Next.js 16, TypeScript, Tailwind CSS, shadcn/ui |
+| Frontend Architecture | **Feature-Sliced Design (FSD)** |
 | Backend | Go, Gorilla Mux, Clean Architecture, GORM |
 | Code Generator | **Goca CLI** (Go Clean Architecture) |
 | Database | PostgreSQL 16 |
 | Auth | Better Auth |
 | API | Swagger/swag → Orval |
+| Linting | Biome + Steiger (FSD) |
 
 ## Prerequisites
 
@@ -80,20 +82,22 @@ Open:
 
 ```
 next-go-pg/
-├── backend/                 # Go Backend
-│   ├── api/
-│   │   └── openapi.yaml     # API Specification (Source of Truth)
+├── backend/                 # Go Backend (Clean Architecture)
 │   ├── cmd/server/          # Entrypoint
 │   ├── internal/
-│   │   ├── handler/         # HTTP Handler
-│   │   └── middleware/      # Auth, CORS Middleware
-│   └── pkg/config/          # Configuration
-├── frontend/                # Next.js Frontend
+│   │   ├── domain/          # Entities (goca make entity)
+│   │   ├── usecase/         # Business Logic (goca make usecase)
+│   │   ├── repository/      # Data Access (goca make repository)
+│   │   ├── handler/         # HTTP Handler (goca make handler)
+│   │   └── middleware/      # Auth, CORS
+│   └── docs/                # Swagger (generated)
+├── frontend/                # Next.js Frontend (FSD Architecture)
 │   ├── src/
-│   │   ├── api/             # Generated API Clients
 │   │   ├── app/             # Next.js App Router
-│   │   ├── components/      # React Components
-│   │   └── lib/             # Utilities, Auth
+│   │   ├── widgets/         # Composite UI (Header)
+│   │   ├── features/        # User Interactions (Auth, Stats)
+│   │   ├── entities/        # Business Objects (User)
+│   │   └── shared/          # Reusable (UI, API, Lib)
 │   └── orval.config.ts      # API Generator Config
 ├── docker-compose.dev.yml   # Dev Database
 ├── Makefile                 # Build Commands
@@ -163,7 +167,7 @@ make api              # Generate TypeScript client from OpenAPI
 ### Quality
 
 ```bash
-make lint             # Linting
+make lint             # Biome + Steiger (FSD) Linting
 make lint-fix         # Auto-fix
 make typecheck        # TypeScript Check
 make test             # Run tests
@@ -189,15 +193,15 @@ make fetch-docs url=<url> name=<n>  # With custom filename
 
 ## API Workflow
 
-1. Edit OpenAPI Spec: `backend/api/openapi.yaml`
+1. Add Swagger comments to Go handler
 2. Generate TypeScript client: `make api`
 3. Use generated hooks:
 
 ```tsx
-import { useGetHello } from "@/api/endpoints/public/public"
+import { useGetStats } from "@shared/api/endpoints/users/users"
 
 function MyComponent() {
-  const { data, isLoading } = useGetHello()
+  const { data, isLoading } = useGetStats()
   // ...
 }
 ```
@@ -214,7 +218,7 @@ Better Auth with Email/Password Login.
 ### Client Usage
 
 ```tsx
-import { signIn, signUp, signOut, useSession } from "@/lib/auth-client"
+import { signIn, signUp, signOut, useSession } from "@shared/lib/auth-client"
 
 // Get session
 const { data: session } = useSession()

@@ -1,6 +1,6 @@
+import { getSession } from "@shared/lib/auth-server"
+import { Header } from "@widgets/header"
 import { redirect } from "next/navigation"
-import { Header } from "@/components/header"
-import { getSession } from "@/lib/auth-server"
 import { ApiTestClient } from "./client"
 
 export default async function ApiTestPage() {

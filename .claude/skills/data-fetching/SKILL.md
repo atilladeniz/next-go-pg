@@ -1,29 +1,43 @@
 ---
 name: data-fetching
-description: Server-Side + Client-Side Data Fetching mit Orval + TanStack Query HydrationBoundary Pattern. IMMER Orval nutzen - NIEMALS manuelles fetch()!
+description: Server-Side + Client-Side Data Fetching with Orval + TanStack Query HydrationBoundary Pattern. ALWAYS use Orval - NEVER manual fetch()!
 allowed-tools: Read, Edit, Write, Glob, Grep
 ---
 
-# Data Fetching Strategy
+# Data Fetching Strategy (FSD)
 
-**Grundregel**: IMMER Orval-generierte Funktionen nutzen - NIEMALS manuelle `fetch()` Aufrufe!
+**Core Rule**: ALWAYS use Orval-generated functions - NEVER manual `fetch()` calls!
 
-## Das HydrationBoundary Pattern (TanStack Recommended)
+## FSD Paths
+
+```
+src/shared/
+├── api/                        # Orval-generated
+│   ├── endpoints/              # React Query Hooks
+│   ├── models/                 # TypeScript Types
+│   └── custom-fetch.ts         # Fetch Wrapper
+└── lib/
+    ├── query-client.ts         # getQueryClient()
+    ├── auth-server/            # Server-only: getSession()
+    └── auth-client/            # Client-safe: signIn, signOut
+```
+
+## The HydrationBoundary Pattern (TanStack Recommended)
 
 ```
 Server Component (prefetchQuery) → HydrationBoundary → Client Component (useQuery)
 ```
 
-### Vorteile gegenüber initialData
+### Advantages over initialData
 
-- Sauberer: Kein manuelles Response-Mapping
-- Streaming-Support: Unterstützt React 18 Streaming
-- Korrekter Cache: Query Cache wird korrekt hydriert
-- Type-Safe: Bessere TypeScript-Integration
+- Cleaner: No manual response mapping
+- Streaming Support: Supports React 18 Streaming
+- Correct Cache: Query cache is properly hydrated
+- Type-Safe: Better TypeScript integration
 
 ## Setup
 
-### 1. Query Client Helper (`lib/get-query-client.ts`)
+### 1. Query Client Helper (`shared/lib/query-client.ts`)
 
 ```tsx
 import {
@@ -59,13 +73,13 @@ export function getQueryClient() {
 }
 ```
 
-### 2. Providers (`components/providers.tsx`)
+### 2. Providers (`shared/config/providers.tsx`)
 
 ```tsx
 "use client"
 
 import { QueryClientProvider } from "@tanstack/react-query"
-import { getQueryClient } from "@/lib/get-query-client"
+import { getQueryClient } from "@shared/lib/query-client"
 
 export function Providers({ children }: { children: ReactNode }) {
   const queryClient = getQueryClient()
@@ -85,24 +99,24 @@ export function Providers({ children }: { children: ReactNode }) {
 import { dehydrate, HydrationBoundary } from "@tanstack/react-query"
 import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
-import { getStats, getGetStatsQueryKey } from "@/api/endpoints/users/users"
-import { getQueryClient } from "@/lib/get-query-client"
-import { getSession } from "@/lib/auth-server"
-import { StatsGrid } from "./stats-grid"
+import { getStats, getGetStatsQueryKey } from "@shared/api/endpoints/users/users"
+import { getQueryClient } from "@shared/lib/query-client"
+import { getSession } from "@shared/lib/auth-server"
+import { StatsGrid } from "@features/stats"
 
 export default async function DashboardPage() {
-  // 1. Session prüfen
+  // 1. Check session
   const session = await getSession()
   if (!session) redirect("/login")
 
-  // 2. Cookies für Server-Fetch
+  // 2. Get cookies for server fetch
   const cookieStore = await cookies()
   const cookieHeader = cookieStore
     .getAll()
     .map((c) => `${c.name}=${c.value}`)
     .join("; ")
 
-  // 3. Prefetch mit Orval-Funktion
+  // 3. Prefetch with Orval function
   const queryClient = getQueryClient()
   await queryClient.prefetchQuery({
     queryKey: getGetStatsQueryKey(),
@@ -113,7 +127,7 @@ export default async function DashboardPage() {
       }),
   })
 
-  // 4. HydrationBoundary wrappen
+  // 4. Wrap with HydrationBoundary
   return (
     <HydrationBoundary state={dehydrate(queryClient)}>
       <StatsGrid />
@@ -125,17 +139,17 @@ export default async function DashboardPage() {
 ## Client Component Pattern
 
 ```tsx
-// app/(protected)/dashboard/stats-grid.tsx - CLIENT COMPONENT
+// features/stats/ui/stats-grid.tsx - CLIENT COMPONENT
 "use client"
 
-import { useGetStats, usePostStats } from "@/api/endpoints/users/users"
-import { useSSE } from "@/hooks/use-sse"
+import { useGetStats, usePostStats } from "@shared/api/endpoints/users/users"
+import { useSSE } from "../model/use-sse"
 
 export function StatsGrid() {
-  // SSE für Real-time Updates
+  // SSE for real-time updates
   useSSE()
 
-  // Daten sind bereits hydriert - kein initialData nötig!
+  // Data is already hydrated - no initialData needed!
   const { data: response } = useGetStats()
 
   // Mutation Hook
@@ -145,7 +159,7 @@ export function StatsGrid() {
 
   return (
     <div>
-      <p>Projekte: {stats?.projectCount}</p>
+      <p>Projects: {stats?.projectCount}</p>
       <button onClick={() => updateStats({ data: { field: "projects", delta: 1 } })}>
         +1
       </button>
@@ -154,7 +168,7 @@ export function StatsGrid() {
 }
 ```
 
-## Multiple Datenquellen
+## Multiple Data Sources
 
 ```tsx
 // Server Component
@@ -170,7 +184,7 @@ export default async function DashboardPage() {
 
   const queryClient = getQueryClient()
 
-  // Parallel prefetchen
+  // Parallel prefetch
   await Promise.all([
     queryClient.prefetchQuery({
       queryKey: getGetStatsQueryKey(),
@@ -191,17 +205,17 @@ export default async function DashboardPage() {
 }
 ```
 
-## VERBOTEN: Manuelle Fetch-Aufrufe
+## FORBIDDEN: Manual Fetch Calls
 
 ```tsx
-// ❌ NIEMALS SO:
+// ❌ NEVER DO THIS:
 async function getStats() {
   const res = await fetch("http://localhost:8080/api/v1/stats")
   return res.json()
 }
 
-// ✅ IMMER SO (Orval-Funktion):
-import { getStats, getGetStatsQueryKey } from "@/api/endpoints/users/users"
+// ✅ ALWAYS DO THIS (Orval function):
+import { getStats, getGetStatsQueryKey } from "@shared/api/endpoints/users/users"
 
 await queryClient.prefetchQuery({
   queryKey: getGetStatsQueryKey(),
@@ -209,31 +223,33 @@ await queryClient.prefetchQuery({
 })
 ```
 
-## Wann Server-Side prefetchen?
+## When to Server-Side Prefetch?
 
 ✅ **Server-Side** (prefetchQuery in Server Component):
-- Initial Page Load (SEO, kein Flicker)
-- Protected Pages (Session prüfen vor Render)
-- Kritische "above-the-fold" Inhalte
-- Daten die sofort sichtbar sein müssen
 
-## Wann nur Client-Side?
+- Initial Page Load (SEO, no flicker)
+- Protected Pages (check session before render)
+- Critical "above-the-fold" content
+- Data that must be immediately visible
 
-✅ **Nur Client-Side** (useQuery ohne prefetch):
-- Nach User-Interaktion (Klick, Form Submit)
-- Lazy-loaded Content (unterhalb des Folds)
+## When Client-Side Only?
+
+✅ **Client-Side Only** (useQuery without prefetch):
+
+- After user interaction (click, form submit)
+- Lazy-loaded content (below the fold)
 - Pagination, Infinite Scroll
-- Daten die nicht sofort sichtbar sein müssen
+- Data that doesn't need to be immediately visible
 
 ## SSE + React Query Integration
 
 ```tsx
-// hooks/use-sse.ts
+// features/stats/model/use-sse.ts
 "use client"
 
 import { useQueryClient } from "@tanstack/react-query"
 import { useEffect } from "react"
-import { getGetStatsQueryKey } from "@/api/endpoints/users/users"
+import { getGetStatsQueryKey } from "@shared/api/endpoints/users/users"
 
 export function useSSE() {
   const queryClient = useQueryClient()
@@ -254,13 +270,13 @@ export function useSSE() {
 
 ## Streaming (Optional)
 
-Für Streaming ohne await:
+For streaming without await:
 
 ```tsx
 export default function PostsPage() {
   const queryClient = getQueryClient()
 
-  // Kein await - startet Fetch, blockiert nicht
+  // No await - starts fetch, doesn't block
   queryClient.prefetchQuery({
     queryKey: getGetPostsQueryKey(),
     queryFn: () => getPosts(),
@@ -268,29 +284,29 @@ export default function PostsPage() {
 
   return (
     <HydrationBoundary state={dehydrate(queryClient)}>
-      <Posts /> {/* useSuspenseQuery hier für Streaming */}
+      <Posts /> {/* useSuspenseQuery here for streaming */}
     </HydrationBoundary>
   )
 }
 ```
 
-## Zusammenfassung
+## Summary
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                    SERVER COMPONENT                          │
-│  1. Session prüfen (getSession)                             │
-│  2. Cookies holen für Auth                                  │
-│  3. prefetchQuery mit Orval-Funktion                        │
-│  4. HydrationBoundary wrappen                               │
+│  1. Check session (getSession)                              │
+│  2. Get cookies for auth                                    │
+│  3. prefetchQuery with Orval function                       │
+│  4. Wrap with HydrationBoundary                             │
 └─────────────────────────────────────────────────────────────┘
                               ↓
                      dehydrate(queryClient)
                               ↓
 ┌─────────────────────────────────────────────────────────────┐
 │                    CLIENT COMPONENT                          │
-│  1. useQuery() - Daten sind bereits da!                     │
-│  2. useSSE() für Real-time Updates                          │
-│  3. useMutation() für Änderungen                            │
+│  1. useQuery() - Data is already there!                     │
+│  2. useSSE() for real-time updates                          │
+│  3. useMutation() for changes                               │
 └─────────────────────────────────────────────────────────────┘
 ```

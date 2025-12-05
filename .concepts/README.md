@@ -1,12 +1,12 @@
 # System Design & Architecture Concepts
 
-Mermaid-basierte Diagramme für Business Logik, System Design und Architecture.
+Mermaid-based diagrams for business logic, system design and architecture.
 
-## Struktur
+## Structure
 
 ```
 .concepts/
-├── README.md                    # Diese Datei
+├── README.md                    # This file
 ├── architecture/                # System Architecture (C4, Deployment)
 │   ├── system-context.md        # C4 Level 1: System Context
 │   ├── container.md             # C4 Level 2: Container Diagram
@@ -25,46 +25,46 @@ Mermaid-basierte Diagramme für Business Logik, System Design und Architecture.
 ## Mermaid Diagram Types
 
 ### Architecture & Infrastructure
-| Typ | Verwendung |
-|-----|------------|
+| Type | Usage |
+|------|-------|
 | **C4 Diagram** | System Context, Container, Component |
-| **Block Diagram** | System-Komponenten Verbindungen |
+| **Block Diagram** | System component connections |
 | **Deployment** | Server/Cloud Infrastructure |
 
 ### Business Logic & Flows
-| Typ | Verwendung |
-|-----|------------|
-| **Flowchart** | Workflows, Prozesse, Entscheidungen |
-| **Sequence Diagram** | API Calls, Service Interaktionen |
-| **State Diagram** | Objekt-Zustände, State Machines |
-| **User Journey** | UX Flows, Customer Journey |
+| Type | Usage |
+|------|-------|
+| **Flowchart** | Workflows, processes, decisions |
+| **Sequence Diagram** | API calls, service interactions |
+| **State Diagram** | Object states, state machines |
+| **User Journey** | UX flows, customer journey |
 
 ### Data & Relationships
-| Typ | Verwendung |
-|-----|------------|
-| **ER Diagram** | Datenbank-Relationen |
-| **Class Diagram** | Domain Models, OOP Strukturen |
-| **Mind Map** | Brainstorming, Hierarchien |
+| Type | Usage |
+|------|-------|
+| **ER Diagram** | Database relations |
+| **Class Diagram** | Domain models, OOP structures |
+| **Mind Map** | Brainstorming, hierarchies |
 
 ### Planning & Visualization
-| Typ | Verwendung |
-|-----|------------|
-| **Gantt Chart** | Projekt-Timeline, Sprints |
-| **Timeline** | Events chronologisch |
-| **Pie Chart** | Proportionen, Statistiken |
-| **Sankey Diagram** | Flow-Verteilung |
-| **XY Chart** | Daten-Visualisierung |
-| **Quadrant Chart** | 2x2 Matrix (z.B. Prioritäten) |
+| Type | Usage |
+|------|-------|
+| **Gantt Chart** | Project timeline, sprints |
+| **Timeline** | Events chronologically |
+| **Pie Chart** | Proportions, statistics |
+| **Sankey Diagram** | Flow distribution |
+| **XY Chart** | Data visualization |
+| **Quadrant Chart** | 2x2 matrix (e.g., priorities) |
 
 ## Quick Reference
 
 ### Flowchart
 ```mermaid
 flowchart TD
-    A[Start] --> B{Entscheidung?}
-    B -->|Ja| C[Aktion 1]
-    B -->|Nein| D[Aktion 2]
-    C --> E[Ende]
+    A[Start] --> B{Decision?}
+    B -->|Yes| C[Action 1]
+    B -->|No| D[Action 2]
+    C --> E[End]
     D --> E
 ```
 
@@ -114,16 +114,16 @@ C4Context
     Rel(app, email, "Sends emails")
 ```
 
-## Verwendung
+## Usage
 
-1. **Neues Concept erstellen:** `/.concept <name>` oder manuell in `.concepts/` anlegen
-2. **Diagramm-Typ wählen:** Passend zum Use Case (siehe Tabelle oben)
-3. **Business Logic beschreiben:** Zuerst Text, dann Mermaid
-4. **In Code verlinken:** Referenz in Code-Kommentaren
+1. **Create new concept:** `/.concept <name>` or manually create in `.concepts/`
+2. **Choose diagram type:** Appropriate for the use case (see table above)
+3. **Describe business logic:** Text first, then Mermaid
+4. **Link in code:** Reference in code comments
 
 ## VSCode Preview
 
-Installiere die Extension "Markdown Preview Mermaid Support" für Live-Preview:
+Install the extension "Markdown Preview Mermaid Support" for live preview:
 ```
 ext install bierner.markdown-mermaid
 ```

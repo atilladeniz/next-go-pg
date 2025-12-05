@@ -8,14 +8,14 @@ export default defineConfig({
 		},
 		output: {
 			mode: "tags-split",
-			target: "./src/api/endpoints",
-			schemas: "./src/api/models",
+			target: "./src/shared/api/endpoints",
+			schemas: "./src/shared/api/models",
 			client: "react-query",
 			httpClient: "fetch",
 			baseUrl: "http://localhost:8080/api/v1",
 			override: {
 				mutator: {
-					path: "./src/api/custom-fetch.ts",
+					path: "./src/shared/api/custom-fetch.ts",
 					name: "customFetch",
 				},
 				query: {

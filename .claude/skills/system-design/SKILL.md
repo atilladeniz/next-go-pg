@@ -6,9 +6,9 @@ allowed-tools: Read, Write, Glob, Bash
 
 # System Design Skill
 
-Erstelle Mermaid-Diagramme für System Design und Architecture.
+Create Mermaid diagrams for System Design and Architecture.
 
-## Verzeichnis
+## Directory
 
 ```
 .concepts/
@@ -19,38 +19,38 @@ Erstelle Mermaid-Diagramme für System Design und Architecture.
 
 ## Workflow
 
-1. **Anfrage analysieren**: Was soll visualisiert werden?
-2. **Diagram-Typ wählen**: Passend zum Use Case
-3. **Business Logic dokumentieren**: Text vor Diagramm
-4. **Mermaid erstellen**: Syntaktisch korrekt
-5. **In .concepts/ speichern**: Richtige Kategorie
+1. **Analyze request**: What needs to be visualized?
+2. **Choose diagram type**: Appropriate for the use case
+3. **Document business logic**: Text before diagram
+4. **Create Mermaid**: Syntactically correct
+5. **Save in .concepts/**: Correct category
 
 ## Diagram Types
 
 ### Architecture
-- **C4Context**: System-Übersicht mit Akteuren
-- **C4Container**: Technische Container (Services)
+- **C4Context**: System overview with actors
+- **C4Container**: Technical containers (services)
 - **Flowchart**: Deployment, Infrastructure
 
 ### Flows
-- **Sequence**: API Calls, Service Interaktionen
-- **Flowchart**: Prozesse, Entscheidungen
-- **State**: Objekt-Zustände, State Machines
-- **User Journey**: UX Flows
+- **Sequence**: API calls, service interactions
+- **Flowchart**: Processes, decisions
+- **State**: Object states, state machines
+- **User Journey**: UX flows
 
 ### Data Models
-- **ER Diagram**: Datenbank-Relationen
-- **Class Diagram**: Domain Models
-- **Mind Map**: Hierarchien, Brainstorming
+- **ER Diagram**: Database relations
+- **Class Diagram**: Domain models
+- **Mind Map**: Hierarchies, brainstorming
 
 ## Template
 
 ```markdown
-# [Titel]
+# [Title]
 
 ## Business Context
 
-[Beschreibung der Business Logic]
+[Description of business logic]
 
 ## [Diagram Name]
 
@@ -60,7 +60,7 @@ Erstelle Mermaid-Diagramme für System Design und Architecture.
 
 ## Details
 
-[Tabellen, Erklärungen, etc.]
+[Tables, explanations, etc.]
 ```
 
 ## Mermaid Syntax Quick Reference
@@ -101,13 +101,13 @@ C4Context
     Rel(user, app, "Uses")
 ```
 
-## Datei-Naming
+## File Naming
 
 - `kebab-case.md`
-- Beschreibender Name
-- Kategorie-Ordner nutzen
+- Descriptive name
+- Use category folders
 
-Beispiele:
+Examples:
 - `.concepts/architecture/deployment.md`
 - `.concepts/flows/auth-flow.md`
 - `.concepts/data-models/er-diagram.md`
