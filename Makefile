@@ -11,6 +11,15 @@ RESET := \033[0m
 
 help: ## Show available commands
 	@echo ""
+	@echo "$(CYAN)    _   __          __       _          ____"
+	@echo "   / | / /__  _  __/ /_     (_)____    / ___/____"
+	@echo "  /  |/ / _ \\| |/_/ __/    / / ___/   / __ \`/ __ \\"
+	@echo " / /|  /  __/>  </ /_     / (__  )   / /_/ / /_/ /"
+	@echo "/_/ |_/\\___/_/|_|\\__/ + _/ /____/    \\__, /\\____/"
+	@echo "                      /___/        /____/$(RESET)"
+	@echo ""
+	@echo "$(DIM)Full-Stack Monorepo • Next.js 16 + Go + PostgreSQL$(RESET)"
+	@echo ""
 	@echo "$(CYAN)━━━ Development ━━━$(RESET)"
 	@echo ""
 	@echo "  $(GREEN)dev$(RESET)               Start DB, frontend and backend"
