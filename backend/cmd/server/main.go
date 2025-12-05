@@ -29,6 +29,7 @@ import (
 	"github.com/gorilla/mux"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+	gormlogger "gorm.io/gorm/logger"
 )
 
 var (
@@ -53,7 +54,7 @@ func main() {
 	// Load configuration
 	cfg := config.Load()
 
-	// Initialize structured logger
+	// Initialize structured logger with optional Loki integration
 	logger.Init(logger.Config{
 		Level:        cfg.LogLevel,
 		Environment:  cfg.Environment,
@@ -61,7 +62,9 @@ func main() {
 		Version:      Version,
 		AnonymizeIPs: cfg.Logging.AnonymizeIPs,
 		WithCaller:   cfg.Logging.WithCaller,
+		LokiURL:      os.Getenv("LOKI_URL"), // e.g., http://localhost:3100/loki/api/v1/push
 	})
+	defer logger.Close()
 
 	logger.Info().
 		Str("version", Version).
@@ -200,9 +203,18 @@ func connectToDatabase(cfg *config.Config) (*gorm.DB, error) {
 		return nil, fmt.Errorf("development mode: database not configured")
 	}
 
+	// Configure GORM logger to suppress "record not found" messages
+	gormConfig := &gorm.Config{
+		Logger: gormlogger.Default.LogMode(gormlogger.Silent),
+	}
+	if cfg.Environment == "development" {
+		// In development, only log errors (not ErrRecordNotFound)
+		gormConfig.Logger = gormlogger.Default.LogMode(gormlogger.Error)
+	}
+
 	// Retry connection up to 5 times
 	for i := 0; i < 5; i++ {
-		db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+		db, err := gorm.Open(postgres.Open(dsn), gormConfig)
 		if err != nil {
 			logger.Warn().
 				Int("attempt", i+1).

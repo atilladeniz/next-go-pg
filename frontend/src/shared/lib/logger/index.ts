@@ -1,4 +1,5 @@
 import pino from "pino"
+import { sendToLoki } from "./loki-transport"
 
 const isDevelopment = process.env.NODE_ENV === "development"
 const isServer = typeof window === "undefined"
@@ -124,22 +125,38 @@ function getContextualLogger() {
 // Structured Logging Helpers
 // ============================================================================
 
+// Helper to log to both Pino and Loki
+function logWithLoki(
+	level: "debug" | "info" | "warn" | "error",
+	msg: string,
+	data?: Record<string, unknown>,
+) {
+	const contextLogger = getContextualLogger()
+	const logData = { ...currentUserContext, ...data }
+	contextLogger[level](logData, msg)
+
+	// Also send to Loki (server-side only)
+	if (isServer) {
+		sendToLoki(level, msg, logData)
+	}
+}
+
 export const log = {
 	// Basic logging with category
 	debug: (msg: string, data?: Record<string, unknown>) => {
-		getContextualLogger().debug({ ...data }, msg)
+		logWithLoki("debug", msg, data)
 	},
 
 	info: (msg: string, data?: Record<string, unknown>) => {
-		getContextualLogger().info({ ...data }, msg)
+		logWithLoki("info", msg, data)
 	},
 
 	warn: (msg: string, data?: Record<string, unknown>) => {
-		getContextualLogger().warn({ ...data }, msg)
+		logWithLoki("warn", msg, data)
 	},
 
 	error: (msg: string, data?: Record<string, unknown>) => {
-		getContextualLogger().error({ ...data }, msg)
+		logWithLoki("error", msg, data)
 	},
 
 	// ========================================================================
@@ -155,17 +172,15 @@ export const log = {
 		extra?: Record<string, unknown>,
 	) => {
 		const level = statusCode >= 500 ? "error" : statusCode >= 400 ? "warn" : "info"
-		getContextualLogger()[level](
-			{
-				category: LogCategory.HTTP,
-				method,
-				path,
-				status: statusCode,
-				duration_ms: duration,
-				...extra,
-			},
-			"HTTP request",
-		)
+		const data = {
+			category: LogCategory.HTTP,
+			method,
+			path,
+			status: statusCode,
+			duration_ms: duration,
+			...extra,
+		}
+		logWithLoki(level, "HTTP request", data)
 	},
 
 	// API call tracking (for Orval/TanStack Query)
@@ -177,17 +192,14 @@ export const log = {
 		extra?: Record<string, unknown>,
 	) => {
 		const level = success ? "debug" : "error"
-		getContextualLogger()[level](
-			{
-				category: LogCategory.API,
-				endpoint,
-				method,
-				duration_ms: duration,
-				success,
-				...extra,
-			},
-			"API call",
-		)
+		logWithLoki(level, "API call", {
+			category: LogCategory.API,
+			endpoint,
+			method,
+			duration_ms: duration,
+			success,
+			...extra,
+		})
 	},
 
 	// ========================================================================
@@ -195,29 +207,23 @@ export const log = {
 	// ========================================================================
 
 	authSuccess: (action: string, userId: string, extra?: Record<string, unknown>) => {
-		getContextualLogger().info(
-			{
-				category: LogCategory.AUTH,
-				action,
-				user_id: userId,
-				success: true,
-				...extra,
-			},
-			"Auth event",
-		)
+		logWithLoki("info", "Auth event", {
+			category: LogCategory.AUTH,
+			action,
+			user_id: userId,
+			success: true,
+			...extra,
+		})
 	},
 
 	authFailure: (action: string, reason: string, extra?: Record<string, unknown>) => {
-		getContextualLogger().warn(
-			{
-				category: LogCategory.AUTH,
-				action,
-				reason,
-				success: false,
-				...extra,
-			},
-			"Auth event",
-		)
+		logWithLoki("warn", "Auth event", {
+			category: LogCategory.AUTH,
+			action,
+			reason,
+			success: false,
+			...extra,
+		})
 	},
 
 	// ========================================================================
@@ -225,14 +231,11 @@ export const log = {
 	// ========================================================================
 
 	event: (eventName: string, properties?: Record<string, unknown>) => {
-		getContextualLogger().info(
-			{
-				category: LogCategory.BUSINESS,
-				event_name: eventName,
-				...properties,
-			},
-			"Business event",
-		)
+		logWithLoki("info", "Business event", {
+			category: LogCategory.BUSINESS,
+			event_name: eventName,
+			...properties,
+		})
 	},
 
 	// ========================================================================
@@ -240,15 +243,12 @@ export const log = {
 	// ========================================================================
 
 	component: (componentName: string, action: string, data?: Record<string, unknown>) => {
-		getContextualLogger().debug(
-			{
-				category: LogCategory.UI,
-				component: componentName,
-				action,
-				...data,
-			},
-			"Component event",
-		)
+		logWithLoki("debug", "Component event", {
+			category: LogCategory.UI,
+			component: componentName,
+			action,
+			...data,
+		})
 	},
 
 	// ========================================================================
@@ -258,29 +258,23 @@ export const log = {
 	// Log slow operations
 	slowOperation: (operation: string, duration: number, threshold: number) => {
 		if (duration > threshold) {
-			getContextualLogger().warn(
-				{
-					category: LogCategory.PERFORMANCE,
-					operation,
-					duration_ms: duration,
-					threshold_ms: threshold,
-					slow: true,
-				},
-				"Slow operation",
-			)
+			logWithLoki("warn", "Slow operation", {
+				category: LogCategory.PERFORMANCE,
+				operation,
+				duration_ms: duration,
+				threshold_ms: threshold,
+				slow: true,
+			})
 		}
 	},
 
 	// Navigation timing
 	navigation: (route: string, duration: number) => {
-		getContextualLogger().info(
-			{
-				category: LogCategory.PERFORMANCE,
-				route,
-				duration_ms: duration,
-			},
-			"Navigation",
-		)
+		logWithLoki("info", "Navigation", {
+			category: LogCategory.PERFORMANCE,
+			route,
+			duration_ms: duration,
+		})
 	},
 
 	// ========================================================================
@@ -289,31 +283,25 @@ export const log = {
 
 	// Log error with stack trace
 	exception: (error: Error, context?: Record<string, unknown>) => {
-		getContextualLogger().error(
-			{
-				category: LogCategory.ERROR,
-				error_name: error.name,
-				error_message: error.message,
-				stack: isDevelopment ? error.stack : undefined,
-				...context,
-			},
-			"Exception",
-		)
+		logWithLoki("error", "Exception", {
+			category: LogCategory.ERROR,
+			error_name: error.name,
+			error_message: error.message,
+			stack: isDevelopment ? error.stack : undefined,
+			...context,
+		})
 	},
 
 	// Log unhandled errors
 	unhandled: (error: unknown, source: string) => {
 		const errorObj = error instanceof Error ? error : new Error(String(error))
-		getContextualLogger().error(
-			{
-				category: LogCategory.ERROR,
-				source,
-				error_name: errorObj.name,
-				error_message: errorObj.message,
-				stack: isDevelopment ? errorObj.stack : undefined,
-			},
-			"Unhandled error",
-		)
+		logWithLoki("error", "Unhandled error", {
+			category: LogCategory.ERROR,
+			source,
+			error_name: errorObj.name,
+			error_message: errorObj.message,
+			stack: isDevelopment ? errorObj.stack : undefined,
+		})
 	},
 }
 

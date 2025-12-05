@@ -1,12 +1,15 @@
 package logger
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"runtime"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/rs/zerolog"
@@ -47,8 +50,9 @@ type Config struct {
 	Environment  string // development, production
 	ServiceName  string
 	Version      string
-	WithCaller   bool // Include file:line in logs
-	AnonymizeIPs bool // GDPR: Anonymize IP addresses in logs
+	WithCaller   bool   // Include file:line in logs
+	AnonymizeIPs bool   // GDPR: Anonymize IP addresses in logs
+	LokiURL      string // Loki push URL (e.g., http://localhost:3100/loki/api/v1/push)
 }
 
 // Global config reference for runtime checks
@@ -75,14 +79,19 @@ var sensitiveFieldPatterns = []string{
 	"private", "api_key", "apikey",
 }
 
+// Global Loki writer reference for cleanup
+var lokiWriter *LokiWriter
+
 // Init initializes the global logger with the given configuration
 func Init(cfg Config) {
 	globalConfig = cfg
-	var output io.Writer = os.Stdout
 
-	// Pretty printing for development
+	var writers []io.Writer
+
+	// Console output
+	var consoleOutput io.Writer = os.Stdout
 	if cfg.Environment == "development" {
-		output = zerolog.ConsoleWriter{
+		consoleOutput = zerolog.ConsoleWriter{
 			Out:        os.Stdout,
 			TimeFormat: "15:04:05",
 			NoColor:    false,
@@ -94,6 +103,17 @@ func Init(cfg Config) {
 			},
 		}
 	}
+	writers = append(writers, consoleOutput)
+
+	// Loki output (if configured)
+	if cfg.LokiURL != "" {
+		lokiWriter = NewLokiWriter(cfg.LokiURL, cfg.ServiceName)
+		// For Loki we need JSON output, not console format
+		writers = append(writers, lokiWriter)
+	}
+
+	// Combine writers
+	output := io.MultiWriter(writers...)
 
 	// Parse log level
 	level, err := zerolog.ParseLevel(cfg.Level)
@@ -120,6 +140,13 @@ func Init(cfg Config) {
 	}
 
 	log = logCtx.Logger()
+}
+
+// Close cleans up logger resources (call on shutdown)
+func Close() {
+	if lokiWriter != nil {
+		lokiWriter.Close()
+	}
 }
 
 // Logger returns the global logger instance
@@ -623,4 +650,138 @@ func AddTraceToContext(ctx context.Context, traceID, spanID string) context.Cont
 	ctx = context.WithValue(ctx, TraceIDKey, traceID)
 	ctx = context.WithValue(ctx, SpanIDKey, spanID)
 	return ctx
+}
+
+// ============================================================================
+// Loki Writer - Send logs directly to Loki
+// ============================================================================
+
+// LokiWriter sends logs to Loki via HTTP
+type LokiWriter struct {
+	url         string
+	serviceName string
+	client      *http.Client
+	batch       []lokiEntry
+	batchMu     sync.Mutex
+	batchSize   int
+	flushTicker *time.Ticker
+	done        chan struct{}
+}
+
+type lokiEntry struct {
+	timestamp time.Time
+	line      string
+	level     string
+}
+
+// NewLokiWriter creates a new Loki writer
+func NewLokiWriter(url, serviceName string) *LokiWriter {
+	lw := &LokiWriter{
+		url:         url,
+		serviceName: serviceName,
+		client:      &http.Client{Timeout: 5 * time.Second},
+		batch:       make([]lokiEntry, 0, 100),
+		batchSize:   50,
+		flushTicker: time.NewTicker(2 * time.Second),
+		done:        make(chan struct{}),
+	}
+
+	// Background flusher
+	go lw.backgroundFlush()
+
+	return lw
+}
+
+// Write implements io.Writer for zerolog
+func (lw *LokiWriter) Write(p []byte) (n int, err error) {
+	// Parse level from JSON
+	level := "info"
+	line := string(p)
+	if strings.Contains(line, `"level":"error"`) {
+		level = "error"
+	} else if strings.Contains(line, `"level":"warn"`) {
+		level = "warn"
+	} else if strings.Contains(line, `"level":"debug"`) {
+		level = "debug"
+	}
+
+	lw.batchMu.Lock()
+	lw.batch = append(lw.batch, lokiEntry{
+		timestamp: time.Now(),
+		line:      strings.TrimSpace(line),
+		level:     level,
+	})
+	shouldFlush := len(lw.batch) >= lw.batchSize
+	lw.batchMu.Unlock()
+
+	if shouldFlush {
+		go lw.flush()
+	}
+
+	return len(p), nil
+}
+
+func (lw *LokiWriter) backgroundFlush() {
+	for {
+		select {
+		case <-lw.flushTicker.C:
+			lw.flush()
+		case <-lw.done:
+			lw.flush() // Final flush
+			return
+		}
+	}
+}
+
+func (lw *LokiWriter) flush() {
+	lw.batchMu.Lock()
+	if len(lw.batch) == 0 {
+		lw.batchMu.Unlock()
+		return
+	}
+	entries := lw.batch
+	lw.batch = make([]lokiEntry, 0, 100)
+	lw.batchMu.Unlock()
+
+	// Group by level for separate streams
+	streams := make(map[string][]lokiEntry)
+	for _, e := range entries {
+		streams[e.level] = append(streams[e.level], e)
+	}
+
+	// Build Loki payload
+	var streamArr []string
+	for level, levelEntries := range streams {
+		var values []string
+		for _, e := range levelEntries {
+			ts := fmt.Sprintf("%d", e.timestamp.UnixNano())
+			// Escape JSON string
+			escaped := strings.ReplaceAll(e.line, `\`, `\\`)
+			escaped = strings.ReplaceAll(escaped, `"`, `\"`)
+			values = append(values, fmt.Sprintf(`["%s", "%s"]`, ts, escaped))
+		}
+		stream := fmt.Sprintf(`{"stream":{"service":"%s","level":"%s","job":"backend"},"values":[%s]}`,
+			lw.serviceName, level, strings.Join(values, ","))
+		streamArr = append(streamArr, stream)
+	}
+
+	payload := fmt.Sprintf(`{"streams":[%s]}`, strings.Join(streamArr, ","))
+
+	req, err := http.NewRequest("POST", lw.url, bytes.NewBufferString(payload))
+	if err != nil {
+		return
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := lw.client.Do(req)
+	if err != nil {
+		return
+	}
+	resp.Body.Close()
+}
+
+// Close stops the background flusher
+func (lw *LokiWriter) Close() {
+	lw.flushTicker.Stop()
+	close(lw.done)
 }
