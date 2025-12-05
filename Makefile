@@ -1,4 +1,4 @@
-.PHONY: help dev dev-frontend dev-backend build build-frontend build-backend test clean install api lint docker-build docker-up docker-down goca-feature deploy deploy-staging deploy-production deploy-rollback deploy-logs deploy-console
+.PHONY: help dev dev-frontend dev-backend build build-frontend build-backend test clean install api lint docker-build docker-up docker-down goca-feature deploy deploy-staging deploy-production deploy-rollback deploy-logs deploy-console setup-hooks security-scan
 
 .DEFAULT_GOAL := help
 
@@ -51,7 +51,12 @@ help: ## Show available commands
 	@echo "$(CYAN)━━━ Setup ━━━$(RESET)"
 	@echo ""
 	@echo "  $(GREEN)install$(RESET)           Install all dependencies"
+	@echo "  $(GREEN)setup-hooks$(RESET)       Setup git hooks for security scanning"
 	@echo "  $(GREEN)clean$(RESET)             Remove build artifacts and dependencies"
+	@echo ""
+	@echo "$(CYAN)━━━ Security ━━━$(RESET)"
+	@echo ""
+	@echo "  $(GREEN)security-scan$(RESET)     Scan codebase for secrets and sensitive data"
 	@echo ""
 	@echo "$(CYAN)━━━ Docker ━━━$(RESET)"
 	@echo ""
@@ -157,10 +162,13 @@ goca-feature:
 
 # ━━━ Setup ━━━
 
-install:
+install: setup-hooks
 	bun install
 	cd frontend && bun install
 	cd backend && go mod tidy
+
+setup-hooks:
+	@./scripts/setup-hooks.sh
 
 clean:
 	rm -rf frontend/.next frontend/node_modules
@@ -209,3 +217,14 @@ deploy-console:
 deploy-setup:
 	@read -p "Destination (staging/production): " dest; \
 	kamal setup $(KAMAL_CONFIG) -d $$dest
+
+# ━━━ Security ━━━
+
+security-scan:
+	@echo "$(YELLOW)🔒 Scanning for secrets and sensitive data...$(RESET)"
+	@if command -v gitleaks >/dev/null 2>&1; then \
+		gitleaks detect --config .gitleaks.toml --verbose; \
+	else \
+		echo "$(RED)gitleaks not installed. Install with:$(RESET)"; \
+		echo "  brew install gitleaks"; \
+	fi

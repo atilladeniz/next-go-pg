@@ -1,0 +1,48 @@
+# Gitleaks Configuration
+# https://github.com/gitleaks/gitleaks
+
+title = "GocaTest Security Rules"
+
+[extend]
+# Use default gitleaks rules as base
+useDefault = true
+
+# Custom rules for this project
+[[rules]]
+id = "absolute-path-username"
+description = "Absolute path containing username (e.g., /Users/username/)"
+regex = '''/Users/[a-zA-Z0-9_-]+/|/home/[a-zA-Z0-9_-]+/|C:\\Users\\[a-zA-Z0-9_-]+\\'''
+tags = ["path", "privacy"]
+
+[[rules]]
+id = "better-auth-secret"
+description = "Better Auth Secret exposed"
+regex = '''BETTER_AUTH_SECRET\s*=\s*["']?[a-zA-Z0-9+/=]{32,}["']?'''
+tags = ["secret", "auth"]
+
+[[rules]]
+id = "database-url-with-password"
+description = "Database URL with embedded password (non-localhost)"
+regex = '''postgres(ql)?://[^:]+:[^@]+@[a-zA-Z][^/]+/'''
+tags = ["database", "credentials"]
+
+# Allowlist - files/patterns to ignore
+[allowlist]
+description = "Global allowlist"
+paths = [
+    '''\.gitleaks\.toml$''',
+    '''go\.sum$''',
+    '''bun\.lockb$''',
+    '''package-lock\.json$''',
+    '''\.docs/.*\.md$''',
+    '''node_modules/''',
+    '''frontend/src/api/endpoints/''',
+    '''frontend/src/api/models/''',
+    '''backend/docs/swagger\.json$''',
+    '''backend/docs/swagger\.yaml$''',
+    '''\.env\.example$''',
+    '''\.env\.sample$''',
+    '''README\.md$''',
+    '''frontend/README\.md$''',
+    '''backend/README\.md$'''
+]

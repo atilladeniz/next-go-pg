@@ -94,6 +94,42 @@ gocatest/
 └── README.md
 ```
 
+## Security
+
+This project uses [gitleaks](https://github.com/gitleaks/gitleaks) to prevent committing secrets and sensitive data.
+
+### Setup (automatic with `make install`)
+
+```bash
+# Install gitleaks
+brew install gitleaks    # macOS
+# or
+go install github.com/gitleaks/gitleaks/v8@latest
+
+# Setup git hooks (runs automatically with make install)
+make setup-hooks
+```
+
+### What it scans for
+
+- API keys, tokens, and passwords
+- Absolute paths with usernames (`/Users/yourname/...`)
+- Database URLs with embedded credentials
+- Private keys and certificates
+- AWS/GCP/Azure credentials
+
+### Manual scan
+
+```bash
+make security-scan    # Scan entire codebase
+```
+
+### Bypass (not recommended)
+
+```bash
+git commit --no-verify
+```
+
 ## Make Commands
 
 ### Development
@@ -125,6 +161,7 @@ make lint             # Linting
 make lint-fix         # Auto-fix
 make typecheck        # TypeScript Check
 make test             # Run tests
+make security-scan    # Scan for secrets
 ```
 
 ### Build

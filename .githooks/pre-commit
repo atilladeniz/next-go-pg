@@ -1,0 +1,57 @@
+#!/bin/bash
+
+# Pre-commit hook for security scanning with gitleaks
+# This hook prevents commits containing secrets or sensitive data
+
+set -e
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+echo -e "${YELLOW}🔒 Running security scan...${NC}"
+
+# Check if gitleaks is installed
+if ! command -v gitleaks &> /dev/null; then
+    echo -e "${RED}❌ gitleaks is not installed!${NC}"
+    echo ""
+    echo "Install it with one of these commands:"
+    echo "  macOS:   brew install gitleaks"
+    echo "  Linux:   sudo apt install gitleaks  OR  snap install gitleaks"
+    echo "  Go:      go install github.com/gitleaks/gitleaks/v8@latest"
+    echo ""
+    echo "Or download from: https://github.com/gitleaks/gitleaks/releases"
+    echo ""
+    echo -e "${YELLOW}⚠️  Skipping security scan (gitleaks not found)${NC}"
+    echo "To enforce security scanning, install gitleaks first."
+    exit 0
+fi
+
+# Get the root directory of the git repo
+ROOT_DIR=$(git rev-parse --show-toplevel)
+
+# Run gitleaks on staged changes only
+if gitleaks protect --staged --config="$ROOT_DIR/.gitleaks.toml" --verbose 2>&1; then
+    echo -e "${GREEN}✅ No secrets or sensitive data found${NC}"
+    exit 0
+else
+    echo ""
+    echo -e "${RED}❌ COMMIT BLOCKED: Secrets or sensitive data detected!${NC}"
+    echo ""
+    echo "The following issues were found in your staged changes:"
+    echo "- Possible secrets (API keys, tokens, passwords)"
+    echo "- Absolute paths containing usernames"
+    echo "- Database URLs with embedded credentials"
+    echo ""
+    echo -e "${YELLOW}How to fix:${NC}"
+    echo "1. Remove the sensitive data from your files"
+    echo "2. Use environment variables instead of hardcoding secrets"
+    echo "3. Add sensitive files to .gitignore"
+    echo ""
+    echo -e "${YELLOW}To bypass this check (NOT RECOMMENDED):${NC}"
+    echo "  git commit --no-verify"
+    echo ""
+    exit 1
+fi
