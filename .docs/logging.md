@@ -2,7 +2,52 @@
 
 ## Overview
 
-This project uses structured JSON logging for both backend and frontend, designed for production observability and easy integration with log aggregation services (ELK, Datadog, CloudWatch, Sentry, PostHog).
+Structured JSON logging for production observability, designed for:
+- **Log Aggregation**: ELK, Datadog, CloudWatch, Loki
+- **Error Tracking**: Sentry, PostHog integration ready
+- **Distributed Tracing**: Request ID, Trace ID, Span ID support
+- **Audit Trails**: Business event logging for compliance
+
+## Quick Reference
+
+### Backend (Go)
+
+```go
+import "github.com/atilladeniz/next-go-pg/backend/pkg/logger"
+
+// Simple
+logger.Info().Msg("Server started")
+logger.Error().Err(err).Msg("Failed")
+
+// Structured
+logger.Info().
+    Str("user_id", "123").
+    Str("action", "login").
+    Msg("User logged in")
+
+// With request context
+logger.WithContext(ctx).Info().Msg("Request processed")
+```
+
+### Frontend (Next.js)
+
+```typescript
+import { log, createLogger, setUserContext } from "@shared/lib/logger"
+
+// Simple
+log.info("Page loaded")
+log.error("API failed", { endpoint: "/api/users" })
+
+// With user context
+setUserContext({ userId: "123", userName: "Max" })
+log.info("Action performed") // Includes user info
+
+// Component-specific
+const authLogger = createLogger("auth")
+authLogger.info("Login submitted")
+```
+
+---
 
 ## Backend (Go) - zerolog
 
@@ -11,73 +56,114 @@ This project uses structured JSON logging for both backend and frontend, designe
 - Middleware: `backend/internal/middleware/logging.go`
 
 ### Features
-- Structured JSON output (production)
-- Pretty colored output (development)
-- Request ID tracing across all logs
-- Log levels: debug, info, warn, error, fatal
-- Email masking for privacy
-- Business event logging for audit trails
+
+| Feature | Description |
+|---------|-------------|
+| Categories | `http`, `auth`, `db`, `business`, `system`, `sse`, `cache` |
+| User Context | Automatic user_id, user_name, session_id in logs |
+| Request Tracing | request_id, trace_id, span_id |
+| Caller Info | file:line in production logs |
+| Slow Query Detection | Auto-warn for queries >100ms |
+| Privacy | Email masking, sensitive data protection |
 
 ### Configuration
 
-Environment variables:
 ```bash
-LOG_LEVEL=info      # debug, info, warn, error
-ENVIRONMENT=production  # development = pretty output
+LOG_LEVEL=info          # debug, info, warn, error
+ENVIRONMENT=production  # development = pretty colored output
 ```
 
-### Usage
+### Log Categories
+
+Filter logs by category in your log aggregation tool:
 
 ```go
-import "github.com/atilladeniz/next-go-pg/backend/pkg/logger"
+// HTTP requests
+logger.HTTPRequest(ctx, logger.HTTPRequestLog{...})
 
-// Simple logging
-logger.Info().Msg("Server started")
-logger.Error().Err(err).Msg("Database connection failed")
+// Database queries
+logger.DBQuery(ctx, "SELECT", "users", latency, rows, nil)
 
-// Structured logging
-logger.Info().
-    Str("user_id", "123").
-    Str("action", "login").
-    Int("duration_ms", 42).
-    Msg("User logged in")
-
-// With request context (includes request_id automatically)
-logger.WithContext(ctx).Info().
-    Str("endpoint", "/api/users").
-    Msg("Request processed")
-
-// Business events (for audit trails)
-logger.BusinessEvent(ctx, "user.created", "user", userID, map[string]interface{}{
-    "email": user.Email,
-    "plan": "premium",
+// Authentication
+logger.Auth(ctx, logger.AuthEvent{
+    Action:  "login",
+    UserID:  "123",
+    Email:   "user@example.com",
+    Success: true,
 })
 
-// Auth events
-logger.AuthSuccess(ctx, userID, email)
-logger.AuthFailure(ctx, email, "invalid_password")
+// Business events (audit trail)
+logger.Business(ctx, logger.BusinessEventLog{
+    EventType: "order.placed",
+    Entity:    "order",
+    EntityID:  "ord-123",
+    Action:    "create",
+    Changes:   map[string]any{"total": 99.99},
+})
+
+// System events
+logger.SystemEvent("startup", map[string]any{"version": "1.0.0"})
 ```
 
-### Output Examples
+### User Context in Logs
 
-Development (pretty):
-```
-2024-01-15T10:30:45+01:00 INF Server starting port=8080 service=next-go-pg-api version=dev
-2024-01-15T10:30:46+01:00 INF HTTP request client_ip=127.0.0.1 latency=1.234ms method=GET path=/api/v1/stats request_id=abc-123 status=200
+Add user info to context after authentication:
+
+```go
+// In auth middleware after successful auth
+ctx = logger.AddUserToContext(ctx, user.ID, user.Name, user.Email, session.ID)
+
+// All subsequent logs include user info automatically
+logger.WithContext(ctx).Info().Msg("Action performed")
+// Output: {"user_id":"123","user_name":"Max","session_id":"sess-456",...}
 ```
 
-Production (JSON):
+### HTTP Request Logging
+
+The middleware automatically logs:
+
 ```json
-{"level":"info","service":"next-go-pg-api","version":"1.0.0","time":"2024-01-15T10:30:45Z","request_id":"abc-123","method":"GET","path":"/api/v1/stats","status":200,"latency":1234000,"client_ip":"127.0.0.1","message":"HTTP request"}
+{
+  "level": "info",
+  "category": "http",
+  "request_id": "abc-123",
+  "method": "POST",
+  "path": "/api/v1/orders",
+  "status": 201,
+  "latency": "15.2ms",
+  "client_ip": "192.168.1.1",
+  "user_agent": "Mozilla/5.0...",
+  "request_size": 256,
+  "response_size": 1024,
+  "user_id": "123",
+  "user_name": "Max",
+  "message": "HTTP request"
+}
 ```
 
-### Request ID Tracing
+### Performance Logging
 
-Every HTTP request gets a unique ID (`X-Request-ID` header):
-1. If client sends `X-Request-ID`, it's used
-2. Otherwise, a new UUID is generated
-3. ID is returned in response headers
-4. ID is automatically added to all logs via `logger.WithContext(ctx)`
+```go
+// Timed operations
+defer logger.Timed(ctx, "process_order")()
+
+// Warn only if slow
+defer logger.TimedWithThreshold(ctx, "db_query", 100*time.Millisecond)()
+```
+
+### Distributed Tracing
+
+Support for trace propagation:
+
+```go
+// Headers are automatically extracted by middleware:
+// X-Request-ID, X-Trace-ID, X-Span-ID
+
+// Or add manually:
+ctx = logger.AddTraceToContext(ctx, traceID, spanID)
+```
+
+---
 
 ## Frontend (Next.js) - Pino
 
@@ -85,126 +171,206 @@ Every HTTP request gets a unique ID (`X-Request-ID` header):
 `frontend/src/shared/lib/logger/index.ts`
 
 ### Features
-- Structured JSON output (production)
-- Pretty colored output (development)
-- Works on server and client (browser)
-- Sensitive data redaction
-- Component-specific child loggers
 
-### Usage
-
-```typescript
-import { log, createLogger } from "@shared/lib/logger"
-
-// Simple logging
-log.info("Page loaded")
-log.error("API call failed", { endpoint: "/api/users", status: 500 })
-
-// HTTP request logging
-log.request("GET", "/api/stats", 200, 42)
-
-// Auth events
-log.authSuccess(userId)
-log.authFailure("invalid_credentials")
-
-// API call tracking
-log.apiCall("/api/users", "GET", 150, true)
-
-// Business events (for PostHog integration)
-log.event("button_clicked", { buttonId: "submit", page: "checkout" })
-
-// Component-specific logger
-const authLogger = createLogger("auth")
-authLogger.info("Login form submitted")
-authLogger.error("Validation failed", { field: "email" })
-```
+| Feature | Description |
+|---------|-------------|
+| Categories | `http`, `auth`, `api`, `ui`, `business`, `performance`, `error` |
+| User Context | Global user context for all logs |
+| Server + Client | Works in SSR and browser |
+| Redaction | Auto-redact passwords, tokens, credit cards |
+| Performance | Timing helpers, slow operation detection |
 
 ### Configuration
 
-Environment variables:
 ```bash
 LOG_LEVEL=info      # debug, info, warn, error
 NODE_ENV=production # development = pretty output
 ```
 
-### Sensitive Data Redaction
+### Log Categories
 
-These fields are automatically redacted:
-- `password`
-- `token`
-- `authorization`
-- `cookie`
-- `*.password`
-- `*.token`
+```typescript
+import { log, LogCategory } from "@shared/lib/logger"
 
-## Integration with External Services
+// HTTP/API
+log.request("GET", "/api/stats", 200, 42)
+log.apiCall("/api/users", "POST", 150, true)
 
-### Sentry Integration
+// Authentication
+log.authSuccess("login", userId)
+log.authFailure("login", "invalid_password")
 
-Backend (Go):
-```go
-// In error handler or middleware
-import "github.com/getsentry/sentry-go"
+// Business events
+log.event("checkout_completed", { orderId: "123", total: 99.99 })
 
-if err != nil {
-    logger.Error().Err(err).Msg("Critical error")
-    sentry.CaptureException(err)
+// UI/Component events
+log.component("CheckoutForm", "submit", { items: 3 })
+
+// Performance
+log.navigation("/dashboard", 250)
+log.slowOperation("renderList", 500, 200) // Warns if >200ms
+
+// Errors
+log.exception(error, { context: "payment" })
+log.unhandled(error, "window.onerror")
+```
+
+### User Context
+
+```typescript
+import { setUserContext, clearUserContext } from "@shared/lib/logger"
+
+// After login
+setUserContext({
+  userId: session.user.id,
+  userName: session.user.name,
+  sessionId: session.id,
+})
+
+// After logout
+clearUserContext()
+
+// All logs now include user info
+log.info("Page viewed") // {"userId":"123","userName":"Max",...}
+```
+
+### Component Loggers
+
+```typescript
+import { createLogger } from "@shared/lib/logger"
+
+const logger = createLogger("PaymentForm")
+
+function PaymentForm() {
+  const done = logger.timed("processPayment")
+
+  try {
+    // ... process
+    logger.info("Payment successful", { amount: 99.99 })
+  } catch (err) {
+    logger.error("Payment failed", { error: err.message })
+  } finally {
+    done() // Logs duration
+  }
 }
 ```
 
-Frontend (Next.js):
-```typescript
-// In error boundary or catch
-import * as Sentry from "@sentry/nextjs"
+### Async Timing Helper
 
-log.error("Critical error", { error: err.message })
-Sentry.captureException(err)
+```typescript
+import { withTiming } from "@shared/lib/logger"
+
+const result = await withTiming(
+  "fetchUserData",
+  () => fetchUser(id),
+  200 // Warn if >200ms
+)
 ```
 
-### PostHog Integration
+---
+
+## Output Examples
+
+### Development (Pretty)
+
+```
+15:04:05 | INFO  | http | HTTP request method=GET path=/api/stats status=200 latency=15ms user_id=123
+15:04:06 | WARN  | auth | Auth event action=login success=false reason=invalid_password email=us***@example.com
+15:04:07 | INFO  | business | Business event event_type=order.placed entity=order entity_id=ord-123
+```
+
+### Production (JSON)
+
+```json
+{"level":"info","time":"2024-01-15T10:30:45Z","service":"next-go-pg-api","version":"1.0.0","category":"http","request_id":"abc-123","user_id":"123","user_name":"Max","method":"GET","path":"/api/stats","status":200,"latency":15000000,"message":"HTTP request"}
+```
+
+---
+
+## Log Aggregation
+
+### Filtering by Category
+
+```
+# Kibana/ELK
+category: "auth" AND success: false
+
+# Datadog
+@category:db @slow_query:true
+
+# CloudWatch Insights
+fields @timestamp, @message
+| filter category = 'business'
+| filter event_type like /order/
+```
+
+### Alerts
+
+Set up alerts for:
+- `category:auth AND success:false` (count > 10/min)
+- `category:db AND slow_query:true`
+- `level:error`
+- `category:http AND status:>=500`
+
+---
+
+## Integration
+
+### Sentry
+
+```go
+// Backend
+import "github.com/getsentry/sentry-go"
+
+logger.Error().Err(err).Msg("Critical error")
+sentry.CaptureException(err)
+```
 
 ```typescript
-import { log } from "@shared/lib/logger"
+// Frontend
+import * as Sentry from "@sentry/nextjs"
+
+log.exception(error, { context: "payment" })
+Sentry.captureException(error)
+```
+
+### PostHog
+
+```typescript
 import posthog from "posthog-js"
 
-// Log + track
+// Log + Track together
 log.event("checkout_completed", { orderId, total })
 posthog.capture("checkout_completed", { orderId, total })
 ```
 
-### Log Aggregation (ELK/Datadog)
-
-With Kamal deployment, logs are collected from stdout. Configure your log shipper to parse JSON:
-
-```yaml
-# filebeat.yml example
-- type: container
-  paths:
-    - '/var/lib/docker/containers/*/*.log'
-  json.keys_under_root: true
-  json.add_error_key: true
-```
+---
 
 ## Best Practices
 
-1. **Always use structured logging** - Add context as fields, not in the message
+1. **Use structured logging** - Add context as fields, not in message
    ```go
-   // Good
+   // ✅ Good
    logger.Info().Str("user_id", id).Msg("User created")
 
-   // Bad
+   // ❌ Bad
    logger.Info().Msgf("User %s created", id)
    ```
 
-2. **Use appropriate log levels**
+2. **Use categories** - Makes filtering easy
+   ```go
+   logger.WithCategoryCtx(ctx, logger.CategoryAuth).Info()...
+   ```
+
+3. **Include request context** - Always use `WithContext(ctx)`
+
+4. **Log business events** - For audit trails and analytics
+
+5. **Don't log sensitive data** - Use redaction, mask emails
+
+6. **Use appropriate levels**
    - `debug`: Development details
    - `info`: Normal operations
    - `warn`: Recoverable issues
-   - `error`: Failures requiring attention
+   - `error`: Failures
    - `fatal`: Application cannot continue
-
-3. **Include request IDs** - Use `logger.WithContext(ctx)` for request tracing
-
-4. **Log business events** - Use `BusinessEvent()` for audit trails
-
-5. **Don't log sensitive data** - Use redaction, mask emails
