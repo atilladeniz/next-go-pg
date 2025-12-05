@@ -55,10 +55,12 @@ func main() {
 
 	// Initialize structured logger
 	logger.Init(logger.Config{
-		Level:       cfg.LogLevel,
-		Environment: cfg.Environment,
-		ServiceName: "next-go-pg-api",
-		Version:     Version,
+		Level:        cfg.LogLevel,
+		Environment:  cfg.Environment,
+		ServiceName:  "next-go-pg-api",
+		Version:      Version,
+		AnonymizeIPs: cfg.Logging.AnonymizeIPs,
+		WithCaller:   cfg.Logging.WithCaller,
 	})
 
 	logger.Info().

@@ -17,6 +17,12 @@ type Config struct {
 	FrontendURL string
 	Database    DatabaseConfig
 	Server      ServerConfig
+	Logging     LoggingConfig
+}
+
+type LoggingConfig struct {
+	AnonymizeIPs bool // GDPR: Anonymize IP addresses
+	WithCaller   bool // Include file:line in logs
 }
 
 type DatabaseConfig struct {
@@ -64,7 +70,24 @@ func Load() *Config {
 			WriteTimeout: getEnvAsDuration("SERVER_WRITE_TIMEOUT", "10s"),
 			IdleTimeout:  getEnvAsDuration("SERVER_IDLE_TIMEOUT", "60s"),
 		},
+		Logging: LoggingConfig{
+			AnonymizeIPs: getEnvAsBool("LOG_ANONYMIZE_IPS", false),
+			WithCaller:   getEnvAsBool("LOG_WITH_CALLER", false),
+		},
 	}
+}
+
+func getEnvAsBool(key string, defaultValue bool) bool {
+	if value := os.Getenv(key); value != "" {
+		if value == "true" || value == "1" || value == "yes" {
+			return true
+		}
+		if value == "false" || value == "0" || value == "no" {
+			return false
+		}
+		log.Printf("Warning: Invalid boolean value for %s: %s, using default: %v", key, value, defaultValue)
+	}
+	return defaultValue
 }
 
 func (c *Config) GetDatabaseURL() string {
