@@ -9,15 +9,14 @@ services:
       - "3100:3100"
     volumes:
       - ./deploy/loki/loki-config.yml:/etc/loki/local-config.yaml
-      - loki_data:/tmp/loki
+      - loki_data:/loki
     command: -config.file=/etc/loki/local-config.yaml
+    user: "0"
     healthcheck:
       test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3100/ready || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
-    networks:
-      - logging
 
   # Promtail - Log shipper
   promtail:
@@ -29,8 +28,6 @@ services:
     command: -config.file=/etc/promtail/config.yml
     depends_on:
       - loki
-    networks:
-      - logging
 
   # Grafana - Visualization
   grafana:
@@ -48,13 +45,7 @@ services:
       - grafana_data:/var/lib/grafana
     depends_on:
       - loki
-    networks:
-      - logging
 
 volumes:
   loki_data:
   grafana_data:
-
-networks:
-  logging:
-    driver: bridge
