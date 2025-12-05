@@ -32,9 +32,9 @@ regexes = [
     '''postgres(ql)?://postgres:postgres@'''
 ]
 
-# Global Allowlist - only truly generated/vendor files
+# Global Allowlist - generated/vendor/example files
 [allowlist]
-description = "Generated and vendor files"
+description = "Generated, vendor, and example files"
 paths = [
     '''go\.sum$''',
     '''bun\.lockb$''',
@@ -43,5 +43,8 @@ paths = [
     '''frontend/src/api/endpoints/''',
     '''frontend/src/api/models/''',
     '''backend/docs/swagger\.json$''',
-    '''backend/docs/swagger\.yaml$'''
+    '''backend/docs/swagger\.yaml$''',
+    '''\.env\.example$''',
+    '''secrets\.example$''',
+    '''\.docs/.*\.xml$'''
 ]

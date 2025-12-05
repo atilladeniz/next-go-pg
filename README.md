@@ -113,7 +113,7 @@ make setup-hooks
 ### What it scans for
 
 - API keys, tokens, and passwords
-- Absolute paths with usernames (`/Users/yourname/...`)
+- Absolute paths with usernames
 - Database URLs with embedded credentials
 - Private keys and certificates
 - AWS/GCP/Azure credentials
