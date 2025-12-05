@@ -56,6 +56,7 @@ Full-Stack Monorepo with Next.js 16 Frontend and Go Backend, PostgreSQL database
 
 - **Database**: PostgreSQL 16 (Docker)
 - **Dev Environment**: Docker Compose for DB
+- **Log Aggregation**: Grafana + Loki + Promtail (self-hosted)
 
 ---
 
@@ -467,6 +468,12 @@ make setup-hooks      # Setup Git Hooks
 make build            # Build Frontend + Backend
 make build-frontend   # Next.js Production Build
 make build-backend    # Go Binary
+
+# Logging Stack (Grafana + Loki)
+make logs-up          # Start logging stack
+make logs-down        # Stop logging stack
+make logs-open        # Open Grafana (localhost:3001)
+make logs-query q='...'  # Query logs via CLI
 ```
 
 ---
@@ -526,6 +533,25 @@ NODE_ENV=production
 ### Request ID Tracing
 
 Every HTTP request gets `X-Request-ID` header for distributed tracing.
+
+### Log Aggregation (Grafana + Loki)
+
+Self-hosted log aggregation stack included:
+
+```bash
+make logs-up      # Start Grafana + Loki + Promtail
+make logs-open    # Open Grafana at localhost:3001
+```
+
+Query logs in Grafana with LogQL:
+```logql
+{service="next-go-pg-api"}                    # All backend logs
+{level="error"}                               # Errors only
+{category="auth"}                             # Auth events
+{service="next-go-pg-api"} |= "user_id"       # Filter by content
+```
+
+See `.docs/logging.md` for full documentation.
 
 ---
 

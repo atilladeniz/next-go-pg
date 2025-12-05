@@ -89,6 +89,13 @@ help: ## Show available commands
 	@echo "  $(GREEN)deploy-logs$(RESET)       Show deployment logs"
 	@echo "  $(GREEN)deploy-console$(RESET)    Open console on production server"
 	@echo ""
+	@echo "$(CYAN)━━━ Logging (Grafana + Loki) ━━━$(RESET)"
+	@echo ""
+	@echo "  $(GREEN)logs-up$(RESET)           Start logging stack (Grafana, Loki, Promtail)"
+	@echo "  $(GREEN)logs-down$(RESET)         Stop logging stack"
+	@echo "  $(GREEN)logs-open$(RESET)         Open Grafana in browser $(DIM)(localhost:3001)$(RESET)"
+	@echo "  $(GREEN)logs-query$(RESET)        Query logs via CLI $(DIM)(q=\"query\" [limit=100])$(RESET)"
+	@echo ""
 
 # ━━━ Development ━━━
 
@@ -303,3 +310,43 @@ search-docs-index:
 	@echo "$(YELLOW)🔄 Building semantic search index...$(RESET)"
 	@bun scripts/search-docs.js --index
 	@echo "$(GREEN)✓ Index ready! Searches will now be fast.$(RESET)"
+
+# ━━━ Logging (Grafana + Loki) ━━━
+
+logs-up:
+	@echo "$(YELLOW)📊 Starting logging stack...$(RESET)"
+	@docker compose -f docker-compose.dev.yml -f docker-compose.logging.yml up -d loki promtail grafana
+	@echo "$(GREEN)✓ Logging stack started$(RESET)"
+	@echo ""
+	@echo "  Grafana:  $(CYAN)http://localhost:3001$(RESET) $(DIM)(admin/admin)$(RESET)"
+	@echo "  Loki:     $(CYAN)http://localhost:3100$(RESET)"
+	@echo ""
+
+logs-down:
+	@echo "$(YELLOW)Stopping logging stack...$(RESET)"
+	@docker compose -f docker-compose.dev.yml -f docker-compose.logging.yml stop loki promtail grafana
+	@docker compose -f docker-compose.dev.yml -f docker-compose.logging.yml rm -f loki promtail grafana
+	@echo "$(GREEN)✓ Logging stack stopped$(RESET)"
+
+logs-open:
+	@echo "$(CYAN)Opening Grafana...$(RESET)"
+	@open http://localhost:3001 2>/dev/null || xdg-open http://localhost:3001 2>/dev/null || echo "Open http://localhost:3001 in your browser"
+
+logs-query:
+ifndef q
+	@echo "$(RED)Error: q parameter required$(RESET)"
+	@echo ""
+	@echo "Usage: make logs-query q=\"your query\" [limit=100]"
+	@echo ""
+	@echo "Examples:"
+	@echo "  make logs-query q='{service=\"next-go-pg-api\"}'"
+	@echo "  make logs-query q='{level=\"error\"}' limit=50"
+	@echo "  make logs-query q='{category=\"auth\"}'"
+	@exit 1
+else
+	@curl -sG "http://localhost:3100/loki/api/v1/query_range" \
+		--data-urlencode "query=$(q)" \
+		--data-urlencode "limit=$(or $(limit),100)" | \
+		jq -r '.data.result[].values[][1]' 2>/dev/null || \
+		echo "$(RED)Error: Loki not running or query failed$(RESET)"
+endif

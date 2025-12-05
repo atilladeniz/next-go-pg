@@ -287,6 +287,105 @@ const result = await withTiming(
 
 ---
 
+## Self-Hosted Log Aggregation (Grafana + Loki)
+
+This project includes a pre-configured Grafana + Loki + Promtail stack for local/self-hosted log aggregation.
+
+### Quick Start
+
+```bash
+# Start logging stack
+make logs-up
+
+# Open Grafana
+make logs-open  # Opens http://localhost:3001
+
+# Stop logging stack
+make logs-down
+```
+
+### Components
+
+| Service | Port | Description |
+|---------|------|-------------|
+| Grafana | 3001 | Dashboard & visualization |
+| Loki | 3100 | Log aggregation backend |
+| Promtail | - | Log shipper (collects container logs) |
+
+### Default Credentials
+
+- **Username**: admin
+- **Password**: admin
+
+### Querying Logs
+
+#### In Grafana
+
+1. Open http://localhost:3001
+2. Go to Explore (compass icon)
+3. Select "Loki" datasource
+4. Use LogQL queries:
+
+```logql
+# All logs from backend
+{service="next-go-pg-api"}
+
+# Error logs only
+{level="error"}
+
+# Auth events
+{category="auth"}
+
+# HTTP requests with status 500+
+{category="http"} |= "status\":5"
+
+# Logs from specific user
+{service="next-go-pg-api"} |= "user_id\":\"123\""
+
+# Combined filters
+{service="next-go-pg-api", level="error"} |= "database"
+```
+
+#### Via CLI
+
+```bash
+# Query logs from command line
+make logs-query q='{service="next-go-pg-api"}'
+make logs-query q='{level="error"}' limit=50
+make logs-query q='{category="auth"}'
+```
+
+### Configuration Files
+
+- `deploy/loki/loki-config.yml` - Loki configuration
+- `deploy/loki/promtail-config.yml` - Promtail log collection rules
+- `deploy/grafana/provisioning/datasources/datasources.yml` - Grafana datasource
+- `docker-compose.logging.yml` - Docker Compose for logging stack
+
+### Log Labels (for filtering)
+
+Promtail extracts these labels from JSON logs:
+
+| Label | Description |
+|-------|-------------|
+| `service` | Application name (next-go-pg-api, next-go-pg-frontend) |
+| `level` | Log level (debug, info, warn, error) |
+| `category` | Log category (http, auth, db, business, etc.) |
+
+### Retention
+
+Default: **31 days** (configurable in `loki-config.yml`)
+
+### Production Deployment
+
+For production with Kamal:
+
+1. Deploy Loki + Grafana on your server
+2. Update Promtail config to ship logs to Loki
+3. Configure retention and storage based on volume
+
+---
+
 ## Log Aggregation
 
 ### Filtering by Category
