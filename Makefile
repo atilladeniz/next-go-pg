@@ -1,4 +1,4 @@
-.PHONY: help dev dev-frontend dev-backend build build-frontend build-backend test clean install install-tools api lint docker-build docker-up docker-down goca-feature deploy deploy-staging deploy-production deploy-rollback deploy-logs deploy-console setup-hooks security-scan security-scan-history fetch-docs search-docs
+.PHONY: help dev dev-frontend dev-backend build build-frontend build-backend test clean install install-tools api lint docker-build docker-up docker-down goca-feature deploy deploy-staging deploy-production deploy-rollback deploy-logs deploy-console setup-hooks security-scan security-scan-history fetch-docs search-docs search-docs-index
 
 .DEFAULT_GOAL := help
 
@@ -62,7 +62,8 @@ help: ## Show available commands
 	@echo "$(CYAN)━━━ Documentation ━━━$(RESET)"
 	@echo ""
 	@echo "  $(GREEN)fetch-docs$(RESET)        Fetch LLM-friendly docs $(DIM)(url=<url> [name=<name>])$(RESET)"
-	@echo "  $(GREEN)search-docs$(RESET)       Search docs with reranking $(DIM)(q=\"query\" [n=5])$(RESET)"
+	@echo "  $(GREEN)search-docs$(RESET)       Semantic search $(DIM)(q=\"query\" [n=5] [fast=1])$(RESET)"
+	@echo "  $(GREEN)search-docs-index$(RESET) Pre-build search index $(DIM)(one-time, makes search fast)$(RESET)"
 	@echo ""
 	@echo "$(CYAN)━━━ Docker ━━━$(RESET)"
 	@echo ""
@@ -272,13 +273,18 @@ search-docs:
 ifndef q
 	@echo "$(RED)Error: q parameter required$(RESET)"
 	@echo ""
-	@echo "Usage: make search-docs q=\"your query\" [n=5]"
+	@echo "Usage: make search-docs q=\"your query\" [n=5] [fast=1]"
 	@echo ""
 	@echo "Examples:"
-	@echo "  make search-docs q=\"how to use prefetchQuery\""
+	@echo "  make search-docs q=\"how to preload data\"        $(DIM)# Semantic (default)$(RESET)"
+	@echo "  make search-docs q=\"prefetchQuery\" fast=1       $(DIM)# Fast fuzzy search$(RESET)"
 	@echo "  make search-docs q=\"mutations\" n=3"
-	@echo "  make search-docs q=\"authentication\" n=10"
 	@exit 1
 else
-	@bun scripts/search-docs.js "$(q)" --top $(or $(n),5) --llm
+	@bun scripts/search-docs.js "$(q)" --top $(or $(n),5) --llm $(if $(fast),--fast,)
 endif
+
+search-docs-index:
+	@echo "$(YELLOW)🔄 Building semantic search index...$(RESET)"
+	@bun scripts/search-docs.js --index
+	@echo "$(GREEN)✓ Index ready! Searches will now be fast.$(RESET)"

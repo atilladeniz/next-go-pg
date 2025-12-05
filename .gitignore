@@ -49,3 +49,4 @@ backend/server
 # Kamal Deployment Secrets
 deploy/.kamal/secrets
 !deploy/.kamal/secrets.example
+.embeddings-cache.json
