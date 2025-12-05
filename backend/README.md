@@ -9,6 +9,7 @@ Go Backend with Clean Architecture, generated with [Goca CLI](https://github.com
 - **Go 1.23** - Programming Language
 - **Gorilla Mux** - HTTP Router
 - **GORM** - ORM for PostgreSQL
+- **zerolog** - Structured JSON Logging
 - **Swagger/swag** - API Documentation
 - **Goca CLI** - Code Generator for Clean Architecture
 
@@ -22,7 +23,7 @@ internal/
 ├── usecase/          # Application Logic
 ├── repository/       # Data Access Layer
 ├── handler/          # HTTP Handler
-├── middleware/       # Auth, CORS
+├── middleware/       # Auth, CORS, Logging
 └── sse/              # Server-Sent Events
 ```
 
@@ -109,7 +110,7 @@ backend/
 │   └── sse/              # Server-Sent Events
 ├── pkg/
 │   ├── config/           # Application configuration
-│   └── logger/           # Logging system
+│   └── logger/           # zerolog Logger (structured JSON)
 ├── docs/                 # Swagger documentation
 ├── .goca.yaml            # Goca configuration
 ├── .env                  # Environment variables
@@ -252,6 +253,41 @@ Application runs but cannot connect to database.
 1. Verify PostgreSQL is running
 2. Verify environment variables in .env
 3. Test connection manually: `psql -h localhost -U postgres -d backend`
+
+## Logging
+
+Structured JSON logging with zerolog:
+
+```go
+import "github.com/atilladeniz/next-go-pg/backend/pkg/logger"
+
+// Simple logging
+logger.Info().Msg("Server started")
+logger.Error().Err(err).Msg("Database failed")
+
+// Structured logging
+logger.Info().
+    Str("user_id", "123").
+    Str("action", "login").
+    Msg("User logged in")
+
+// With request context (includes request_id)
+logger.WithContext(ctx).Info().Msg("Request processed")
+```
+
+### Features
+
+- **Request ID Tracing**: Every HTTP request gets `X-Request-ID`
+- **Development**: Pretty colored output
+- **Production**: JSON for log aggregation (ELK, Datadog, etc.)
+- **Log Levels**: debug, info, warn, error, fatal
+
+### Configuration
+
+```bash
+LOG_LEVEL=info          # debug, info, warn, error
+ENVIRONMENT=production  # development = pretty output
+```
 
 ## Additional Resources
 

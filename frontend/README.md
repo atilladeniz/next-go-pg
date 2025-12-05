@@ -13,6 +13,7 @@ Next.js 16 Frontend with TypeScript, Tailwind CSS, shadcn/ui and **Feature-Slice
 - **TanStack Query** - Server State Management
 - **Better Auth** - Authentication
 - **Orval** - API Client Generation
+- **Pino** - Structured Logging
 - **Biome** - Linting & Formatting
 - **Steiger** - FSD Architecture Linting
 
@@ -99,6 +100,7 @@ src/
     ├── lib/
     │   ├── auth-client/        # Better Auth Client
     │   ├── auth-server/        # Better Auth Server
+    │   ├── logger/             # Pino Logger
     │   ├── query-client.ts     # TanStack Query Client
     │   └── utils.ts            # cn() helper
     └── config/
@@ -208,6 +210,25 @@ import { Input } from "@shared/ui/input"
 
 Theme Toggle in Header. Supports Light, Dark, System.
 
+## Logging
+
+Structured logging with Pino:
+
+```typescript
+import { log, createLogger } from "@shared/lib/logger"
+
+// Simple logging
+log.info("Page loaded")
+log.error("API failed", { endpoint: "/api/users" })
+
+// Component-specific logger
+const authLogger = createLogger("auth")
+authLogger.info("Login submitted")
+```
+
+Development: Pretty colored output
+Production: JSON for log aggregation (ELK, Datadog, etc.)
+
 ## Environment Variables
 
 Create `.env.local`:
@@ -217,4 +238,5 @@ DATABASE_URL=postgres://postgres:postgres@localhost:5432/nextgopg
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 NEXT_PUBLIC_API_URL=http://localhost:8080
 BETTER_AUTH_SECRET=<at-least-32-characters>
+LOG_LEVEL=info
 ```
