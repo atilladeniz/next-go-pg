@@ -22,7 +22,8 @@ allowed-tools: Read, Glob, Grep, Bash
 ├── orval.md            # Orval API Client Generator
 ├── shadcn.md           # shadcn/ui Components
 ├── tailwind.md         # Tailwind CSS 4
-└── kamal-deploy.md     # Kamal Deployment
+├── kamal-deploy.md     # Kamal Deployment
+└── logging.md          # Logging (zerolog + Pino)
 ```
 
 ## Search Documentation (RECOMMENDED)
