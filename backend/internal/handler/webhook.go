@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -29,7 +30,13 @@ func NewWebhookHandler(db *gorm.DB) *WebhookHandler {
 	if smtpHost == "" {
 		smtpHost = "127.0.0.1"
 	}
+
 	smtpPort := 1025 // Default Mailpit port
+	if portStr := os.Getenv("SMTP_PORT"); portStr != "" {
+		if port, err := strconv.Atoi(portStr); err == nil {
+			smtpPort = port
+		}
+	}
 
 	dialer := gomail.NewDialer(smtpHost, smtpPort, "", "")
 	dialer.SSL = false
@@ -190,6 +197,29 @@ func parseUserAgent(uaString string) string {
 
 	// Use battle-tested library for user agent parsing
 	ua := useragent.Parse(uaString)
+
+	// Handle bots and automated tools
+	if ua.Bot {
+		return "Automatisierter Zugriff (Bot)"
+	}
+
+	// Handle CLI tools (curl, wget, etc.)
+	lowerUA := strings.ToLower(uaString)
+	if strings.Contains(lowerUA, "curl") {
+		return "Kommandozeile (curl)"
+	}
+	if strings.Contains(lowerUA, "wget") {
+		return "Kommandozeile (wget)"
+	}
+	if strings.Contains(lowerUA, "httpie") {
+		return "Kommandozeile (HTTPie)"
+	}
+	if strings.Contains(lowerUA, "postman") {
+		return "API-Client (Postman)"
+	}
+	if strings.Contains(lowerUA, "insomnia") {
+		return "API-Client (Insomnia)"
+	}
 
 	browser := ua.Name
 	if browser == "" {
