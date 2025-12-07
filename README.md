@@ -1,5 +1,8 @@
 # Next-Go-PG
 
+[![CI](https://github.com/atilladeniz/next-go-pg/actions/workflows/ci.yml/badge.svg)](https://github.com/atilladeniz/next-go-pg/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/atilladeniz/next-go-pg/branch/main/graph/badge.svg)](https://codecov.io/gh/atilladeniz/next-go-pg)
+
 Full-Stack Monorepo with Next.js Frontend and Go Backend.
 
 ## Technical Documentation
@@ -111,6 +114,54 @@ next-go-pg/
 ├── Makefile                 # Build Commands
 └── README.md
 ```
+
+## CI/CD Pipeline
+
+This project uses GitHub Actions for continuous integration and automatic releases.
+
+### Automated Checks (on every PR)
+
+| Check | Tool | Description |
+|-------|------|-------------|
+| Backend Lint | golangci-lint | Go code quality |
+| Backend Security | gosec | Security vulnerabilities |
+| Backend Test | go test | Unit tests with race detection |
+| Frontend Lint | Biome + Steiger | Code style + FSD architecture |
+| Frontend Typecheck | TypeScript | Type safety |
+| Dependency Review | GitHub | CVE scanning |
+| Secret Scan | Gitleaks | Prevent leaked secrets |
+
+### Automatic Releases (Release Please)
+
+Releases are automated based on [Conventional Commits](https://www.conventionalcommits.org/):
+
+| Commit Type | Version Bump | Example |
+|-------------|--------------|---------|
+| `fix:` | Patch (0.0.X) | `fix: resolve login bug` |
+| `feat:` | Minor (0.X.0) | `feat: add dark mode` |
+| `feat!:` | Major (X.0.0) | `feat!: redesign API` |
+
+When you merge to `main`:
+1. Release Please creates a "Release PR" with updated CHANGELOG
+2. You review and merge the Release PR
+3. GitHub Release is created automatically
+4. Go binaries + Docker images are built
+
+### Commit Message Format
+
+Commits are validated by **commitlint**:
+
+```bash
+# Format
+<type>(<scope>): <description>
+
+# Examples
+feat: add user authentication
+fix(api): resolve timeout issue
+docs: update README
+```
+
+Types: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`
 
 ## Security
 

@@ -1,5 +1,7 @@
 # Backend
 
+[![Backend CI](https://github.com/atilladeniz/next-go-pg/actions/workflows/ci.yml/badge.svg)](https://github.com/atilladeniz/next-go-pg/actions/workflows/ci.yml)
+
 Go Backend with Clean Architecture, generated with [Goca CLI](https://github.com/sazardev/goca).
 
 > **Tip:** LLM-friendly documentation for GORM, Gorilla Mux, Goca, etc. can be found in `../.docs/`

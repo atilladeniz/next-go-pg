@@ -1,5 +1,7 @@
 # Frontend
 
+[![Frontend CI](https://github.com/atilladeniz/next-go-pg/actions/workflows/ci.yml/badge.svg)](https://github.com/atilladeniz/next-go-pg/actions/workflows/ci.yml)
+
 Next.js 16 Frontend with TypeScript, Tailwind CSS, shadcn/ui and **Feature-Sliced Design (FSD)** architecture.
 
 > **Tip:** LLM-friendly documentation for Next.js, TanStack Query, Better Auth, etc. can be found in `../.docs/`
