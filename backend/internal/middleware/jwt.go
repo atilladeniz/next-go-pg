@@ -30,9 +30,14 @@ type JWTMiddleware struct {
 // NewJWTMiddleware creates a new JWT middleware instance
 func NewJWTMiddleware() *JWTMiddleware {
 	secret := os.Getenv("GO_JWT_SECRET")
+	env := os.Getenv("ENVIRONMENT")
+
 	if secret == "" {
+		if env == "production" {
+			logger.Fatal().Msg("GO_JWT_SECRET must be set in production environment")
+		}
 		secret = "dev-secret-change-in-production"
-		logger.Warn().Msg("GO_JWT_SECRET not set, using insecure default")
+		logger.Warn().Msg("GO_JWT_SECRET not set, using insecure default (development only)")
 	}
 
 	return &JWTMiddleware{

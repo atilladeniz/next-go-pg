@@ -13,10 +13,44 @@ interface TwoFactorState {
 	showBackupCodes: boolean
 }
 
-// Type for 2FA API calls without password (skipVerificationOnEnable: true)
-type TwoFactorResult = {
+/**
+ * Two-factor authentication API response types.
+ * Note: With skipVerificationOnEnable: true, password is not required.
+ * These types match the actual runtime responses from Better Auth.
+ */
+interface TwoFactorEnableResponse {
 	error?: { message?: string }
 	data?: { totpURI?: string; backupCodes?: string[] }
+}
+
+interface TwoFactorDisableResponse {
+	error?: { message?: string }
+	data?: unknown
+}
+
+interface TwoFactorBackupCodesResponse {
+	error?: { message?: string }
+	data?: { backupCodes?: string[] }
+}
+
+/**
+ * Helper to call twoFactor methods without password parameter.
+ * skipVerificationOnEnable: true is configured in auth.ts, so password is not needed.
+ * We use explicit typing instead of type assertions on the method signatures.
+ */
+async function enableTwoFactor(): Promise<TwoFactorEnableResponse> {
+	// @ts-expect-error - skipVerificationOnEnable makes password optional at runtime
+	return twoFactor.enable({})
+}
+
+async function disableTwoFactor(): Promise<TwoFactorDisableResponse> {
+	// @ts-expect-error - skipVerificationOnEnable makes password optional at runtime
+	return twoFactor.disable({})
+}
+
+async function generateNewBackupCodes(): Promise<TwoFactorBackupCodesResponse> {
+	// @ts-expect-error - skipVerificationOnEnable makes password optional at runtime
+	return twoFactor.generateBackupCodes({})
 }
 
 export function useTwoFactor() {
@@ -35,10 +69,7 @@ export function useTwoFactor() {
 		setState((prev) => ({ ...prev, isLoading: true, error: null }))
 
 		try {
-			// skipVerificationOnEnable is true, so password is not required
-			const result = (await (twoFactor.enable as (arg: object) => Promise<unknown>)(
-				{},
-			)) as TwoFactorResult
+			const result = await enableTwoFactor()
 
 			if (result.error) {
 				const errorMessage = result.error.message || "Fehler beim Aktivieren"
@@ -107,10 +138,7 @@ export function useTwoFactor() {
 		setState((prev) => ({ ...prev, isLoading: true, error: null }))
 
 		try {
-			// skipVerificationOnEnable is true, so password is not required for disable either
-			const result = (await (twoFactor.disable as (arg: object) => Promise<unknown>)(
-				{},
-			)) as TwoFactorResult
+			const result = await disableTwoFactor()
 
 			if (result.error) {
 				const errorMessage = result.error.message || "Fehler beim Deaktivieren"
@@ -144,10 +172,7 @@ export function useTwoFactor() {
 		setState((prev) => ({ ...prev, isLoading: true, error: null }))
 
 		try {
-			// skipVerificationOnEnable is true, so password is not required
-			const result = (await (twoFactor.generateBackupCodes as (arg: object) => Promise<unknown>)(
-				{},
-			)) as TwoFactorResult
+			const result = await generateNewBackupCodes()
 
 			if (result.error) {
 				const errorMessage = result.error.message || "Fehler beim Generieren"

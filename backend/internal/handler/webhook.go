@@ -3,15 +3,19 @@ package handler
 import (
 	"crypto/hmac"
 	"crypto/sha256"
+	"crypto/subtle"
 	"encoding/hex"
 	"encoding/json"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/atilladeniz/next-go-pg/backend/pkg/logger"
+	"github.com/mileusna/useragent"
 	"gopkg.in/gomail.v2"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type WebhookHandler struct {
@@ -76,13 +80,22 @@ func (h *WebhookHandler) SessionCreated(w http.ResponseWriter, r *http.Request) 
 	}
 
 	// Check if this device/IP combination is known
+	// Use transaction with FOR UPDATE to prevent race conditions when multiple
+	// sessions are created simultaneously from the same device
 	if h.db != nil {
 		var count int64
-		h.db.Table("session").
-			Where(`"userId" = ? AND "userAgent" = ? AND "ipAddress" = ? AND id != ?`,
-				req.UserID, req.UserAgent, req.IPAddress, req.SessionID).
-			Limit(1).
-			Count(&count)
+		err := h.db.Transaction(func(tx *gorm.DB) error {
+			return tx.Table("session").
+				Where(`"userId" = ? AND "userAgent" = ? AND "ipAddress" = ? AND id != ?`,
+					req.UserID, req.UserAgent, req.IPAddress, req.SessionID).
+				Clauses(clause.Locking{Strength: "UPDATE"}).
+				Limit(1).
+				Count(&count).Error
+		})
+
+		if err != nil {
+			logger.Warn().Err(err).Msg("Failed to check for existing sessions")
+		}
 
 		if count > 0 {
 			// Known device, skip notification
@@ -170,54 +183,33 @@ func (h *WebhookHandler) SessionCreated(w http.ResponseWriter, r *http.Request) 
 	json.NewEncoder(w).Encode(MessageResponse{Message: "notification sent"})
 }
 
-func parseUserAgent(ua string) string {
-	if ua == "" {
+func parseUserAgent(uaString string) string {
+	if uaString == "" {
 		return "Unbekanntes Gerät"
 	}
 
-	browser := "Browser"
-	os := "System"
+	// Use battle-tested library for user agent parsing
+	ua := useragent.Parse(uaString)
 
-	// Detect browser
+	browser := ua.Name
+	if browser == "" {
+		browser = "Browser"
+	}
+
+	osName := ua.OS
+	if osName == "" {
+		osName = "System"
+	}
+
+	// Normalize OS names for German display
 	switch {
-	case contains(ua, "Firefox"):
-		browser = "Firefox"
-	case contains(ua, "Edg/"):
-		browser = "Edge"
-	case contains(ua, "Chrome"):
-		browser = "Chrome"
-	case contains(ua, "Safari"):
-		browser = "Safari"
+	case strings.Contains(osName, "Mac"):
+		osName = "macOS"
+	case strings.Contains(osName, "iOS"):
+		osName = "iOS"
 	}
 
-	// Detect OS
-	switch {
-	case contains(ua, "Windows"):
-		os = "Windows"
-	case contains(ua, "Mac OS"):
-		os = "macOS"
-	case contains(ua, "Linux"):
-		os = "Linux"
-	case contains(ua, "Android"):
-		os = "Android"
-	case contains(ua, "iPhone"), contains(ua, "iPad"):
-		os = "iOS"
-	}
-
-	return browser + " auf " + os
-}
-
-func contains(s, substr string) bool {
-	return len(s) >= len(substr) && (s == substr || len(s) > 0 && containsImpl(s, substr))
-}
-
-func containsImpl(s, substr string) bool {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
-		}
-	}
-	return false
+	return browser + " auf " + osName
 }
 
 func verifyWebhookSecret(provided, expected string) bool {
@@ -225,7 +217,8 @@ func verifyWebhookSecret(provided, expected string) bool {
 		return false
 	}
 	// Use constant-time comparison to prevent timing attacks
-	return hmac.Equal([]byte(provided), []byte(expected))
+	// subtle.ConstantTimeCompare is the correct function for comparing secrets
+	return subtle.ConstantTimeCompare([]byte(provided), []byte(expected)) == 1
 }
 
 // ComputeHMAC computes HMAC-SHA256 for webhook signature verification
