@@ -28,7 +28,8 @@ export function useLogin() {
 				{
 					email,
 					callbackURL: "/dashboard",
-					newUserCallbackURL: "/verify-email",
+					newUserCallbackURL: "/dashboard",
+					errorCallbackURL: "/login?error=verification_failed",
 				},
 				{
 					onError: (ctx) => {
