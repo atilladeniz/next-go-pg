@@ -86,6 +86,20 @@ export const auth = betterAuth({
 				after: async (session) => {
 					const db = new Pool({ connectionString: process.env.DATABASE_URL })
 					try {
+						// Check if user has logged in from this device/IP before
+						const existingSession = await db.query(
+							`SELECT id FROM "session"
+							 WHERE "userId" = $1
+							 AND "userAgent" = $2
+							 AND "ipAddress" = $3
+							 AND id != $4
+							 LIMIT 1`,
+							[session.userId, session.userAgent, session.ipAddress, session.id],
+						)
+
+						// Skip notification if this device/IP combination is known
+						if (existingSession.rows.length > 0) return
+
 						const result = await db.query('SELECT email, name FROM "user" WHERE id = $1', [
 							session.userId,
 						])
@@ -103,11 +117,11 @@ export const auth = betterAuth({
 
 						await sendMail(
 							user.email,
-							"Neue Anmeldung erkannt",
+							"Neue Anmeldung von neuem Gerät",
 							`
 							<h1>Neue Anmeldung in deinem Konto</h1>
 							<p>Hallo ${user.name || ""},</p>
-							<p>Wir haben eine neue Anmeldung in deinem Konto festgestellt:</p>
+							<p>Wir haben eine Anmeldung von einem neuen Gerät oder Standort festgestellt:</p>
 							<ul>
 								<li><strong>Gerät:</strong> ${device}</li>
 								<li><strong>IP-Adresse:</strong> ${session.ipAddress || "Unbekannt"}</li>
