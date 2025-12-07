@@ -1,35 +1,75 @@
 # Database Migrations
 
-This directory contains database migration files.
+SQL migrations managed with [golang-migrate](https://github.com/golang-migrate/migrate).
 
 ## Structure
-- *.up.sql - Migration files (apply changes)
-- *.down.sql - Rollback files (reverse changes)
 
-## Usage
+```
+migrations/
+├── 001_initial.up.sql      # Create tables
+├── 001_initial.down.sql    # Drop tables
+├── 002_feature.up.sql      # Add feature
+├── 002_feature.down.sql    # Remove feature
+└── ...
+```
 
-### Using golang-migrate tool
-bash
-# Install golang-migrate
-go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest
+## Commands
 
-# Run migrations
-migrate -path ./migrations -database "postgres://user:password@localhost/dbname?sslmode=disable" up
+```bash
+# Run all pending migrations
+make migrate-up
 
 # Rollback last migration
-migrate -path ./migrations -database "postgres://user:password@localhost/dbname?sslmode=disable" down 1
+make migrate-down
 
+# Show current version
+make migrate-version
 
-### Manual execution
-bash
-# Apply migration
-psql -h localhost -U postgres -d your_db -f migrations/001_initial.up.sql
+# Create new migration files
+make migrate-create name=add_users_table
+```
 
-# Rollback migration  
-psql -h localhost -U postgres -d your_db -f migrations/001_initial.down.sql
+## Migration vs AutoMigrate
 
+This project uses **two migration strategies**:
 
-## Creating new migrations
-1. Create new files: 002_description.up.sql and 002_description.down.sql
-2. Add your changes in the .up.sql file
-3. Add the reverse changes in the .down.sql file
+1. **SQL Migrations (this folder)**: For schema changes that need precise control
+   - Table creation with specific constraints
+   - Index optimization
+   - Data migrations
+   - Production deployments
+
+2. **GORM AutoMigrate**: For development convenience
+   - Runs automatically on server start
+   - Only adds columns/tables, never removes
+   - Good for rapid iteration
+
+**Recommended workflow:**
+- Development: AutoMigrate handles schema sync
+- Production: Run `make migrate-up` before deployment
+
+## Creating Migrations
+
+```bash
+# 1. Create migration files
+make migrate-create name=add_products_table
+
+# 2. Edit the .up.sql file
+# backend/migrations/002_add_products_table.up.sql
+
+# 3. Edit the .down.sql file (reverse the changes)
+# backend/migrations/002_add_products_table.down.sql
+
+# 4. Test the migration
+make migrate-up
+make migrate-down
+make migrate-up
+```
+
+## Best Practices
+
+1. **Always write down migrations** - Every up migration needs a matching down
+2. **Test rollbacks** - Run `migrate-up` then `migrate-down` then `migrate-up`
+3. **Keep migrations small** - One logical change per migration
+4. **Never edit applied migrations** - Create a new migration instead
+5. **Use transactions** - Wrap DDL in BEGIN/COMMIT when possible

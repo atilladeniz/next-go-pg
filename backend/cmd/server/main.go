@@ -27,7 +27,9 @@ import (
 	"github.com/atilladeniz/next-go-pg/backend/internal/sse"
 	"github.com/atilladeniz/next-go-pg/backend/pkg/config"
 	"github.com/atilladeniz/next-go-pg/backend/pkg/logger"
+	"github.com/atilladeniz/next-go-pg/backend/pkg/metrics"
 	"github.com/gorilla/mux"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	gormlogger "gorm.io/gorm/logger"
@@ -82,6 +84,9 @@ func main() {
 		Str("environment", cfg.Environment).
 		Msg("Starting application")
 
+	// Initialize Prometheus metrics
+	metrics.Init(Version, cfg.Environment)
+
 	// Connect to database with retry
 	var err error
 	db, err = connectToDatabase(cfg)
@@ -116,10 +121,12 @@ func main() {
 	rateLimitMiddleware := middleware.NewRateLimitMiddleware(middleware.RateLimitConfig{
 		RequestsPerMinute: cfg.RateLimit.RequestsPerMinute,
 		BurstSize:         cfg.RateLimit.BurstSize,
-		SkipPaths:         []string{"/health", "/health/ready", "/health/live"},
+		SkipPaths:         []string{"/health", "/health/ready", "/health/live", "/metrics"},
 	})
+	metricsMiddleware := middleware.NewMetricsMiddleware()
 
-	// Apply middlewares (order matters: logging first to capture all requests)
+	// Apply middlewares (order matters: metrics first, then logging, then rate limit)
+	router.Use(metricsMiddleware.Handler)
 	router.Use(loggingMiddleware.Handler)
 	router.Use(corsMiddleware.Handler)
 	router.Use(rateLimitMiddleware.Handler)
@@ -128,6 +135,9 @@ func main() {
 	router.HandleFunc("/health", healthCheckHandler).Methods("GET")
 	router.HandleFunc("/health/ready", readinessHandler).Methods("GET")
 	router.HandleFunc("/health/live", livenessHandler).Methods("GET")
+
+	// Prometheus metrics endpoint
+	router.Handle("/metrics", promhttp.Handler()).Methods("GET")
 
 	// Setup repositories
 	var statsRepo *repository.UserStatsRepository
