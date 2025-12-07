@@ -1,4 +1,5 @@
 import { UserInfo } from "@entities/user"
+import { ExportCard } from "@features/data-export"
 import { StatsGrid } from "@features/stats"
 import { getGetStatsQueryKey, getStats } from "@shared/api/endpoints/users/users"
 import { getQueryClient } from "@shared/lib"
@@ -49,6 +50,11 @@ export default async function DashboardPage() {
 					</Card>
 
 					<StatsGrid />
+
+					{/* Data Export Section */}
+					<div className="mt-6">
+						<ExportCard />
+					</div>
 				</main>
 			</div>
 		</HydrationBoundary>

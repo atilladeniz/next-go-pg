@@ -3,15 +3,31 @@ package jobs
 
 import (
 	"github.com/riverqueue/river"
+
+	"github.com/atilladeniz/next-go-pg/backend/internal/sse"
 )
 
+// WorkerDeps holds dependencies for job workers.
+type WorkerDeps struct {
+	EmailConfig *EmailConfig
+	SSEBroker   *sse.Broker
+	ExportStore *ExportStore
+}
+
 // RegisterWorkers registers all job workers with the given workers registry.
-func RegisterWorkers(workers *river.Workers, config *EmailConfig) {
+func RegisterWorkers(workers *river.Workers, deps *WorkerDeps) {
 	// Email workers
-	river.AddWorker(workers, NewSendMagicLinkWorker(config))
-	river.AddWorker(workers, NewSendVerificationEmailWorker(config))
-	river.AddWorker(workers, NewSend2FAOTPWorker(config))
-	river.AddWorker(workers, NewSendLoginNotificationWorker(config))
+	if deps.EmailConfig != nil {
+		river.AddWorker(workers, NewSendMagicLinkWorker(deps.EmailConfig))
+		river.AddWorker(workers, NewSendVerificationEmailWorker(deps.EmailConfig))
+		river.AddWorker(workers, NewSend2FAOTPWorker(deps.EmailConfig))
+		river.AddWorker(workers, NewSendLoginNotificationWorker(deps.EmailConfig))
+	}
+
+	// Export workers
+	if deps.SSEBroker != nil && deps.ExportStore != nil {
+		river.AddWorker(workers, NewDataExportWorker(deps.SSEBroker, deps.ExportStore))
+	}
 }
 
 // NewEmailConfig creates a new EmailConfig from environment settings.

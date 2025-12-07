@@ -44,6 +44,7 @@ import (
 var (
 	sseBroker     *sse.Broker
 	riverJobQueue *riverPkg.Client
+	exportStore   *jobs.ExportStore
 )
 
 type HealthStatus struct {
@@ -164,9 +165,16 @@ func main() {
 
 			emailConfig := jobs.NewEmailConfig(smtpHost, smtpPort, smtpFrom, appURL)
 
-			// Register workers
+			// Create export store for download handling
+			exportStore = jobs.NewExportStore()
+
+			// Register workers with all dependencies
 			workers := river.NewWorkers()
-			jobs.RegisterWorkers(workers, emailConfig)
+			jobs.RegisterWorkers(workers, &jobs.WorkerDeps{
+				EmailConfig: emailConfig,
+				SSEBroker:   sseBroker,
+				ExportStore: exportStore,
+			})
 
 			// Create River client
 			riverJobQueue, err = riverPkg.NewClient(riverCtx, pgxPool, workers, riverPkg.DefaultConfig())
@@ -264,6 +272,13 @@ func main() {
 	webhookRouter.HandleFunc("/send-2fa-otp", webhookHandler.Send2FAOTP).Methods("POST")
 	webhookRouter.HandleFunc("/send-2fa-enabled", webhookHandler.Send2FAEnabledNotification).Methods("POST")
 	webhookRouter.HandleFunc("/send-passkey-added", webhookHandler.SendPasskeyAddedNotification).Methods("POST")
+
+	// Export routes (require auth)
+	if riverJobQueue != nil && exportStore != nil {
+		exportHandler := handler.NewExportHandler(riverJobQueue.Client, exportStore)
+		apiRouter.Handle("/export/start", combinedAuth.RequireAuth(http.HandlerFunc(exportHandler.StartExport))).Methods("POST", "OPTIONS")
+		apiRouter.HandleFunc("/export/download/{id}", exportHandler.DownloadExport).Methods("GET")
+	}
 
 	// Setup HTTP server with timeouts
 	server := &http.Server{

@@ -53,3 +53,14 @@ func EnqueueLoginNotification(ctx context.Context, enqueuer JobEnqueuer, email, 
 	}, nil)
 	return err
 }
+
+// EnqueueDataExport enqueues a data export job.
+func EnqueueDataExport(ctx context.Context, enqueuer JobEnqueuer, jobID, userID string, format ExportFormat, dataType string) error {
+	_, err := enqueuer.Insert(ctx, DataExportArgs{
+		JobID:    jobID,
+		UserID:   userID,
+		Format:   format,
+		DataType: dataType,
+	}, nil)
+	return err
+}
