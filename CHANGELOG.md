@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.2.0](https://github.com/atilladeniz/next-go-pg/compare/v1.1.0...v1.2.0) (2025-12-07)
+
+
+### Features
+
+* add database migrations and Prometheus metrics ([#26](https://github.com/atilladeniz/next-go-pg/issues/26)) ([d699f2f](https://github.com/atilladeniz/next-go-pg/commit/d699f2f5d90a139430b61ff235a6683a9ac61aeb))
+* add rate limiting middleware for API protection ([#24](https://github.com/atilladeniz/next-go-pg/issues/24)) ([b68ae8f](https://github.com/atilladeniz/next-go-pg/commit/b68ae8f38d29b28d6526e3586d6df38afca415ad))
+
 ## [1.1.0](https://github.com/atilladeniz/next-go-pg/compare/v1.0.5...v1.1.0) (2025-12-07)
 
 
