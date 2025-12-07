@@ -21,8 +21,8 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
-  InternalHandlerErrorResponse,
-  InternalHandlerMessageResponse
+  HandlerErrorResponse,
+  HandlerMessageResponse
 } from '../../models';
 
 import { customFetch } from '../../custom-fetch';
@@ -37,12 +37,12 @@ type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
  * @summary Protected hello endpoint
  */
 export type getProtectedHelloResponse200 = {
-  data: InternalHandlerMessageResponse
+  data: HandlerMessageResponse
   status: 200
 }
 
 export type getProtectedHelloResponse401 = {
-  data: InternalHandlerErrorResponse
+  data: HandlerErrorResponse
   status: 401
 }
     
@@ -85,7 +85,7 @@ export const getGetProtectedHelloQueryKey = () => {
     }
 
     
-export const getGetProtectedHelloQueryOptions = <TData = Awaited<ReturnType<typeof getProtectedHello>>, TError = InternalHandlerErrorResponse>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getProtectedHello>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+export const getGetProtectedHelloQueryOptions = <TData = Awaited<ReturnType<typeof getProtectedHello>>, TError = HandlerErrorResponse>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getProtectedHello>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
@@ -104,10 +104,10 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 }
 
 export type GetProtectedHelloQueryResult = NonNullable<Awaited<ReturnType<typeof getProtectedHello>>>
-export type GetProtectedHelloQueryError = InternalHandlerErrorResponse
+export type GetProtectedHelloQueryError = HandlerErrorResponse
 
 
-export function useGetProtectedHello<TData = Awaited<ReturnType<typeof getProtectedHello>>, TError = InternalHandlerErrorResponse>(
+export function useGetProtectedHello<TData = Awaited<ReturnType<typeof getProtectedHello>>, TError = HandlerErrorResponse>(
   options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getProtectedHello>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof getProtectedHello>>,
@@ -117,7 +117,7 @@ export function useGetProtectedHello<TData = Awaited<ReturnType<typeof getProtec
       >, request?: SecondParameter<typeof customFetch>}
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useGetProtectedHello<TData = Awaited<ReturnType<typeof getProtectedHello>>, TError = InternalHandlerErrorResponse>(
+export function useGetProtectedHello<TData = Awaited<ReturnType<typeof getProtectedHello>>, TError = HandlerErrorResponse>(
   options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getProtectedHello>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof getProtectedHello>>,
@@ -127,7 +127,7 @@ export function useGetProtectedHello<TData = Awaited<ReturnType<typeof getProtec
       >, request?: SecondParameter<typeof customFetch>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useGetProtectedHello<TData = Awaited<ReturnType<typeof getProtectedHello>>, TError = InternalHandlerErrorResponse>(
+export function useGetProtectedHello<TData = Awaited<ReturnType<typeof getProtectedHello>>, TError = HandlerErrorResponse>(
   options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getProtectedHello>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
@@ -135,7 +135,7 @@ export function useGetProtectedHello<TData = Awaited<ReturnType<typeof getProtec
  * @summary Protected hello endpoint
  */
 
-export function useGetProtectedHello<TData = Awaited<ReturnType<typeof getProtectedHello>>, TError = InternalHandlerErrorResponse>(
+export function useGetProtectedHello<TData = Awaited<ReturnType<typeof getProtectedHello>>, TError = HandlerErrorResponse>(
   options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getProtectedHello>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
  , queryClient?: QueryClient 
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {

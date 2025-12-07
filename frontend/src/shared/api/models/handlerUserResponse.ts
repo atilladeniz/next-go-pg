@@ -6,9 +6,8 @@
  * OpenAPI spec version: 1.0
  */
 
-export interface InternalHandlerSendPasskeyAddedNotificationRequest {
-  device?: string;
+export interface HandlerUserResponse {
   email?: string;
+  id?: string;
   name?: string;
-  passkeyName?: string;
 }

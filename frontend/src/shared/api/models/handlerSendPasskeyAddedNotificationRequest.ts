@@ -6,9 +6,9 @@
  * OpenAPI spec version: 1.0
  */
 
-export interface InternalHandlerUpdateStatRequest {
-  /** +1 or -1 */
-  delta?: number;
-  /** "projects", "activity", "notifications" */
-  field?: string;
+export interface HandlerSendPasskeyAddedNotificationRequest {
+  device?: string;
+  email?: string;
+  name?: string;
+  passkeyName?: string;
 }

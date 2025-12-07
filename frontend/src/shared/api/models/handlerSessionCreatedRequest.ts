@@ -6,6 +6,9 @@
  * OpenAPI spec version: 1.0
  */
 
-export interface InternalHandlerErrorResponse {
-  error?: string;
+export interface HandlerSessionCreatedRequest {
+  ipAddress?: string;
+  sessionId?: string;
+  userAgent?: string;
+  userId?: string;
 }

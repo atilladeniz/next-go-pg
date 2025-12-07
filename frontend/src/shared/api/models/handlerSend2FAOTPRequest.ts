@@ -6,6 +6,8 @@
  * OpenAPI spec version: 1.0
  */
 
-export interface InternalHandlerMessageResponse {
-  message?: string;
+export interface HandlerSend2FAOTPRequest {
+  email?: string;
+  name?: string;
+  otp?: string;
 }

@@ -6,17 +6,14 @@
  * OpenAPI spec version: 1.0
  */
 
-export * from "./errorResponse";
-export * from "./messageResponse";
-export * from "./userResponse";
-export * from './internalHandlerErrorResponse';
-export * from './internalHandlerMessageResponse';
-export * from './internalHandlerSend2FAEnabledNotificationRequest';
-export * from './internalHandlerSend2FAOTPRequest';
-export * from './internalHandlerSendMagicLinkRequest';
-export * from './internalHandlerSendPasskeyAddedNotificationRequest';
-export * from './internalHandlerSendVerificationEmailRequest';
-export * from './internalHandlerSessionCreatedRequest';
-export * from './internalHandlerUpdateStatRequest';
-export * from './internalHandlerUserResponse';
-export * from './internalHandlerUserStatsResponse';
+export * from './handlerErrorResponse';
+export * from './handlerMessageResponse';
+export * from './handlerSend2FAEnabledNotificationRequest';
+export * from './handlerSend2FAOTPRequest';
+export * from './handlerSendMagicLinkRequest';
+export * from './handlerSendPasskeyAddedNotificationRequest';
+export * from './handlerSendVerificationEmailRequest';
+export * from './handlerSessionCreatedRequest';
+export * from './handlerUpdateStatRequest';
+export * from './handlerUserResponse';
+export * from './handlerUserStatsResponse';

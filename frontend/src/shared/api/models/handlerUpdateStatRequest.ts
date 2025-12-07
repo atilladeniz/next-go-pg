@@ -6,7 +6,9 @@
  * OpenAPI spec version: 1.0
  */
 
-export interface InternalHandlerSendMagicLinkRequest {
-  email?: string;
-  url?: string;
+export interface HandlerUpdateStatRequest {
+  /** +1 or -1 */
+  delta?: number;
+  /** "projects", "activity", "notifications" */
+  field?: string;
 }

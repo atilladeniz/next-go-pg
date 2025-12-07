@@ -186,7 +186,7 @@ test-frontend:
 # ━━━ Code Generation ━━━
 
 swagger:
-	cd backend && ~/go/bin/swag init -g cmd/server/main.go -o docs --parseDependency
+	cd backend/cmd/server && ~/go/bin/swag init -g main.go -o ../../docs --parseDependency --dir .,../../internal/handler
 
 api: swagger
 	cd frontend && bunx orval

@@ -16,14 +16,14 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
-  InternalHandlerErrorResponse,
-  InternalHandlerMessageResponse,
-  InternalHandlerSend2FAEnabledNotificationRequest,
-  InternalHandlerSend2FAOTPRequest,
-  InternalHandlerSendMagicLinkRequest,
-  InternalHandlerSendPasskeyAddedNotificationRequest,
-  InternalHandlerSendVerificationEmailRequest,
-  InternalHandlerSessionCreatedRequest
+  HandlerErrorResponse,
+  HandlerMessageResponse,
+  HandlerSend2FAEnabledNotificationRequest,
+  HandlerSend2FAOTPRequest,
+  HandlerSendMagicLinkRequest,
+  HandlerSendPasskeyAddedNotificationRequest,
+  HandlerSendVerificationEmailRequest,
+  HandlerSessionCreatedRequest
 } from '../../models';
 
 import { customFetch } from '../../custom-fetch';
@@ -38,17 +38,17 @@ type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
  * @summary Send 2FA enabled notification
  */
 export type postWebhooksSend2faEnabledResponse200 = {
-  data: InternalHandlerMessageResponse
+  data: HandlerMessageResponse
   status: 200
 }
 
 export type postWebhooksSend2faEnabledResponse401 = {
-  data: InternalHandlerErrorResponse
+  data: HandlerErrorResponse
   status: 401
 }
 
 export type postWebhooksSend2faEnabledResponse500 = {
-  data: InternalHandlerErrorResponse
+  data: HandlerErrorResponse
   status: 500
 }
     
@@ -69,7 +69,7 @@ export const getPostWebhooksSend2faEnabledUrl = () => {
   return `http://localhost:8080/api/v1/webhooks/send-2fa-enabled`
 }
 
-export const postWebhooksSend2faEnabled = async (internalHandlerSend2FAEnabledNotificationRequest: InternalHandlerSend2FAEnabledNotificationRequest, options?: RequestInit): Promise<postWebhooksSend2faEnabledResponse> => {
+export const postWebhooksSend2faEnabled = async (handlerSend2FAEnabledNotificationRequest: HandlerSend2FAEnabledNotificationRequest, options?: RequestInit): Promise<postWebhooksSend2faEnabledResponse> => {
   
   return customFetch<postWebhooksSend2faEnabledResponse>(getPostWebhooksSend2faEnabledUrl(),
   {      
@@ -77,16 +77,16 @@ export const postWebhooksSend2faEnabled = async (internalHandlerSend2FAEnabledNo
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
     body: JSON.stringify(
-      internalHandlerSend2FAEnabledNotificationRequest,)
+      handlerSend2FAEnabledNotificationRequest,)
   }
 );}
 
 
 
 
-export const getPostWebhooksSend2faEnabledMutationOptions = <TError = InternalHandlerErrorResponse,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postWebhooksSend2faEnabled>>, TError,{data: InternalHandlerSend2FAEnabledNotificationRequest}, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof postWebhooksSend2faEnabled>>, TError,{data: InternalHandlerSend2FAEnabledNotificationRequest}, TContext> => {
+export const getPostWebhooksSend2faEnabledMutationOptions = <TError = HandlerErrorResponse,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postWebhooksSend2faEnabled>>, TError,{data: HandlerSend2FAEnabledNotificationRequest}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof postWebhooksSend2faEnabled>>, TError,{data: HandlerSend2FAEnabledNotificationRequest}, TContext> => {
 
 const mutationKey = ['postWebhooksSend2faEnabled'];
 const {mutation: mutationOptions, request: requestOptions} = options ?
@@ -98,7 +98,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       
 
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof postWebhooksSend2faEnabled>>, {data: InternalHandlerSend2FAEnabledNotificationRequest}> = (props) => {
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof postWebhooksSend2faEnabled>>, {data: HandlerSend2FAEnabledNotificationRequest}> = (props) => {
           const {data} = props ?? {};
 
           return  postWebhooksSend2faEnabled(data,requestOptions)
@@ -110,18 +110,18 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
   return  { mutationFn, ...mutationOptions }}
 
     export type PostWebhooksSend2faEnabledMutationResult = NonNullable<Awaited<ReturnType<typeof postWebhooksSend2faEnabled>>>
-    export type PostWebhooksSend2faEnabledMutationBody = InternalHandlerSend2FAEnabledNotificationRequest
-    export type PostWebhooksSend2faEnabledMutationError = InternalHandlerErrorResponse
+    export type PostWebhooksSend2faEnabledMutationBody = HandlerSend2FAEnabledNotificationRequest
+    export type PostWebhooksSend2faEnabledMutationError = HandlerErrorResponse
 
     /**
  * @summary Send 2FA enabled notification
  */
-export const usePostWebhooksSend2faEnabled = <TError = InternalHandlerErrorResponse,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postWebhooksSend2faEnabled>>, TError,{data: InternalHandlerSend2FAEnabledNotificationRequest}, TContext>, request?: SecondParameter<typeof customFetch>}
+export const usePostWebhooksSend2faEnabled = <TError = HandlerErrorResponse,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postWebhooksSend2faEnabled>>, TError,{data: HandlerSend2FAEnabledNotificationRequest}, TContext>, request?: SecondParameter<typeof customFetch>}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof postWebhooksSend2faEnabled>>,
         TError,
-        {data: InternalHandlerSend2FAEnabledNotificationRequest},
+        {data: HandlerSend2FAEnabledNotificationRequest},
         TContext
       > => {
 
@@ -134,17 +134,17 @@ export const usePostWebhooksSend2faEnabled = <TError = InternalHandlerErrorRespo
  * @summary Send 2FA OTP email
  */
 export type postWebhooksSend2faOtpResponse200 = {
-  data: InternalHandlerMessageResponse
+  data: HandlerMessageResponse
   status: 200
 }
 
 export type postWebhooksSend2faOtpResponse401 = {
-  data: InternalHandlerErrorResponse
+  data: HandlerErrorResponse
   status: 401
 }
 
 export type postWebhooksSend2faOtpResponse500 = {
-  data: InternalHandlerErrorResponse
+  data: HandlerErrorResponse
   status: 500
 }
     
@@ -165,7 +165,7 @@ export const getPostWebhooksSend2faOtpUrl = () => {
   return `http://localhost:8080/api/v1/webhooks/send-2fa-otp`
 }
 
-export const postWebhooksSend2faOtp = async (internalHandlerSend2FAOTPRequest: InternalHandlerSend2FAOTPRequest, options?: RequestInit): Promise<postWebhooksSend2faOtpResponse> => {
+export const postWebhooksSend2faOtp = async (handlerSend2FAOTPRequest: HandlerSend2FAOTPRequest, options?: RequestInit): Promise<postWebhooksSend2faOtpResponse> => {
   
   return customFetch<postWebhooksSend2faOtpResponse>(getPostWebhooksSend2faOtpUrl(),
   {      
@@ -173,16 +173,16 @@ export const postWebhooksSend2faOtp = async (internalHandlerSend2FAOTPRequest: I
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
     body: JSON.stringify(
-      internalHandlerSend2FAOTPRequest,)
+      handlerSend2FAOTPRequest,)
   }
 );}
 
 
 
 
-export const getPostWebhooksSend2faOtpMutationOptions = <TError = InternalHandlerErrorResponse,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postWebhooksSend2faOtp>>, TError,{data: InternalHandlerSend2FAOTPRequest}, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof postWebhooksSend2faOtp>>, TError,{data: InternalHandlerSend2FAOTPRequest}, TContext> => {
+export const getPostWebhooksSend2faOtpMutationOptions = <TError = HandlerErrorResponse,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postWebhooksSend2faOtp>>, TError,{data: HandlerSend2FAOTPRequest}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof postWebhooksSend2faOtp>>, TError,{data: HandlerSend2FAOTPRequest}, TContext> => {
 
 const mutationKey = ['postWebhooksSend2faOtp'];
 const {mutation: mutationOptions, request: requestOptions} = options ?
@@ -194,7 +194,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       
 
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof postWebhooksSend2faOtp>>, {data: InternalHandlerSend2FAOTPRequest}> = (props) => {
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof postWebhooksSend2faOtp>>, {data: HandlerSend2FAOTPRequest}> = (props) => {
           const {data} = props ?? {};
 
           return  postWebhooksSend2faOtp(data,requestOptions)
@@ -206,18 +206,18 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
   return  { mutationFn, ...mutationOptions }}
 
     export type PostWebhooksSend2faOtpMutationResult = NonNullable<Awaited<ReturnType<typeof postWebhooksSend2faOtp>>>
-    export type PostWebhooksSend2faOtpMutationBody = InternalHandlerSend2FAOTPRequest
-    export type PostWebhooksSend2faOtpMutationError = InternalHandlerErrorResponse
+    export type PostWebhooksSend2faOtpMutationBody = HandlerSend2FAOTPRequest
+    export type PostWebhooksSend2faOtpMutationError = HandlerErrorResponse
 
     /**
  * @summary Send 2FA OTP email
  */
-export const usePostWebhooksSend2faOtp = <TError = InternalHandlerErrorResponse,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postWebhooksSend2faOtp>>, TError,{data: InternalHandlerSend2FAOTPRequest}, TContext>, request?: SecondParameter<typeof customFetch>}
+export const usePostWebhooksSend2faOtp = <TError = HandlerErrorResponse,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postWebhooksSend2faOtp>>, TError,{data: HandlerSend2FAOTPRequest}, TContext>, request?: SecondParameter<typeof customFetch>}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof postWebhooksSend2faOtp>>,
         TError,
-        {data: InternalHandlerSend2FAOTPRequest},
+        {data: HandlerSend2FAOTPRequest},
         TContext
       > => {
 
@@ -230,17 +230,17 @@ export const usePostWebhooksSend2faOtp = <TError = InternalHandlerErrorResponse,
  * @summary Send magic link email
  */
 export type postWebhooksSendMagicLinkResponse200 = {
-  data: InternalHandlerMessageResponse
+  data: HandlerMessageResponse
   status: 200
 }
 
 export type postWebhooksSendMagicLinkResponse401 = {
-  data: InternalHandlerErrorResponse
+  data: HandlerErrorResponse
   status: 401
 }
 
 export type postWebhooksSendMagicLinkResponse500 = {
-  data: InternalHandlerErrorResponse
+  data: HandlerErrorResponse
   status: 500
 }
     
@@ -261,7 +261,7 @@ export const getPostWebhooksSendMagicLinkUrl = () => {
   return `http://localhost:8080/api/v1/webhooks/send-magic-link`
 }
 
-export const postWebhooksSendMagicLink = async (internalHandlerSendMagicLinkRequest: InternalHandlerSendMagicLinkRequest, options?: RequestInit): Promise<postWebhooksSendMagicLinkResponse> => {
+export const postWebhooksSendMagicLink = async (handlerSendMagicLinkRequest: HandlerSendMagicLinkRequest, options?: RequestInit): Promise<postWebhooksSendMagicLinkResponse> => {
   
   return customFetch<postWebhooksSendMagicLinkResponse>(getPostWebhooksSendMagicLinkUrl(),
   {      
@@ -269,16 +269,16 @@ export const postWebhooksSendMagicLink = async (internalHandlerSendMagicLinkRequ
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
     body: JSON.stringify(
-      internalHandlerSendMagicLinkRequest,)
+      handlerSendMagicLinkRequest,)
   }
 );}
 
 
 
 
-export const getPostWebhooksSendMagicLinkMutationOptions = <TError = InternalHandlerErrorResponse,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postWebhooksSendMagicLink>>, TError,{data: InternalHandlerSendMagicLinkRequest}, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof postWebhooksSendMagicLink>>, TError,{data: InternalHandlerSendMagicLinkRequest}, TContext> => {
+export const getPostWebhooksSendMagicLinkMutationOptions = <TError = HandlerErrorResponse,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postWebhooksSendMagicLink>>, TError,{data: HandlerSendMagicLinkRequest}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof postWebhooksSendMagicLink>>, TError,{data: HandlerSendMagicLinkRequest}, TContext> => {
 
 const mutationKey = ['postWebhooksSendMagicLink'];
 const {mutation: mutationOptions, request: requestOptions} = options ?
@@ -290,7 +290,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       
 
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof postWebhooksSendMagicLink>>, {data: InternalHandlerSendMagicLinkRequest}> = (props) => {
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof postWebhooksSendMagicLink>>, {data: HandlerSendMagicLinkRequest}> = (props) => {
           const {data} = props ?? {};
 
           return  postWebhooksSendMagicLink(data,requestOptions)
@@ -302,18 +302,18 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
   return  { mutationFn, ...mutationOptions }}
 
     export type PostWebhooksSendMagicLinkMutationResult = NonNullable<Awaited<ReturnType<typeof postWebhooksSendMagicLink>>>
-    export type PostWebhooksSendMagicLinkMutationBody = InternalHandlerSendMagicLinkRequest
-    export type PostWebhooksSendMagicLinkMutationError = InternalHandlerErrorResponse
+    export type PostWebhooksSendMagicLinkMutationBody = HandlerSendMagicLinkRequest
+    export type PostWebhooksSendMagicLinkMutationError = HandlerErrorResponse
 
     /**
  * @summary Send magic link email
  */
-export const usePostWebhooksSendMagicLink = <TError = InternalHandlerErrorResponse,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postWebhooksSendMagicLink>>, TError,{data: InternalHandlerSendMagicLinkRequest}, TContext>, request?: SecondParameter<typeof customFetch>}
+export const usePostWebhooksSendMagicLink = <TError = HandlerErrorResponse,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postWebhooksSendMagicLink>>, TError,{data: HandlerSendMagicLinkRequest}, TContext>, request?: SecondParameter<typeof customFetch>}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof postWebhooksSendMagicLink>>,
         TError,
-        {data: InternalHandlerSendMagicLinkRequest},
+        {data: HandlerSendMagicLinkRequest},
         TContext
       > => {
 
@@ -326,17 +326,17 @@ export const usePostWebhooksSendMagicLink = <TError = InternalHandlerErrorRespon
  * @summary Send passkey added notification
  */
 export type postWebhooksSendPasskeyAddedResponse200 = {
-  data: InternalHandlerMessageResponse
+  data: HandlerMessageResponse
   status: 200
 }
 
 export type postWebhooksSendPasskeyAddedResponse401 = {
-  data: InternalHandlerErrorResponse
+  data: HandlerErrorResponse
   status: 401
 }
 
 export type postWebhooksSendPasskeyAddedResponse500 = {
-  data: InternalHandlerErrorResponse
+  data: HandlerErrorResponse
   status: 500
 }
     
@@ -357,7 +357,7 @@ export const getPostWebhooksSendPasskeyAddedUrl = () => {
   return `http://localhost:8080/api/v1/webhooks/send-passkey-added`
 }
 
-export const postWebhooksSendPasskeyAdded = async (internalHandlerSendPasskeyAddedNotificationRequest: InternalHandlerSendPasskeyAddedNotificationRequest, options?: RequestInit): Promise<postWebhooksSendPasskeyAddedResponse> => {
+export const postWebhooksSendPasskeyAdded = async (handlerSendPasskeyAddedNotificationRequest: HandlerSendPasskeyAddedNotificationRequest, options?: RequestInit): Promise<postWebhooksSendPasskeyAddedResponse> => {
   
   return customFetch<postWebhooksSendPasskeyAddedResponse>(getPostWebhooksSendPasskeyAddedUrl(),
   {      
@@ -365,16 +365,16 @@ export const postWebhooksSendPasskeyAdded = async (internalHandlerSendPasskeyAdd
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
     body: JSON.stringify(
-      internalHandlerSendPasskeyAddedNotificationRequest,)
+      handlerSendPasskeyAddedNotificationRequest,)
   }
 );}
 
 
 
 
-export const getPostWebhooksSendPasskeyAddedMutationOptions = <TError = InternalHandlerErrorResponse,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postWebhooksSendPasskeyAdded>>, TError,{data: InternalHandlerSendPasskeyAddedNotificationRequest}, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof postWebhooksSendPasskeyAdded>>, TError,{data: InternalHandlerSendPasskeyAddedNotificationRequest}, TContext> => {
+export const getPostWebhooksSendPasskeyAddedMutationOptions = <TError = HandlerErrorResponse,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postWebhooksSendPasskeyAdded>>, TError,{data: HandlerSendPasskeyAddedNotificationRequest}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof postWebhooksSendPasskeyAdded>>, TError,{data: HandlerSendPasskeyAddedNotificationRequest}, TContext> => {
 
 const mutationKey = ['postWebhooksSendPasskeyAdded'];
 const {mutation: mutationOptions, request: requestOptions} = options ?
@@ -386,7 +386,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       
 
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof postWebhooksSendPasskeyAdded>>, {data: InternalHandlerSendPasskeyAddedNotificationRequest}> = (props) => {
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof postWebhooksSendPasskeyAdded>>, {data: HandlerSendPasskeyAddedNotificationRequest}> = (props) => {
           const {data} = props ?? {};
 
           return  postWebhooksSendPasskeyAdded(data,requestOptions)
@@ -398,18 +398,18 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
   return  { mutationFn, ...mutationOptions }}
 
     export type PostWebhooksSendPasskeyAddedMutationResult = NonNullable<Awaited<ReturnType<typeof postWebhooksSendPasskeyAdded>>>
-    export type PostWebhooksSendPasskeyAddedMutationBody = InternalHandlerSendPasskeyAddedNotificationRequest
-    export type PostWebhooksSendPasskeyAddedMutationError = InternalHandlerErrorResponse
+    export type PostWebhooksSendPasskeyAddedMutationBody = HandlerSendPasskeyAddedNotificationRequest
+    export type PostWebhooksSendPasskeyAddedMutationError = HandlerErrorResponse
 
     /**
  * @summary Send passkey added notification
  */
-export const usePostWebhooksSendPasskeyAdded = <TError = InternalHandlerErrorResponse,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postWebhooksSendPasskeyAdded>>, TError,{data: InternalHandlerSendPasskeyAddedNotificationRequest}, TContext>, request?: SecondParameter<typeof customFetch>}
+export const usePostWebhooksSendPasskeyAdded = <TError = HandlerErrorResponse,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postWebhooksSendPasskeyAdded>>, TError,{data: HandlerSendPasskeyAddedNotificationRequest}, TContext>, request?: SecondParameter<typeof customFetch>}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof postWebhooksSendPasskeyAdded>>,
         TError,
-        {data: InternalHandlerSendPasskeyAddedNotificationRequest},
+        {data: HandlerSendPasskeyAddedNotificationRequest},
         TContext
       > => {
 
@@ -422,17 +422,17 @@ export const usePostWebhooksSendPasskeyAdded = <TError = InternalHandlerErrorRes
  * @summary Send verification email
  */
 export type postWebhooksSendVerificationEmailResponse200 = {
-  data: InternalHandlerMessageResponse
+  data: HandlerMessageResponse
   status: 200
 }
 
 export type postWebhooksSendVerificationEmailResponse401 = {
-  data: InternalHandlerErrorResponse
+  data: HandlerErrorResponse
   status: 401
 }
 
 export type postWebhooksSendVerificationEmailResponse500 = {
-  data: InternalHandlerErrorResponse
+  data: HandlerErrorResponse
   status: 500
 }
     
@@ -453,7 +453,7 @@ export const getPostWebhooksSendVerificationEmailUrl = () => {
   return `http://localhost:8080/api/v1/webhooks/send-verification-email`
 }
 
-export const postWebhooksSendVerificationEmail = async (internalHandlerSendVerificationEmailRequest: InternalHandlerSendVerificationEmailRequest, options?: RequestInit): Promise<postWebhooksSendVerificationEmailResponse> => {
+export const postWebhooksSendVerificationEmail = async (handlerSendVerificationEmailRequest: HandlerSendVerificationEmailRequest, options?: RequestInit): Promise<postWebhooksSendVerificationEmailResponse> => {
   
   return customFetch<postWebhooksSendVerificationEmailResponse>(getPostWebhooksSendVerificationEmailUrl(),
   {      
@@ -461,16 +461,16 @@ export const postWebhooksSendVerificationEmail = async (internalHandlerSendVerif
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
     body: JSON.stringify(
-      internalHandlerSendVerificationEmailRequest,)
+      handlerSendVerificationEmailRequest,)
   }
 );}
 
 
 
 
-export const getPostWebhooksSendVerificationEmailMutationOptions = <TError = InternalHandlerErrorResponse,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postWebhooksSendVerificationEmail>>, TError,{data: InternalHandlerSendVerificationEmailRequest}, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof postWebhooksSendVerificationEmail>>, TError,{data: InternalHandlerSendVerificationEmailRequest}, TContext> => {
+export const getPostWebhooksSendVerificationEmailMutationOptions = <TError = HandlerErrorResponse,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postWebhooksSendVerificationEmail>>, TError,{data: HandlerSendVerificationEmailRequest}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof postWebhooksSendVerificationEmail>>, TError,{data: HandlerSendVerificationEmailRequest}, TContext> => {
 
 const mutationKey = ['postWebhooksSendVerificationEmail'];
 const {mutation: mutationOptions, request: requestOptions} = options ?
@@ -482,7 +482,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       
 
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof postWebhooksSendVerificationEmail>>, {data: InternalHandlerSendVerificationEmailRequest}> = (props) => {
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof postWebhooksSendVerificationEmail>>, {data: HandlerSendVerificationEmailRequest}> = (props) => {
           const {data} = props ?? {};
 
           return  postWebhooksSendVerificationEmail(data,requestOptions)
@@ -494,18 +494,18 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
   return  { mutationFn, ...mutationOptions }}
 
     export type PostWebhooksSendVerificationEmailMutationResult = NonNullable<Awaited<ReturnType<typeof postWebhooksSendVerificationEmail>>>
-    export type PostWebhooksSendVerificationEmailMutationBody = InternalHandlerSendVerificationEmailRequest
-    export type PostWebhooksSendVerificationEmailMutationError = InternalHandlerErrorResponse
+    export type PostWebhooksSendVerificationEmailMutationBody = HandlerSendVerificationEmailRequest
+    export type PostWebhooksSendVerificationEmailMutationError = HandlerErrorResponse
 
     /**
  * @summary Send verification email
  */
-export const usePostWebhooksSendVerificationEmail = <TError = InternalHandlerErrorResponse,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postWebhooksSendVerificationEmail>>, TError,{data: InternalHandlerSendVerificationEmailRequest}, TContext>, request?: SecondParameter<typeof customFetch>}
+export const usePostWebhooksSendVerificationEmail = <TError = HandlerErrorResponse,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postWebhooksSendVerificationEmail>>, TError,{data: HandlerSendVerificationEmailRequest}, TContext>, request?: SecondParameter<typeof customFetch>}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof postWebhooksSendVerificationEmail>>,
         TError,
-        {data: InternalHandlerSendVerificationEmailRequest},
+        {data: HandlerSendVerificationEmailRequest},
         TContext
       > => {
 
@@ -518,17 +518,17 @@ export const usePostWebhooksSendVerificationEmail = <TError = InternalHandlerErr
  * @summary Handle new session webhook
  */
 export type postWebhooksSessionCreatedResponse200 = {
-  data: InternalHandlerMessageResponse
+  data: HandlerMessageResponse
   status: 200
 }
 
 export type postWebhooksSessionCreatedResponse401 = {
-  data: InternalHandlerErrorResponse
+  data: HandlerErrorResponse
   status: 401
 }
 
 export type postWebhooksSessionCreatedResponse500 = {
-  data: InternalHandlerErrorResponse
+  data: HandlerErrorResponse
   status: 500
 }
     
@@ -549,7 +549,7 @@ export const getPostWebhooksSessionCreatedUrl = () => {
   return `http://localhost:8080/api/v1/webhooks/session-created`
 }
 
-export const postWebhooksSessionCreated = async (internalHandlerSessionCreatedRequest: InternalHandlerSessionCreatedRequest, options?: RequestInit): Promise<postWebhooksSessionCreatedResponse> => {
+export const postWebhooksSessionCreated = async (handlerSessionCreatedRequest: HandlerSessionCreatedRequest, options?: RequestInit): Promise<postWebhooksSessionCreatedResponse> => {
   
   return customFetch<postWebhooksSessionCreatedResponse>(getPostWebhooksSessionCreatedUrl(),
   {      
@@ -557,16 +557,16 @@ export const postWebhooksSessionCreated = async (internalHandlerSessionCreatedRe
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
     body: JSON.stringify(
-      internalHandlerSessionCreatedRequest,)
+      handlerSessionCreatedRequest,)
   }
 );}
 
 
 
 
-export const getPostWebhooksSessionCreatedMutationOptions = <TError = InternalHandlerErrorResponse,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postWebhooksSessionCreated>>, TError,{data: InternalHandlerSessionCreatedRequest}, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof postWebhooksSessionCreated>>, TError,{data: InternalHandlerSessionCreatedRequest}, TContext> => {
+export const getPostWebhooksSessionCreatedMutationOptions = <TError = HandlerErrorResponse,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postWebhooksSessionCreated>>, TError,{data: HandlerSessionCreatedRequest}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof postWebhooksSessionCreated>>, TError,{data: HandlerSessionCreatedRequest}, TContext> => {
 
 const mutationKey = ['postWebhooksSessionCreated'];
 const {mutation: mutationOptions, request: requestOptions} = options ?
@@ -578,7 +578,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       
 
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof postWebhooksSessionCreated>>, {data: InternalHandlerSessionCreatedRequest}> = (props) => {
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof postWebhooksSessionCreated>>, {data: HandlerSessionCreatedRequest}> = (props) => {
           const {data} = props ?? {};
 
           return  postWebhooksSessionCreated(data,requestOptions)
@@ -590,18 +590,18 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
   return  { mutationFn, ...mutationOptions }}
 
     export type PostWebhooksSessionCreatedMutationResult = NonNullable<Awaited<ReturnType<typeof postWebhooksSessionCreated>>>
-    export type PostWebhooksSessionCreatedMutationBody = InternalHandlerSessionCreatedRequest
-    export type PostWebhooksSessionCreatedMutationError = InternalHandlerErrorResponse
+    export type PostWebhooksSessionCreatedMutationBody = HandlerSessionCreatedRequest
+    export type PostWebhooksSessionCreatedMutationError = HandlerErrorResponse
 
     /**
  * @summary Handle new session webhook
  */
-export const usePostWebhooksSessionCreated = <TError = InternalHandlerErrorResponse,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postWebhooksSessionCreated>>, TError,{data: InternalHandlerSessionCreatedRequest}, TContext>, request?: SecondParameter<typeof customFetch>}
+export const usePostWebhooksSessionCreated = <TError = HandlerErrorResponse,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postWebhooksSessionCreated>>, TError,{data: HandlerSessionCreatedRequest}, TContext>, request?: SecondParameter<typeof customFetch>}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof postWebhooksSessionCreated>>,
         TError,
-        {data: InternalHandlerSessionCreatedRequest},
+        {data: HandlerSessionCreatedRequest},
         TContext
       > => {
 
