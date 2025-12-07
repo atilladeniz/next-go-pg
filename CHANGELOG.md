@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.0.2](https://github.com/atilladeniz/next-go-pg/compare/v1.0.1...v1.0.2) (2025-12-07)
+
+
+### Bug Fixes
+
+* add comment to backend Dockerfile ([#14](https://github.com/atilladeniz/next-go-pg/issues/14)) ([604cb8d](https://github.com/atilladeniz/next-go-pg/commit/604cb8da5ae1a3538b22bd5331e9f153355a70c8))
+* frontend Dockerfile and add Docker build check in CI ([#16](https://github.com/atilladeniz/next-go-pg/issues/16)) ([4f81ff9](https://github.com/atilladeniz/next-go-pg/commit/4f81ff96b74247856263d8afee1ff88b729d6f35))
+
 ## [1.0.1](https://github.com/atilladeniz/next-go-pg/compare/v1.0.0...v1.0.1) (2025-12-07)
 
 
