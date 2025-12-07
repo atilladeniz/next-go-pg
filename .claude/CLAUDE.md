@@ -768,6 +768,73 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000
 
 ---
 
+## Background Jobs: River
+
+This project uses **River** for PostgreSQL-native background job processing (~66k jobs/sec).
+
+### Job Types
+
+| Job | Purpose | Trigger |
+|-----|---------|---------|
+| `send_magic_link` | Magic Link Login Email | Auth Webhook |
+| `send_verification_email` | Email Verification | Auth Webhook |
+| `send_2fa_otp` | 2FA Code Email | Auth Webhook |
+| `send_login_notification` | Login Alert (new device) | Auth Webhook |
+| `data_export` | CSV/JSON Export with Progress | User Request |
+
+### Architecture
+
+```
+Handler → Enqueue Job → PostgreSQL → River Worker → Process → SSE Events
+```
+
+### Key Files
+
+```
+backend/internal/jobs/
+├── registry.go     # Worker registration with WorkerDeps
+├── enqueue.go      # EnqueueMagicLink, EnqueueDataExport, etc.
+├── email.go        # Email workers (Magic Link, Verification, etc.)
+└── export.go       # Data export worker with SSE progress
+
+frontend/src/features/data-export/
+├── model/use-export.ts   # SSE listener for export-progress
+└── ui/export-card.tsx    # Export UI with progress bar
+```
+
+### Adding a New Job
+
+```go
+// 1. Define args struct
+type MyJobArgs struct {
+    UserID string `json:"userId"`
+}
+
+func (MyJobArgs) Kind() string { return "my_job" }
+
+// 2. Create worker
+type MyJobWorker struct {
+    river.WorkerDefaults[MyJobArgs]
+}
+
+func (w *MyJobWorker) Work(ctx context.Context, job *river.Job[MyJobArgs]) error {
+    // Process job
+    return nil
+}
+
+// 3. Register in registry.go
+river.AddWorker(workers, &MyJobWorker{})
+
+// 4. Enqueue from handler
+jobs.EnqueueMyJob(riverClient, args)
+```
+
+### Fallback
+
+Email jobs fall back to synchronous sending if River is unavailable.
+
+---
+
 ## Authentication: Magic Link
 
 This project uses **Magic Link authentication** (passwordless) via Better Auth.

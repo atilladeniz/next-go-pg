@@ -103,12 +103,17 @@ flowchart TB
         D[Domain Layer]
         M[Middleware]
         SSE[SSE Broker]
+        RV[River Worker]
+        PG[(PostgreSQL)]
 
         M --> H
         H --> U
         U --> R
         R --> D
         H --> SSE
+        H -->|Enqueue| PG
+        PG -->|LISTEN/NOTIFY| RV
+        RV --> SSE
     end
 ```
 
@@ -118,6 +123,7 @@ flowchart TB
 | UseCase | Business Logic | `goca make usecase` |
 | Repository | Data Access | `goca make repository` |
 | Domain | Entities, Rules | `goca make entity` |
+| River Worker | Background Jobs | (custom) |
 
 ### Database Schema
 
@@ -190,3 +196,32 @@ sequenceDiagram
         F-->>U: UI Update
     end
 ```
+
+### Background Jobs (River)
+
+```mermaid
+sequenceDiagram
+    participant H as Handler
+    participant PG as PostgreSQL
+    participant W as River Worker
+    participant SSE as SSE Broker
+    participant F as Frontend
+
+    H->>PG: INSERT into river.job
+    PG->>W: NOTIFY (new job)
+    W->>W: Process Job
+    W->>SSE: Progress Event
+    SSE-->>F: event: export-progress
+    F-->>F: Update UI
+    W->>PG: Mark completed
+```
+
+**Job Types:**
+
+| Job | Worker | Purpose |
+|-----|--------|---------|
+| `send_magic_link` | SendMagicLinkWorker | Magic Link Login Email |
+| `send_verification_email` | SendVerificationEmailWorker | Email Verification |
+| `send_2fa_otp` | Send2FAOTPWorker | 2FA Code Email |
+| `send_login_notification` | SendLoginNotificationWorker | Login Alert |
+| `data_export` | DataExportWorker | CSV/JSON Export with Progress |
