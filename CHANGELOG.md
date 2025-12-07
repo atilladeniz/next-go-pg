@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.0](https://github.com/atilladeniz/next-go-pg/compare/v1.2.0...v1.3.0) (2025-12-07)
+
+
+### Features
+
+* automate database migrations for dev and production ([#28](https://github.com/atilladeniz/next-go-pg/issues/28)) ([2fe7236](https://github.com/atilladeniz/next-go-pg/commit/2fe72369a67494d733ccf9355a7fdfd5cedb5c1d))
+
 ## [1.2.0](https://github.com/atilladeniz/next-go-pg/compare/v1.1.0...v1.2.0) (2025-12-07)
 
 
