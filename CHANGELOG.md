@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.0](https://github.com/atilladeniz/next-go-pg/compare/v1.0.5...v1.1.0) (2025-12-07)
+
+
+### Features
+
+* add testing infrastructure with Vitest and Playwright ([#23](https://github.com/atilladeniz/next-go-pg/issues/23)) ([df1b5a1](https://github.com/atilladeniz/next-go-pg/commit/df1b5a18d4ef9fd99cab1d5a7e4e0fb72db3c886))
+
 ## [1.0.5](https://github.com/atilladeniz/next-go-pg/compare/v1.0.4...v1.0.5) (2025-12-07)
 
 
