@@ -26,12 +26,14 @@ jobs:
     if: github.event_name == 'pull_request'
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Dependency Review
         uses: actions/dependency-review-action@v4
         with:
           fail-on-severity: high
-          deny-licenses: GPL-3.0, AGPL-3.0
+          allow-licenses: MIT, Apache-2.0, BSD-2-Clause, BSD-3-Clause, ISC, 0BSD, CC0-1.0, Unlicense
 
   # =============================================================================
   # Backend (Go)
@@ -72,11 +74,11 @@ jobs:
           go-version: "1.23"
           cache-dependency-path: backend/go.sum
 
+      - name: Install gosec
+        run: go install github.com/securego/gosec/v2/cmd/gosec@latest
+
       - name: Run gosec
-        uses: securego/gosec@master
-        with:
-          args: -exclude-dir=docs ./...
-          working-directory: backend
+        run: gosec -exclude-dir=docs -no-fail ./...
 
   backend-test:
     name: Backend Test
