@@ -121,7 +121,10 @@ func main() {
 
 	// Setup API handlers
 	apiHandler := handler.NewAPIHandler(cfg.FrontendURL, sseBroker, statsRepo)
-	authMiddleware := apiHandler.GetAuthMiddleware()
+
+	// Setup combined auth middleware (JWT first, then Better Auth fallback)
+	// This allows Go to validate tokens directly without calling Next.js
+	combinedAuth := middleware.NewCombinedAuthMiddleware(cfg.FrontendURL)
 
 	// Setup webhook handler
 	webhookHandler := handler.NewWebhookHandler(db)
@@ -132,15 +135,15 @@ func main() {
 	// Public routes
 	apiRouter.HandleFunc("/hello", apiHandler.PublicHello).Methods("GET")
 
-	// Protected routes (require auth)
+	// Protected routes (require auth) - uses combined JWT + Better Auth
 	protectedRouter := apiRouter.PathPrefix("/protected").Subrouter()
-	protectedRouter.Use(authMiddleware.RequireAuth)
+	protectedRouter.Use(combinedAuth.RequireAuth)
 	protectedRouter.HandleFunc("/hello", apiHandler.ProtectedHello).Methods("GET")
 
-	// User routes (require auth)
-	apiRouter.Handle("/me", authMiddleware.RequireAuth(http.HandlerFunc(apiHandler.GetCurrentUser))).Methods("GET", "OPTIONS")
-	apiRouter.Handle("/stats", authMiddleware.RequireAuth(http.HandlerFunc(apiHandler.GetUserStats))).Methods("GET", "OPTIONS")
-	apiRouter.Handle("/stats", authMiddleware.RequireAuth(http.HandlerFunc(apiHandler.UpdateUserStats))).Methods("POST", "OPTIONS")
+	// User routes (require auth) - uses combined JWT + Better Auth
+	apiRouter.Handle("/me", combinedAuth.RequireAuth(http.HandlerFunc(apiHandler.GetCurrentUser))).Methods("GET", "OPTIONS")
+	apiRouter.Handle("/stats", combinedAuth.RequireAuth(http.HandlerFunc(apiHandler.GetUserStats))).Methods("GET", "OPTIONS")
+	apiRouter.Handle("/stats", combinedAuth.RequireAuth(http.HandlerFunc(apiHandler.UpdateUserStats))).Methods("POST", "OPTIONS")
 
 	// SSE endpoint for real-time updates
 	apiRouter.Handle("/events", sseBroker).Methods("GET")
