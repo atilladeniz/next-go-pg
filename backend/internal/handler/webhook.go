@@ -234,3 +234,147 @@ func ComputeHMAC(message, key string) string {
 	h.Write([]byte(message))
 	return hex.EncodeToString(h.Sum(nil))
 }
+
+// SendMagicLinkRequest is the payload for magic link email
+type SendMagicLinkRequest struct {
+	Email string `json:"email"`
+	URL   string `json:"url"`
+}
+
+// SendMagicLink godoc
+// @Summary Send magic link email
+// @Description Called by Better Auth to send magic link login email
+// @Tags webhooks
+// @Accept json
+// @Produce json
+// @Param X-Webhook-Secret header string true "Webhook secret for authentication"
+// @Param request body SendMagicLinkRequest true "Magic link data"
+// @Success 200 {object} MessageResponse
+// @Failure 401 {object} ErrorResponse
+// @Failure 500 {object} ErrorResponse
+// @Router /webhooks/send-magic-link [post]
+func (h *WebhookHandler) SendMagicLink(w http.ResponseWriter, r *http.Request) {
+	if !h.verifySecret(w, r) {
+		return
+	}
+
+	var req SendMagicLinkRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(ErrorResponse{Error: "invalid request body"})
+		return
+	}
+
+	appURL := os.Getenv("NEXT_PUBLIC_APP_URL")
+	if appURL == "" {
+		appURL = "http://localhost:3000"
+	}
+
+	emailBody := `
+		<h1>Anmeldung</h1>
+		<p>Klicke auf den Button, um dich anzumelden:</p>
+		<p style="margin: 24px 0;">
+			<a href="` + req.URL + `" style="display: inline-block; padding: 12px 24px; background-color: #000; color: #fff; text-decoration: none; border-radius: 6px;">Jetzt anmelden</a>
+		</p>
+		<p style="font-size: 14px; color: #666;">
+			Oder kopiere diesen Link: <a href="` + req.URL + `">` + req.URL + `</a>
+		</p>
+		<p style="font-size: 14px; color: #666;">Der Link ist 10 Minuten gültig.</p>
+	`
+
+	if err := h.sendEmail(req.Email, "Dein Anmelde-Link", emailBody); err != nil {
+		logger.Error().Err(err).Str("email", req.Email).Msg("Failed to send magic link email")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(ErrorResponse{Error: "failed to send email"})
+		return
+	}
+
+	logger.Info().Str("email", req.Email).Msg("Magic link email sent")
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(MessageResponse{Message: "magic link sent"})
+}
+
+// SendVerificationEmailRequest is the payload for verification email
+type SendVerificationEmailRequest struct {
+	Email string `json:"email"`
+	Name  string `json:"name"`
+	URL   string `json:"url"`
+}
+
+// SendVerificationEmail godoc
+// @Summary Send verification email
+// @Description Called by Better Auth to send email verification link
+// @Tags webhooks
+// @Accept json
+// @Produce json
+// @Param X-Webhook-Secret header string true "Webhook secret for authentication"
+// @Param request body SendVerificationEmailRequest true "Verification data"
+// @Success 200 {object} MessageResponse
+// @Failure 401 {object} ErrorResponse
+// @Failure 500 {object} ErrorResponse
+// @Router /webhooks/send-verification-email [post]
+func (h *WebhookHandler) SendVerificationEmail(w http.ResponseWriter, r *http.Request) {
+	if !h.verifySecret(w, r) {
+		return
+	}
+
+	var req SendVerificationEmailRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(ErrorResponse{Error: "invalid request body"})
+		return
+	}
+
+	emailBody := `
+		<h1>Willkommen!</h1>
+		<p>Klicke auf den folgenden Link, um deine E-Mail-Adresse zu bestätigen:</p>
+		<p style="margin: 24px 0;">
+			<a href="` + req.URL + `" style="display: inline-block; padding: 12px 24px; background-color: #000; color: #fff; text-decoration: none; border-radius: 6px;">E-Mail bestätigen</a>
+		</p>
+		<p style="font-size: 14px; color: #666;">
+			Oder kopiere diesen Link: <a href="` + req.URL + `">` + req.URL + `</a>
+		</p>
+		<p style="font-size: 14px; color: #666;">Der Link ist 24 Stunden gültig.</p>
+	`
+
+	if err := h.sendEmail(req.Email, "E-Mail bestätigen", emailBody); err != nil {
+		logger.Error().Err(err).Str("email", req.Email).Msg("Failed to send verification email")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(ErrorResponse{Error: "failed to send email"})
+		return
+	}
+
+	logger.Info().Str("email", req.Email).Msg("Verification email sent")
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(MessageResponse{Message: "verification email sent"})
+}
+
+// Helper to verify webhook secret
+func (h *WebhookHandler) verifySecret(w http.ResponseWriter, r *http.Request) bool {
+	webhookSecret := os.Getenv("WEBHOOK_SECRET")
+	if webhookSecret != "" {
+		providedSecret := r.Header.Get("X-Webhook-Secret")
+		if !verifyWebhookSecret(providedSecret, webhookSecret) {
+			w.WriteHeader(http.StatusUnauthorized)
+			json.NewEncoder(w).Encode(ErrorResponse{Error: "invalid webhook secret"})
+			return false
+		}
+	}
+	return true
+}
+
+// Helper to send email
+func (h *WebhookHandler) sendEmail(to, subject, body string) error {
+	smtpFrom := os.Getenv("SMTP_FROM")
+	if smtpFrom == "" {
+		smtpFrom = "noreply@localhost"
+	}
+
+	m := gomail.NewMessage()
+	m.SetHeader("From", smtpFrom)
+	m.SetHeader("To", to)
+	m.SetHeader("Subject", subject)
+	m.SetBody("text/html", body)
+
+	return h.mailer.DialAndSend(m)
+}

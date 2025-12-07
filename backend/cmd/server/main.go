@@ -155,6 +155,8 @@ func main() {
 	// Webhook routes (internal, protected by secret)
 	webhookRouter := apiRouter.PathPrefix("/webhooks").Subrouter()
 	webhookRouter.HandleFunc("/session-created", webhookHandler.SessionCreated).Methods("POST")
+	webhookRouter.HandleFunc("/send-magic-link", webhookHandler.SendMagicLink).Methods("POST")
+	webhookRouter.HandleFunc("/send-verification-email", webhookHandler.SendVerificationEmail).Methods("POST")
 
 	// Setup HTTP server with timeouts
 	server := &http.Server{

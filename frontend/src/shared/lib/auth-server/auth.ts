@@ -1,49 +1,23 @@
 import { betterAuth } from "better-auth"
 import { magicLink } from "better-auth/plugins"
-import nodemailer from "nodemailer"
 import { Pool } from "pg"
 
-const transporter = nodemailer.createTransport({
-	host: process.env.SMTP_HOST || "127.0.0.1",
-	port: Number(process.env.SMTP_PORT) || 1025,
-	secure: false,
-})
+const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080"
+const webhookSecret = process.env.WEBHOOK_SECRET || ""
 
-const sendMail = async (to: string, subject: string, html: string) => {
-	await transporter.sendMail({
-		from: process.env.SMTP_FROM || "noreply@localhost",
-		to,
-		subject,
-		html,
-	})
-}
-
-// Call backend webhook for session notifications
-const notifySessionCreated = async (session: {
-	id: string
-	userId: string
-	userAgent?: string | null
-	ipAddress?: string | null
-}) => {
-	const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080"
-	const webhookSecret = process.env.WEBHOOK_SECRET || ""
-
+// Helper to call backend webhooks
+const callWebhook = async (endpoint: string, data: Record<string, string>) => {
 	try {
-		await fetch(`${apiUrl}/api/v1/webhooks/session-created`, {
+		await fetch(`${apiUrl}/api/v1/webhooks/${endpoint}`, {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
 				"X-Webhook-Secret": webhookSecret,
 			},
-			body: JSON.stringify({
-				sessionId: session.id,
-				userId: session.userId,
-				userAgent: session.userAgent || "",
-				ipAddress: session.ipAddress || "",
-			}),
+			body: JSON.stringify(data),
 		})
 	} catch (error) {
-		console.error("Failed to notify backend about session:", error)
+		console.error(`Failed to call webhook ${endpoint}:`, error)
 	}
 }
 
@@ -64,17 +38,13 @@ export const auth = betterAuth({
 		sendOnSignUp: true,
 		autoSignInAfterVerification: false,
 		sendVerificationEmail: async ({ user, url }) => {
+			// Rewrite URL from /api/auth/verify-email to /verify-email
 			const verifyUrl = url.replace("/api/auth/verify-email", "/verify-email")
-			await sendMail(
-				user.email,
-				"E-Mail bestätigen",
-				`
-				<h1>Willkommen!</h1>
-				<p>Klicke auf den folgenden Link, um deine E-Mail-Adresse zu bestätigen:</p>
-				<a href="${verifyUrl}">${verifyUrl}</a>
-				<p>Der Link ist 24 Stunden gültig.</p>
-				`,
-			)
+			await callWebhook("send-verification-email", {
+				email: user.email,
+				name: user.name || "",
+				url: verifyUrl,
+			})
 		},
 	},
 	rateLimit: {
@@ -98,7 +68,12 @@ export const auth = betterAuth({
 			create: {
 				after: async (session) => {
 					// Delegate to backend - clean separation of concerns
-					await notifySessionCreated(session)
+					await callWebhook("session-created", {
+						sessionId: session.id,
+						userId: session.userId,
+						userAgent: session.userAgent || "",
+						ipAddress: session.ipAddress || "",
+					})
 				},
 			},
 		},
@@ -110,22 +85,10 @@ export const auth = betterAuth({
 			sendMagicLink: async ({ email, url }) => {
 				// Rewrite URL from /api/auth/magic-link/verify to /magic-link/verify
 				const verifyUrl = url.replace("/api/auth/magic-link/verify", "/magic-link/verify")
-
-				await sendMail(
+				await callWebhook("send-magic-link", {
 					email,
-					"Dein Anmelde-Link",
-					`
-					<h1>Anmeldung</h1>
-					<p>Klicke auf den Button, um dich anzumelden:</p>
-					<p style="margin: 24px 0;">
-						<a href="${verifyUrl}" style="display: inline-block; padding: 12px 24px; background-color: #000; color: #fff; text-decoration: none; border-radius: 6px;">Jetzt anmelden</a>
-					</p>
-					<p style="font-size: 14px; color: #666;">
-						Oder kopiere diesen Link: <a href="${verifyUrl}">${verifyUrl}</a>
-					</p>
-					<p style="font-size: 14px; color: #666;">Der Link ist 10 Minuten gültig.</p>
-					`,
-				)
+					url: verifyUrl,
+				})
 			},
 		}),
 	],
