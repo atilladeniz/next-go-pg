@@ -76,10 +76,11 @@ export function useTwoFactor() {
 			})
 
 			if (result.error) {
+				const errorMessage = result.error.message || "Ungültiger Code"
 				setState((prev) => ({
 					...prev,
 					isLoading: false,
-					error: result.error.message || "Ungültiger Code",
+					error: errorMessage,
 				}))
 				return false
 			}
