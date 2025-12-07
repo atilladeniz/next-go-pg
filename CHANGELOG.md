@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.3](https://github.com/atilladeniz/next-go-pg/compare/v1.0.2...v1.0.3) (2025-12-07)
+
+
+### Bug Fixes
+
+* remove codecov integration ([#17](https://github.com/atilladeniz/next-go-pg/issues/17)) ([9b24d6e](https://github.com/atilladeniz/next-go-pg/commit/9b24d6e753c936c72c6d78312654cc3c4d1de4ad))
+
 ## [1.0.2](https://github.com/atilladeniz/next-go-pg/compare/v1.0.1...v1.0.2) (2025-12-07)
 
 
