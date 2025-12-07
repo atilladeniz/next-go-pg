@@ -16,22 +16,37 @@ RUN go mod download
 # Copy source code
 COPY . .
 
-# Build the application for target platform
+# Build the server binary
 RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -ldflags="-s -w" -o bin/backend cmd/server/main.go
 
-# Final stage - use scratch for smallest image
-FROM gcr.io/distroless/static-debian12:nonroot
+# Build the migrate binary
+RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -ldflags="-s -w" -o bin/migrate cmd/migrate/main.go
+
+# Final stage - Alpine for shell support (needed for entrypoint)
+FROM alpine:3.20
+
+# Install ca-certificates for HTTPS
+RUN apk --no-cache add ca-certificates tzdata
 
 WORKDIR /app
 
-# Copy the binary from builder stage
+# Copy binaries from builder stage
 COPY --from=builder /app/bin/backend .
+COPY --from=builder /app/bin/migrate .
+
+# Copy migrations
+COPY --from=builder /app/migrations ./migrations
+
+# Copy entrypoint script
+COPY scripts/docker-entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+# Create non-root user
+RUN adduser -D -u 1000 appuser
+USER appuser
 
 # Expose port
 EXPOSE 8080
 
-# Run as non-root user
-USER nonroot:nonroot
-
-# Run the application
-ENTRYPOINT ["./backend"]
+# Run with entrypoint (migrations + server)
+ENTRYPOINT ["/entrypoint.sh"]

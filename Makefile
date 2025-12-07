@@ -1,4 +1,4 @@
-.PHONY: help dev dev-full dev-frontend dev-backend build build-frontend build-backend test clean install install-tools api lint docker-build docker-up docker-down goca-feature deploy deploy-staging deploy-production deploy-rollback deploy-logs deploy-console setup-hooks security-scan security-scan-history fetch-docs search-docs search-docs-index logs-up logs-down logs-open logs-query db-migrate migrate-up migrate-down migrate-version migrate-create metrics
+.PHONY: help dev dev-full dev-frontend dev-backend build build-frontend build-backend test clean install install-tools api lint docker-build docker-up docker-down goca-feature deploy deploy-staging deploy-production deploy-rollback deploy-logs deploy-console setup-hooks security-scan security-scan-history fetch-docs search-docs search-docs-index logs-up logs-down logs-open logs-query db-migrate migrate-up migrate-up-silent migrate-down migrate-version migrate-create metrics
 
 .DEFAULT_GOAL := help
 
@@ -111,11 +111,11 @@ help: ## Show available commands
 
 # ━━━ Development ━━━
 
-dev: db-up api
+dev: db-up migrate-up-silent api
 	@echo "Starting frontend and backend..."
 	bun run dev:all
 
-dev-full: db-up logs-up api
+dev-full: db-up migrate-up-silent logs-up api
 	@echo ""
 	@echo "$(GREEN)✓ Full dev environment ready$(RESET)"
 	@echo ""
@@ -379,6 +379,9 @@ migrate-up:
 	@echo "$(YELLOW)Running SQL migrations...$(RESET)"
 	cd backend && go run ./cmd/migrate -up
 	@echo "$(GREEN)✓ Migrations complete$(RESET)"
+
+migrate-up-silent:
+	@cd backend && go run ./cmd/migrate -up 2>/dev/null || true
 
 migrate-down:
 	@echo "$(YELLOW)Rolling back last migration...$(RESET)"
