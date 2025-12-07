@@ -141,6 +141,16 @@ func GetUserFromContext(ctx context.Context) *User {
 	return nil
 }
 
+// GetUserIDFromContext retrieves the user ID from context
+// Works for both JWT and Better Auth (withJWTContext populates UserContextKey)
+// Returns empty string if no user is authenticated
+func GetUserIDFromContext(ctx context.Context) string {
+	if user := GetUserFromContext(ctx); user != nil {
+		return user.ID
+	}
+	return ""
+}
+
 // GetSessionFromContext retrieves the session from context
 func GetSessionFromContext(ctx context.Context) *Session {
 	if session, ok := ctx.Value(SessionContextKey).(*Session); ok {
