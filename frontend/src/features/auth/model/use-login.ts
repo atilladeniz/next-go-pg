@@ -1,7 +1,7 @@
 "use client"
 
 import { signIn } from "@shared/lib/auth-client"
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 
 export function useLogin() {
 	const [email, setEmail] = useState("")
@@ -9,6 +9,8 @@ export function useLogin() {
 	const [loading, setLoading] = useState(false)
 	const [sent, setSent] = useState(false)
 	const [retryAfter, setRetryAfter] = useState(0)
+	// Track if onError already set an error to avoid overwriting
+	const errorSetByOnError = useRef(false)
 
 	useEffect(() => {
 		if (retryAfter <= 0) return
@@ -23,6 +25,7 @@ export function useLogin() {
 			e.preventDefault()
 			setError("")
 			setLoading(true)
+			errorSetByOnError.current = false
 
 			const result = await signIn.magicLink(
 				{
@@ -41,13 +44,15 @@ export function useLogin() {
 							} else {
 								setError("Zu viele Anfragen. Bitte versuche es später erneut.")
 							}
+							errorSetByOnError.current = true
 						}
 					},
 				},
 			)
 
 			if (result.error) {
-				if (!error) {
+				// Only set error if onError didn't already set a more specific one (e.g., rate limit)
+				if (!errorSetByOnError.current) {
 					setError(result.error.message || "Anmeldung fehlgeschlagen")
 				}
 				setLoading(false)
@@ -57,7 +62,7 @@ export function useLogin() {
 			setSent(true)
 			setLoading(false)
 		},
-		[email, error],
+		[email],
 	)
 
 	const reset = useCallback(() => {
