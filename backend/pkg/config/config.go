@@ -44,6 +44,20 @@ const (
 	TypeSSLMode                    // Database SSL mode
 )
 
+// Tag names used in .env.example comments
+const (
+	tagRequired   = "required"
+	tagType       = "type"
+	tagMin        = "min"
+	tagModProd    = "prod"
+	tagTypeEnum   = "enum"
+	tagTypePort   = "port"
+	tagTypeURL    = "url"
+	tagTypeHTTPS  = "https"
+	tagTypeSecret = "secret"
+	tagTypeSSL    = "sslmode"
+)
+
 // EnvVar defines an environment variable with its validation rules
 type EnvVar struct {
 	Name        string     // Environment variable name
@@ -145,31 +159,31 @@ func parseEnvExampleContent(content string) ([]EnvVar, error) {
 					value := tm[3]
 
 					switch tag {
-					case "required":
-						if modifier == "prod" {
+					case tagRequired:
+						if modifier == tagModProd {
 							ev.Required = RequiredProduction
 						} else {
 							ev.Required = RequiredAlways
 						}
-					case "type":
+					case tagType:
 						switch modifier {
-						case "enum":
+						case tagTypeEnum:
 							ev.Type = TypeEnum
 							if value != "" {
 								ev.AllowedVals = strings.Split(value, ",")
 							}
-						case "port":
+						case tagTypePort:
 							ev.Type = TypePort
-						case "url":
+						case tagTypeURL:
 							ev.Type = TypeURL
-						case "https":
+						case tagTypeHTTPS:
 							ev.Type = TypeHTTPSURL
-						case "secret":
+						case tagTypeSecret:
 							ev.Type = TypeSecret
-						case "sslmode":
+						case tagTypeSSL:
 							ev.Type = TypeSSLMode
 						}
-					case "min":
+					case tagMin:
 						if n, err := strconv.Atoi(modifier); err == nil {
 							ev.MinLength = n
 						} else if n, err := strconv.Atoi(value); err == nil {

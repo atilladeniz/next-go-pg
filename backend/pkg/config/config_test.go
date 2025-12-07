@@ -8,6 +8,19 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// setEnvVars sets multiple environment variables and returns a cleanup function
+func setEnvVars(t *testing.T, vars map[string]string) func() {
+	t.Helper()
+	for k, v := range vars {
+		os.Setenv(k, v)
+	}
+	return func() {
+		for k := range vars {
+			os.Unsetenv(k)
+		}
+	}
+}
+
 // TestParseEnvExampleContent tests the parsing of .env.example content
 func TestParseEnvExampleContent(t *testing.T) {
 	content := `
@@ -262,127 +275,105 @@ func TestValidateFrontendURL(t *testing.T) {
 
 // TestValidateProduction tests production-specific validations
 func TestValidateProduction(t *testing.T) {
+	// Common valid secrets for production tests
+	validSecrets := map[string]string{
+		"GO_JWT_SECRET":  "this-is-a-very-long-secret-key-for-jwt",
+		"WEBHOOK_SECRET": "webhook-secret-16ch",
+	}
+
 	t.Run("production requires DB_PASSWORD", func(t *testing.T) {
+		cleanup := setEnvVars(t, validSecrets)
+		defer cleanup()
+
 		cfg := &Config{
 			Port:        "8080",
 			Environment: "production",
 			LogLevel:    "info",
 			FrontendURL: "https://example.com",
-			Database: DatabaseConfig{
-				Password: "",
-				SSLMode:  "require",
-			},
+			Database:    DatabaseConfig{Password: "", SSLMode: "require"},
 		}
-		os.Setenv("GO_JWT_SECRET", "this-is-a-very-long-secret-key-for-jwt")
-		os.Setenv("WEBHOOK_SECRET", "webhook-secret-16ch")
-		defer func() {
-			os.Unsetenv("GO_JWT_SECRET")
-			os.Unsetenv("WEBHOOK_SECRET")
-		}()
 
 		errs := cfg.Validate()
 		assert.True(t, hasErrorForField(errs, "DB_PASSWORD"))
 	})
 
 	t.Run("production requires GO_JWT_SECRET", func(t *testing.T) {
+		cleanup := setEnvVars(t, map[string]string{"WEBHOOK_SECRET": "webhook-secret-16ch"})
+		defer cleanup()
+		os.Unsetenv("GO_JWT_SECRET")
+
 		cfg := &Config{
 			Port:        "8080",
 			Environment: "production",
 			LogLevel:    "info",
 			FrontendURL: "https://example.com",
-			Database: DatabaseConfig{
-				Password: "password",
-				SSLMode:  "require",
-			},
+			Database:    DatabaseConfig{Password: "password", SSLMode: "require"},
 		}
-		os.Unsetenv("GO_JWT_SECRET")
-		os.Setenv("WEBHOOK_SECRET", "webhook-secret-16ch")
-		defer os.Unsetenv("WEBHOOK_SECRET")
 
 		errs := cfg.Validate()
 		assert.True(t, hasErrorForField(errs, "GO_JWT_SECRET"))
 	})
 
 	t.Run("production requires WEBHOOK_SECRET", func(t *testing.T) {
+		cleanup := setEnvVars(t, map[string]string{"GO_JWT_SECRET": "this-is-a-very-long-secret-key-for-jwt"})
+		defer cleanup()
+		os.Unsetenv("WEBHOOK_SECRET")
+
 		cfg := &Config{
 			Port:        "8080",
 			Environment: "production",
 			LogLevel:    "info",
 			FrontendURL: "https://example.com",
-			Database: DatabaseConfig{
-				Password: "password",
-				SSLMode:  "require",
-			},
+			Database:    DatabaseConfig{Password: "password", SSLMode: "require"},
 		}
-		os.Setenv("GO_JWT_SECRET", "this-is-a-very-long-secret-key-for-jwt")
-		os.Unsetenv("WEBHOOK_SECRET")
-		defer os.Unsetenv("GO_JWT_SECRET")
 
 		errs := cfg.Validate()
 		assert.True(t, hasErrorForField(errs, "WEBHOOK_SECRET"))
 	})
 
 	t.Run("production warns about disabled SSL", func(t *testing.T) {
+		cleanup := setEnvVars(t, validSecrets)
+		defer cleanup()
+
 		cfg := &Config{
 			Port:        "8080",
 			Environment: "production",
 			LogLevel:    "info",
 			FrontendURL: "https://example.com",
-			Database: DatabaseConfig{
-				Password: "password",
-				SSLMode:  "disable",
-			},
+			Database:    DatabaseConfig{Password: "password", SSLMode: "disable"},
 		}
-		os.Setenv("GO_JWT_SECRET", "this-is-a-very-long-secret-key-for-jwt")
-		os.Setenv("WEBHOOK_SECRET", "webhook-secret-16ch")
-		defer func() {
-			os.Unsetenv("GO_JWT_SECRET")
-			os.Unsetenv("WEBHOOK_SECRET")
-		}()
 
 		errs := cfg.Validate()
 		assert.True(t, hasErrorForField(errs, "DB_SSL_MODE"))
 	})
 
 	t.Run("production warns about non-HTTPS frontend", func(t *testing.T) {
+		cleanup := setEnvVars(t, validSecrets)
+		defer cleanup()
+
 		cfg := &Config{
 			Port:        "8080",
 			Environment: "production",
 			LogLevel:    "info",
 			FrontendURL: "http://example.com",
-			Database: DatabaseConfig{
-				Password: "password",
-				SSLMode:  "require",
-			},
+			Database:    DatabaseConfig{Password: "password", SSLMode: "require"},
 		}
-		os.Setenv("GO_JWT_SECRET", "this-is-a-very-long-secret-key-for-jwt")
-		os.Setenv("WEBHOOK_SECRET", "webhook-secret-16ch")
-		defer func() {
-			os.Unsetenv("GO_JWT_SECRET")
-			os.Unsetenv("WEBHOOK_SECRET")
-		}()
 
 		errs := cfg.Validate()
 		assert.True(t, hasErrorForField(errs, "FRONTEND_URL"))
 	})
 
 	t.Run("valid production config", func(t *testing.T) {
+		cleanup := setEnvVars(t, validSecrets)
+		defer cleanup()
+
 		cfg := &Config{
 			Port:        "8080",
 			Environment: "production",
 			LogLevel:    "info",
 			FrontendURL: "https://example.com",
-			Database: DatabaseConfig{
-				Password: "password",
-				SSLMode:  "require",
-			},
+			Database:    DatabaseConfig{Password: "password", SSLMode: "require"},
 		}
-		os.Setenv("GO_JWT_SECRET", "this-is-a-very-long-secret-key-for-jwt")
-		os.Setenv("WEBHOOK_SECRET", "webhook-secret-16ch")
-		defer func() {
-			os.Unsetenv("GO_JWT_SECRET")
-			os.Unsetenv("WEBHOOK_SECRET")
-		}()
 
 		errs := cfg.Validate()
 		assert.False(t, errs.HasErrors(), "Expected no errors, got: %v", errs)
@@ -396,48 +387,29 @@ func TestSecretMinLength(t *testing.T) {
 		Environment: "production",
 		LogLevel:    "info",
 		FrontendURL: "https://example.com",
-		Database: DatabaseConfig{
-			Password: "password",
-			SSLMode:  "require",
-		},
+		Database:    DatabaseConfig{Password: "password", SSLMode: "require"},
 	}
 
 	t.Run("JWT secret too short", func(t *testing.T) {
-		os.Setenv("GO_JWT_SECRET", "short")
-		os.Setenv("WEBHOOK_SECRET", "webhook-secret-16ch")
-		defer func() {
-			os.Unsetenv("GO_JWT_SECRET")
-			os.Unsetenv("WEBHOOK_SECRET")
-		}()
+		cleanup := setEnvVars(t, map[string]string{
+			"GO_JWT_SECRET":  "short",
+			"WEBHOOK_SECRET": "webhook-secret-16ch",
+		})
+		defer cleanup()
 
 		errs := cfg.Validate()
-		hasLengthError := false
-		for _, err := range errs {
-			if err.Field == "GO_JWT_SECRET" && err.Message == "must be at least 32 characters" {
-				hasLengthError = true
-				break
-			}
-		}
-		assert.True(t, hasLengthError)
+		assert.True(t, hasErrorWithMessage(errs, "GO_JWT_SECRET", "must be at least 32 characters"))
 	})
 
 	t.Run("Webhook secret too short", func(t *testing.T) {
-		os.Setenv("GO_JWT_SECRET", "this-is-a-very-long-secret-key-for-jwt")
-		os.Setenv("WEBHOOK_SECRET", "short")
-		defer func() {
-			os.Unsetenv("GO_JWT_SECRET")
-			os.Unsetenv("WEBHOOK_SECRET")
-		}()
+		cleanup := setEnvVars(t, map[string]string{
+			"GO_JWT_SECRET":  "this-is-a-very-long-secret-key-for-jwt",
+			"WEBHOOK_SECRET": "short",
+		})
+		defer cleanup()
 
 		errs := cfg.Validate()
-		hasLengthError := false
-		for _, err := range errs {
-			if err.Field == "WEBHOOK_SECRET" && err.Message == "must be at least 16 characters" {
-				hasLengthError = true
-				break
-			}
-		}
-		assert.True(t, hasLengthError)
+		assert.True(t, hasErrorWithMessage(errs, "WEBHOOK_SECRET", "must be at least 16 characters"))
 	})
 }
 
@@ -663,6 +635,15 @@ func findVar(vars []EnvVar, name string) *EnvVar {
 func hasErrorForField(errs ValidationErrors, field string) bool {
 	for _, err := range errs {
 		if err.Field == field {
+			return true
+		}
+	}
+	return false
+}
+
+func hasErrorWithMessage(errs ValidationErrors, field, message string) bool {
+	for _, err := range errs {
+		if err.Field == field && err.Message == message {
 			return true
 		}
 	}
