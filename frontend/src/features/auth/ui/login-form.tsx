@@ -5,34 +5,62 @@ import { Button } from "@shared/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@shared/ui/card"
 import { Input } from "@shared/ui/input"
 import { Label } from "@shared/ui/label"
-import Link from "next/link"
-import { useRouter } from "next/navigation"
 import { useState } from "react"
 
 export function LoginForm() {
-	const router = useRouter()
 	const [email, setEmail] = useState("")
-	const [password, setPassword] = useState("")
 	const [error, setError] = useState("")
 	const [loading, setLoading] = useState(false)
+	const [sent, setSent] = useState(false)
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault()
 		setError("")
 		setLoading(true)
 
-		const result = await signIn.email({
+		const result = await signIn.magicLink({
 			email,
-			password,
+			callbackURL: "/dashboard",
 		})
 
 		if (result.error) {
-			setError(result.error.message || "Login fehlgeschlagen")
+			setError(result.error.message || "Anmeldung fehlgeschlagen")
 			setLoading(false)
 			return
 		}
 
-		router.push("/dashboard")
+		setSent(true)
+		setLoading(false)
+	}
+
+	if (sent) {
+		return (
+			<div className="flex min-h-screen items-center justify-center bg-background">
+				<Card className="w-full max-w-md">
+					<CardHeader className="text-center">
+						<CardTitle className="text-2xl">Link gesendet</CardTitle>
+						<CardDescription>
+							Wir haben einen Anmelde-Link an <strong>{email}</strong> gesendet.
+						</CardDescription>
+					</CardHeader>
+					<CardContent className="space-y-4">
+						<p className="text-center text-sm text-muted-foreground">
+							Prüfe dein Postfach und klicke auf den Link, um dich anzumelden.
+						</p>
+						<Button
+							variant="outline"
+							className="w-full"
+							onClick={() => {
+								setSent(false)
+								setEmail("")
+							}}
+						>
+							Andere E-Mail verwenden
+						</Button>
+					</CardContent>
+				</Card>
+			</div>
+		)
 	}
 
 	return (
@@ -41,10 +69,7 @@ export function LoginForm() {
 				<CardHeader className="text-center">
 					<CardTitle className="text-2xl">Anmelden</CardTitle>
 					<CardDescription>
-						Noch kein Konto?{" "}
-						<Link href="/register" className="text-primary hover:underline">
-							Registrieren
-						</Link>
+						Gib deine E-Mail-Adresse ein, um einen Anmelde-Link zu erhalten.
 					</CardDescription>
 				</CardHeader>
 				<CardContent>
@@ -67,19 +92,8 @@ export function LoginForm() {
 							/>
 						</div>
 
-						<div className="space-y-2">
-							<Label htmlFor="password">Passwort</Label>
-							<Input
-								id="password"
-								type="password"
-								value={password}
-								onChange={(e) => setPassword(e.target.value)}
-								required
-							/>
-						</div>
-
 						<Button type="submit" className="w-full" disabled={loading}>
-							{loading ? "Wird geladen..." : "Anmelden"}
+							{loading ? "Wird gesendet..." : "Anmelde-Link senden"}
 						</Button>
 					</form>
 				</CardContent>
