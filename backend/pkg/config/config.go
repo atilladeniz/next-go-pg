@@ -528,6 +528,18 @@ func (c *Config) GetDatabaseURL() string {
 	)
 }
 
+// GetDatabaseURLForPgx returns the database URL in standard URL format for pgx.
+func (c *Config) GetDatabaseURLForPgx() string {
+	return fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=%s",
+		c.Database.User,
+		c.Database.Password,
+		c.Database.Host,
+		c.Database.Port,
+		c.Database.Name,
+		c.Database.SSLMode,
+	)
+}
+
 func getEnv(key, defaultValue string) string {
 	if value := os.Getenv(key); value != "" {
 		return value

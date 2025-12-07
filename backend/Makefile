@@ -88,3 +88,13 @@ sec-scan: ## Run security scan
 # API documentation
 api-docs: ## Generate API documentation
 	swag init -g cmd/server/main.go
+
+# River job queue
+river-migrate-up: ## Run River migrations
+	go run cmd/river-migrate/main.go -up
+
+river-migrate-down: ## Rollback last River migration
+	go run cmd/river-migrate/main.go -down
+
+river-migrate-version: ## Show River migration version
+	go run cmd/river-migrate/main.go -version

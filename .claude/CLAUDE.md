@@ -14,6 +14,8 @@
 ├── orval.md            # Orval API Client Generator
 ├── kamal-deploy.md     # Kamal Deployment (Docker)
 ├── logging.md          # Logging (zerolog + Pino)
+├── river.md            # River Job Queue
+├── background-jobs.md  # Background Job Integration Guide
 └── ...                 # More Tech Stack Docs
 ```
 
@@ -50,6 +52,7 @@ Full-Stack Monorepo with Next.js 16 Frontend and Go Backend, PostgreSQL database
 - **Auth**: Better Auth Session Validation
 - **API Docs**: Swagger/swag
 - **Logging**: zerolog (structured JSON)
+- **Background Jobs**: River (PostgreSQL-native job queue)
 - **Module**: `github.com/atilladeniz/next-go-pg/backend`
 
 ### Infrastructure
@@ -57,7 +60,6 @@ Full-Stack Monorepo with Next.js 16 Frontend and Go Backend, PostgreSQL database
 - **Database**: PostgreSQL 16 (Docker)
 - **Dev Environment**: Docker Compose for DB
 - **Log Aggregation**: Grafana + Loki + Promtail (self-hosted)
-- **Database Backups**: postgres-backup-s3 + RustFS (S3-compatible, fully automatic)
 
 ---
 
@@ -502,13 +504,61 @@ make logs-down        # Stop logging stack
 make logs-open        # Open Grafana (localhost:3001)
 make logs-query q='...'  # Query logs via CLI
 
-# Database Backups (automatic, postgres-backup-s3 + RustFS)
-make backup-up        # Start automatic backup system
-make backup-down      # Stop backup stack
-make backup-now       # Create backup immediately
-make backup-list      # List all backups in S3
-make backup-restore   # Restore from latest backup
+# Background Jobs (River)
+cd backend
+make river-migrate-up      # Run River migrations
+make river-migrate-down    # Rollback River migration
+make river-migrate-version # Check migration status
 ```
+
+---
+
+## Background Jobs (River)
+
+Email sending is processed asynchronously via River background jobs:
+
+### Architecture
+
+```
+Webhook Request → Job Enqueue → PostgreSQL → River Worker → Email Send
+```
+
+### Job Types
+
+| Job | Description |
+|-----|-------------|
+| `send_magic_link` | Magic link login emails |
+| `send_verification_email` | Email verification |
+| `send_2fa_otp` | 2FA one-time passwords |
+| `send_login_notification` | New device login alerts |
+
+### Adding New Jobs
+
+1. Define job args in `backend/internal/jobs/email.go`
+2. Implement worker with `river.WorkerDefaults`
+3. Register in `backend/internal/jobs/registry.go`
+4. Create enqueue helper in `backend/internal/jobs/enqueue.go`
+
+### Files
+
+```
+backend/internal/jobs/
+├── email.go      # Job workers (email types)
+├── registry.go   # Worker registration
+└── enqueue.go    # Enqueue helpers
+
+backend/pkg/river/
+└── client.go     # River client wrapper
+
+backend/cmd/river-migrate/
+└── main.go       # Migration CLI
+```
+
+### Fallback
+
+If River is unavailable, emails are sent synchronously (fallback mode).
+
+See `.docs/background-jobs.md` for full documentation.
 
 ---
 
@@ -586,49 +636,6 @@ Query logs in Grafana with LogQL:
 ```
 
 See `.docs/logging.md` for full documentation.
-
----
-
-## Database Backups (Automatic)
-
-Fully automatic PostgreSQL backup system with RustFS (S3-compatible storage).
-
-**No manual configuration required!** Just run `make backup-up`.
-
-### Architecture
-
-See `.concepts/architecture/backup-stack.md` for diagrams.
-
-| Service | Port | Purpose |
-|---------|------|---------|
-| postgres-backup-s3 | - | Automatic daily backups |
-| rustfs-init | - | Auto-creates bucket on startup |
-| RustFS | 9000/9001 | S3-compatible storage |
-
-### Usage
-
-```bash
-make backup-up       # Start automatic backup system
-make backup-down     # Stop backup stack
-make backup-now      # Create backup immediately
-make backup-list     # List all backups in S3
-make backup-restore  # Restore from latest backup
-```
-
-### Configuration (Environment Variables)
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `BACKUP_SCHEDULE` | @daily | Cron schedule |
-| `BACKUP_KEEP_DAYS` | 7 | Retention period |
-| `S3_ACCESS_KEY` | rustfsadmin | RustFS credentials |
-| `S3_SECRET_KEY` | rustfsadmin | RustFS credentials |
-
-### RustFS Console
-
-http://localhost:9001/rustfs/console/ (rustfsadmin/rustfsadmin)
-
-See `.docs/disaster-recovery.md` for full documentation.
 
 ---
 

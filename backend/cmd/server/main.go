@@ -17,17 +17,23 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/riverqueue/river"
+
 	"github.com/atilladeniz/next-go-pg/backend/internal/domain"
 	"github.com/atilladeniz/next-go-pg/backend/internal/handler"
+	"github.com/atilladeniz/next-go-pg/backend/internal/jobs"
 	"github.com/atilladeniz/next-go-pg/backend/internal/middleware"
 	"github.com/atilladeniz/next-go-pg/backend/internal/repository"
 	"github.com/atilladeniz/next-go-pg/backend/internal/sse"
 	"github.com/atilladeniz/next-go-pg/backend/pkg/config"
 	"github.com/atilladeniz/next-go-pg/backend/pkg/logger"
 	"github.com/atilladeniz/next-go-pg/backend/pkg/metrics"
+	riverPkg "github.com/atilladeniz/next-go-pg/backend/pkg/river"
 	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"gorm.io/driver/postgres"
@@ -36,7 +42,8 @@ import (
 )
 
 var (
-	sseBroker *sse.Broker
+	sseBroker     *sse.Broker
+	riverJobQueue *riverPkg.Client
 )
 
 type HealthStatus struct {
@@ -51,6 +58,7 @@ var (
 	Version   = "dev"
 	BuildTime = "unknown"
 	db        *gorm.DB
+	pgxPool   *pgxpool.Pool
 )
 
 func main() {
@@ -112,6 +120,69 @@ func main() {
 	sseBroker = sse.NewBroker()
 	logger.Info().Msg("SSE broker initialized")
 
+	// Setup River job queue (if database is available)
+	var riverCtx context.Context
+	var riverCancel context.CancelFunc
+	if db != nil {
+		riverCtx, riverCancel = context.WithCancel(context.Background())
+		defer func() {
+			if riverCancel != nil {
+				riverCancel()
+			}
+		}()
+
+		// Create pgx pool for River
+		var err error
+		pgxPool, err = pgxpool.New(riverCtx, cfg.GetDatabaseURLForPgx())
+		if err != nil {
+			logger.Warn().Err(err).Msg("Failed to create pgx pool for River - background jobs disabled")
+		} else {
+			// Run River migrations
+			if err := riverPkg.RunMigrations(riverCtx, pgxPool); err != nil {
+				logger.Warn().Err(err).Msg("River migrations failed - background jobs may not work")
+			}
+
+			// Setup email configuration for job workers
+			smtpHost := os.Getenv("SMTP_HOST")
+			if smtpHost == "" {
+				smtpHost = "127.0.0.1"
+			}
+			smtpPort := 1025
+			if p := os.Getenv("SMTP_PORT"); p != "" {
+				if parsed, err := strconv.Atoi(p); err == nil {
+					smtpPort = parsed
+				}
+			}
+			smtpFrom := os.Getenv("SMTP_FROM")
+			if smtpFrom == "" {
+				smtpFrom = "noreply@localhost"
+			}
+			appURL := os.Getenv("NEXT_PUBLIC_APP_URL")
+			if appURL == "" {
+				appURL = "http://localhost:3000"
+			}
+
+			emailConfig := jobs.NewEmailConfig(smtpHost, smtpPort, smtpFrom, appURL)
+
+			// Register workers
+			workers := river.NewWorkers()
+			jobs.RegisterWorkers(workers, emailConfig)
+
+			// Create River client
+			riverJobQueue, err = riverPkg.NewClient(riverCtx, pgxPool, workers, riverPkg.DefaultConfig())
+			if err != nil {
+				logger.Warn().Err(err).Msg("Failed to create River client - background jobs disabled")
+			} else {
+				// Start River
+				if err := riverJobQueue.Start(riverCtx); err != nil {
+					logger.Error().Err(err).Msg("Failed to start River client")
+				} else {
+					logger.Info().Msg("River job queue initialized and started")
+				}
+			}
+		}
+	}
+
 	// Setup router
 	router := mux.NewRouter()
 
@@ -153,7 +224,11 @@ func main() {
 	combinedAuth := middleware.NewCombinedAuthMiddleware(cfg.FrontendURL)
 
 	// Setup webhook handler
+	// Setup webhook handler with optional background job support
 	webhookHandler := handler.NewWebhookHandler(db)
+	if riverJobQueue != nil {
+		webhookHandler = webhookHandler.WithJobEnqueuer(riverJobQueue.Client)
+	}
 
 	// API v1 routes
 	apiRouter := router.PathPrefix("/api/v1").Subrouter()
@@ -220,6 +295,19 @@ func main() {
 	// Graceful shutdown with timeout
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
+
+	// Stop River job queue first
+	if riverJobQueue != nil {
+		logger.Info().Msg("Stopping River job queue...")
+		if err := riverJobQueue.Stop(ctx); err != nil {
+			logger.Error().Err(err).Msg("River job queue shutdown error")
+		}
+	}
+
+	// Close pgx pool
+	if pgxPool != nil {
+		pgxPool.Close()
+	}
 
 	if err := server.Shutdown(ctx); err != nil {
 		logger.Error().Err(err).Msg("Server forced to shutdown")

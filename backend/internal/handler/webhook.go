@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"crypto/hmac"
 	"crypto/sha256"
 	"crypto/subtle"
@@ -12,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/atilladeniz/next-go-pg/backend/internal/jobs"
 	"github.com/atilladeniz/next-go-pg/backend/internal/templates"
 	"github.com/atilladeniz/next-go-pg/backend/pkg/logger"
 	"github.com/mileusna/useragent"
@@ -22,9 +24,10 @@ import (
 
 // WebhookHandler handles all webhook endpoints for email notifications
 type WebhookHandler struct {
-	db     *gorm.DB
-	mailer *gomail.Dialer
-	config *webhookConfig
+	db          *gorm.DB
+	mailer      *gomail.Dialer
+	config      *webhookConfig
+	jobEnqueuer jobs.JobEnqueuer // Optional: if set, emails are sent via background jobs
 }
 
 type webhookConfig struct {
@@ -51,6 +54,12 @@ func NewWebhookHandler(db *gorm.DB) *WebhookHandler {
 			settingsURL: appURL + "/settings",
 		},
 	}
+}
+
+// WithJobEnqueuer sets the job enqueuer for background email processing
+func (h *WebhookHandler) WithJobEnqueuer(enqueuer jobs.JobEnqueuer) *WebhookHandler {
+	h.jobEnqueuer = enqueuer
+	return h
 }
 
 // --- Request Types ---
@@ -181,6 +190,19 @@ func (h *WebhookHandler) SendMagicLink(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Use background job if available
+	if h.jobEnqueuer != nil {
+		if err := jobs.EnqueueMagicLink(context.Background(), h.jobEnqueuer, req.Email, req.URL); err != nil {
+			logger.Error().Err(err).Str("email", req.Email).Msg("Failed to enqueue magic link job")
+			respondError(w, http.StatusInternalServerError, "failed to enqueue email job")
+			return
+		}
+		logger.Info().Str("email", req.Email).Msg("Magic link email enqueued")
+		respondJSON(w, MessageResponse{Message: "magic link enqueued"})
+		return
+	}
+
+	// Fallback to synchronous sending
 	body, err := templates.RenderMagicLink(templates.MagicLinkData{
 		EmailData:    templates.EmailData{AppURL: h.config.appURL},
 		MagicLinkURL: req.URL,
@@ -224,6 +246,19 @@ func (h *WebhookHandler) SendVerificationEmail(w http.ResponseWriter, r *http.Re
 		return
 	}
 
+	// Use background job if available
+	if h.jobEnqueuer != nil {
+		if err := jobs.EnqueueVerificationEmail(context.Background(), h.jobEnqueuer, req.Email, req.Name, req.URL); err != nil {
+			logger.Error().Err(err).Str("email", req.Email).Msg("Failed to enqueue verification email job")
+			respondError(w, http.StatusInternalServerError, "failed to enqueue email job")
+			return
+		}
+		logger.Info().Str("email", req.Email).Msg("Verification email enqueued")
+		respondJSON(w, MessageResponse{Message: "verification email enqueued"})
+		return
+	}
+
+	// Fallback to synchronous sending
 	body, err := templates.RenderVerification(templates.VerificationData{
 		EmailData: templates.EmailData{AppURL: h.config.appURL},
 		VerifyURL: req.URL,
@@ -267,6 +302,19 @@ func (h *WebhookHandler) Send2FAOTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Use background job if available
+	if h.jobEnqueuer != nil {
+		if err := jobs.Enqueue2FAOTP(context.Background(), h.jobEnqueuer, req.Email, req.Name, req.OTP); err != nil {
+			logger.Error().Err(err).Str("email", req.Email).Msg("Failed to enqueue 2FA OTP job")
+			respondError(w, http.StatusInternalServerError, "failed to enqueue email job")
+			return
+		}
+		logger.Info().Str("email", req.Email).Msg("2FA OTP email enqueued")
+		respondJSON(w, MessageResponse{Message: "2fa otp enqueued"})
+		return
+	}
+
+	// Fallback to synchronous sending
 	body, err := templates.RenderTwoFactorOTP(templates.TwoFactorOTPData{
 		EmailData: templates.EmailData{AppURL: h.config.appURL},
 		UserName:  coalesce(req.Name, "Nutzer"),
