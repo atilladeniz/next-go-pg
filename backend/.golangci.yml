@@ -1,11 +1,9 @@
-version: "2"
-
 run:
   timeout: 5m
   modules-download-mode: readonly
 
 linters:
-  default: none
+  disable-all: true
   enable:
     - govet
     - ineffassign
@@ -15,13 +13,8 @@ linters:
     - unconvert
     - bodyclose
 
-formatters:
-  enable:
-    - gofmt
-
 issues:
   exclude-rules:
-    # Exclude generated docs
     - path: docs/
       linters:
         - all
