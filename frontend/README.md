@@ -60,8 +60,13 @@ shared/     → (only external libs)
 ```
 src/
 ├── app/                        # Next.js App Router
-│   ├── (auth)/                 # Auth Pages (Login, Register)
-│   ├── (protected)/            # Protected Pages (Dashboard)
+│   ├── (auth)/                 # Auth Pages
+│   │   ├── login/              # Magic Link Login
+│   │   ├── magic-link/verify/  # Magic Link Verification UI
+│   │   └── verify-email/       # Email Verification UI
+│   ├── (protected)/            # Protected Pages
+│   │   ├── dashboard/
+│   │   └── settings/           # Session Management
 │   └── api/auth/               # Better Auth API Route
 │
 ├── widgets/                    # Composite UI Blocks
@@ -72,12 +77,21 @@ src/
 │       └── index.ts
 │
 ├── features/                   # User Interactions
-│   ├── auth/
+│   ├── auth/                   # Magic Link Login
 │   │   ├── ui/
 │   │   │   ├── login-form.tsx
-│   │   │   └── register-form.tsx
+│   │   │   ├── login-card.tsx
+│   │   │   └── email-sent-card.tsx
 │   │   ├── model/
+│   │   │   ├── use-login.ts
 │   │   │   └── use-auth-sync.ts
+│   │   └── index.ts
+│   ├── user-settings/          # Session Management
+│   │   ├── ui/
+│   │   │   ├── sessions-list.tsx
+│   │   │   └── session-card.tsx
+│   │   ├── model/
+│   │   │   └── use-sessions.ts
 │   │   └── index.ts
 │   └── stats/
 │       ├── ui/
@@ -98,8 +112,9 @@ src/
     ├── ui/                     # shadcn/ui Components
     ├── api/                    # Orval-generated (endpoints, models)
     ├── lib/
-    │   ├── auth-client/        # Better Auth Client
-    │   ├── auth-server/        # Better Auth Server
+    │   ├── auth-client/        # Better Auth Client (Magic Link)
+    │   ├── auth-server/        # Better Auth Server Config
+    │   ├── geo/                # User Agent Parsing
     │   ├── logger/             # Pino Logger
     │   ├── query-client.ts     # TanStack Query Client
     │   └── utils.ts            # cn() helper
@@ -138,8 +153,11 @@ Every slice MUST have an `index.ts`:
 ```tsx
 // features/auth/index.ts
 export { LoginForm } from "./ui/login-form"
-export { RegisterForm } from "./ui/register-form"
 export { useAuthSync, broadcastSignOut } from "./model/use-auth-sync"
+
+// features/user-settings/index.ts
+export { SessionsList } from "./ui/sessions-list"
+export { useSessions } from "./model/use-sessions"
 ```
 
 ### Adding New Features
@@ -161,22 +179,43 @@ Uses Orval to generate React Query hooks from `../backend/docs/swagger.json`.
 
 ## Authentication
 
-Better Auth with Email/Password:
+**Magic Link** (passwordless) authentication with Better Auth:
 
 ```tsx
-import { signIn, signUp, signOut, useSession } from "@shared/lib/auth-client"
+import { signIn, signOut } from "@shared/lib/auth-client"
 
-// Session Hook
-const { data: session, isPending } = useSession()
-
-// Sign In
-await signIn.email({ email, password })
-
-// Sign Up
-await signUp.email({ name, email, password })
+// Request Magic Link
+await signIn.magicLink({
+  email,
+  callbackURL: "/dashboard",
+  newUserCallbackURL: "/dashboard",
+  errorCallbackURL: "/login?error=verification_failed",
+})
 
 // Sign Out
 await signOut()
+```
+
+### Flow
+
+1. User enters email on `/login`
+2. Backend sends Magic Link email
+3. User clicks link → Token verified → Logged in
+
+### Session Management
+
+View and revoke sessions at `/settings`:
+
+```tsx
+import { useSessions } from "@features/user-settings"
+
+const { sessions, revokeSession, revokeOtherSessions } = useSessions()
+
+// Revoke single session
+await revokeSession(token)
+
+// Revoke all other sessions
+await revokeOtherSessions()
 ```
 
 ### Cross-Tab Synchronization
@@ -195,6 +234,14 @@ export function Header({ user }: { user: User }) {
   }
 }
 ```
+
+### Features
+
+- **Passwordless**: No passwords, just Magic Links
+- **Rate Limiting**: 3 requests per minute
+- **Session Management**: View/revoke sessions
+- **Login Notifications**: Email on new device login
+- **Cross-Tab Sync**: Logout syncs across tabs
 
 ## UI Components
 

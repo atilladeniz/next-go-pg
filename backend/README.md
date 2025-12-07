@@ -22,7 +22,7 @@ internal/
 ├── domain/           # Entities, Business Rules
 ├── usecase/          # Application Logic
 ├── repository/       # Data Access Layer
-├── handler/          # HTTP Handler
+├── handler/          # HTTP Handler + Webhooks
 ├── middleware/       # Auth, CORS, Logging
 └── sse/              # Server-Sent Events
 ```
@@ -288,6 +288,43 @@ logger.WithContext(ctx).Info().Msg("Request processed")
 LOG_LEVEL=info          # debug, info, warn, error
 ENVIRONMENT=production  # development = pretty output
 ```
+
+## Authentication Webhooks
+
+The backend handles email sending for Better Auth (Magic Link authentication):
+
+```
+POST /api/v1/webhooks/send-magic-link       # Send Magic Link email
+POST /api/v1/webhooks/send-verification-email  # Send email verification
+POST /api/v1/webhooks/session-created       # Login notification (new device)
+```
+
+All webhooks are protected by `X-Webhook-Secret` header.
+
+### Webhook Handler
+
+Located at `internal/handler/webhook.go`:
+
+- **SendMagicLink**: Sends Magic Link emails via SMTP
+- **SendVerificationEmail**: Sends email verification links
+- **SessionCreated**: Sends login notification only for NEW devices
+  - Checks if device/IP combination was seen before
+  - Prevents notification spam for known devices
+
+### Email Configuration
+
+```bash
+# .env
+SMTP_HOST=127.0.0.1
+SMTP_PORT=1025
+SMTP_FROM=noreply@localhost
+WEBHOOK_SECRET=<shared-secret-with-frontend>
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+```
+
+For local development, use Mailpit (included in `make dev`):
+- SMTP: localhost:1025
+- Web UI: http://localhost:8025
 
 ## Additional Resources
 

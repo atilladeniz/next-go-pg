@@ -213,14 +213,33 @@ shared/     → (only external libs)
 ```
 frontend/src/
 ├── app/                        # Next.js App Router (outside FSD)
+│   ├── (auth)/                 # Auth pages (login, register, verify)
+│   │   ├── login/
+│   │   ├── magic-link/verify/  # Magic Link verification UI
+│   │   └── verify-email/       # Email verification UI
+│   └── (protected)/            # Protected pages
+│       ├── dashboard/
+│       └── settings/           # Session management
 ├── widgets/
-│   └── header/                 # Header + ModeToggle
+│   └── header/                 # Header + UserMenu + ModeToggle
 │       ├── ui/
 │       └── index.ts
 ├── features/
-│   ├── auth/                   # Login, Register, AuthSync
+│   ├── auth/                   # Magic Link Login, AuthSync
 │   │   ├── ui/
+│   │   │   ├── login-form.tsx
+│   │   │   ├── login-card.tsx
+│   │   │   └── email-sent-card.tsx
 │   │   ├── model/
+│   │   │   ├── use-login.ts
+│   │   │   └── use-auth-sync.ts
+│   │   └── index.ts
+│   ├── user-settings/          # Session Management
+│   │   ├── ui/
+│   │   │   ├── sessions-list.tsx
+│   │   │   └── session-card.tsx
+│   │   ├── model/
+│   │   │   └── use-sessions.ts
 │   │   └── index.ts
 │   └── stats/                  # Stats Grid, SSE
 │       ├── ui/
@@ -235,8 +254,9 @@ frontend/src/
     ├── ui/                     # shadcn/ui
     ├── api/                    # Orval-generated
     ├── lib/
-    │   ├── auth-client/        # Client-safe Auth
-    │   ├── auth-server/        # Server-only Auth
+    │   ├── auth-client/        # Client-safe Auth (Magic Link)
+    │   ├── auth-server/        # Server-only Auth Config
+    │   ├── geo/                # User Agent Parsing
     │   ├── logger/             # Pino Logger
     │   └── ...
     └── config/                 # Providers, Theme
@@ -273,8 +293,12 @@ Every slice MUST have an `index.ts`:
 ```tsx
 // features/auth/index.ts
 export { LoginForm } from "./ui/login-form"
-export { RegisterForm } from "./ui/register-form"
-export { useAuthSync, broadcastSignOut } from "./model/use-auth-sync"
+export { useAuthSync, broadcastSignOut, broadcastSignIn } from "./model/use-auth-sync"
+
+// features/user-settings/index.ts
+export { SessionsList } from "./ui/sessions-list"
+export { SessionCard } from "./ui/session-card"
+export { useSessions } from "./model/use-sessions"
 ```
 
 ### Linting
@@ -419,8 +443,10 @@ export function useSSE() {
 ### Authentication (FSD Paths)
 
 - `frontend/src/shared/lib/auth-server/` - Better Auth Server Config + Session Helper
-- `frontend/src/shared/lib/auth-client/` - Better Auth Client (only for actions!)
-- `frontend/src/features/auth/` - Login/Register Forms + Cross-Tab Sync
+- `frontend/src/shared/lib/auth-client/` - Better Auth Client (Magic Link + Actions)
+- `frontend/src/features/auth/` - Magic Link Login + Cross-Tab Sync
+- `frontend/src/features/user-settings/` - Session Management (List, Revoke)
+- `backend/internal/handler/webhook.go` - Email Webhooks (Magic Link, Verification, Login Notification)
 
 ### Real-time
 
@@ -642,6 +668,7 @@ DATABASE_URL=postgres://postgres:postgres@localhost:5432/nextgopg
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 NEXT_PUBLIC_API_URL=http://localhost:8080
 BETTER_AUTH_SECRET=<secret>
+WEBHOOK_SECRET=<webhook-secret>
 ```
 
 ### Backend
@@ -649,4 +676,65 @@ BETTER_AUTH_SECRET=<secret>
 ```
 DATABASE_URL=postgres://postgres:postgres@localhost:5432/nextgopg
 PORT=8080
+SMTP_HOST=127.0.0.1
+SMTP_PORT=1025
+SMTP_FROM=noreply@localhost
+WEBHOOK_SECRET=<webhook-secret>
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+```
+
+---
+
+## Authentication: Magic Link
+
+This project uses **Magic Link authentication** (passwordless) via Better Auth.
+
+### Flow
+
+1. User enters email on `/login`
+2. Backend sends Magic Link email via webhook
+3. User clicks link → `/magic-link/verify?token=...`
+4. Token is verified → User is logged in → Redirect to `/dashboard`
+
+### Features
+
+- **Rate Limiting**: 3 magic link requests per minute
+- **Email Verification**: New users must verify email first
+- **Session Management**: View/revoke sessions at `/settings`
+- **Login Notifications**: Email on new device/IP login
+- **Cross-Tab Sync**: Logout syncs across all tabs
+
+### Backend Webhooks
+
+All email sending is handled by the Go backend:
+
+```
+POST /api/v1/webhooks/send-magic-link      # Magic Link email
+POST /api/v1/webhooks/send-verification-email  # Email verification
+POST /api/v1/webhooks/session-created      # Login notification (new device only)
+```
+
+Protected by `X-Webhook-Secret` header.
+
+### Auth Files
+
+```
+frontend/src/shared/lib/auth-server/auth.ts   # Better Auth config
+frontend/src/shared/lib/auth-client/          # Client (magicLinkClient plugin)
+frontend/src/features/auth/                   # Login UI + hooks
+frontend/src/features/user-settings/          # Session management
+backend/internal/handler/webhook.go           # Email webhooks
+```
+
+### Session Management
+
+```tsx
+// List all sessions
+const { sessions } = useSessions()
+
+// Revoke single session
+await authClient.revokeSession({ token })
+
+// Revoke all other sessions
+await authClient.revokeOtherSessions()
 ```

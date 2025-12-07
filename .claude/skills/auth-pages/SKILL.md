@@ -6,38 +6,73 @@ allowed-tools: Read, Edit, Write, Glob
 
 # Authentication Pages (FSD)
 
-Better Auth integration with Next.js 16 - **Server-Side First** for flicker-free UX.
+Better Auth integration with Next.js 16 - **Magic Link** (passwordless) authentication.
+
+## Authentication Method
+
+This project uses **Magic Link authentication** - users sign in by clicking a link sent to their email. No passwords!
 
 ## FSD Paths
 
 ```
 src/
+├── app/(auth)/
+│   ├── login/                  # Magic Link Login Page
+│   ├── magic-link/verify/      # Magic Link Verification UI
+│   └── verify-email/           # Email Verification UI
+├── app/(protected)/
+│   ├── dashboard/              # Protected Dashboard
+│   └── settings/               # Session Management
 ├── features/auth/              # Auth Feature
 │   ├── ui/
-│   │   ├── login-form.tsx
-│   │   └── register-form.tsx
+│   │   ├── login-form.tsx      # Orchestrates login flow
+│   │   ├── login-card.tsx      # Email input form
+│   │   └── email-sent-card.tsx # "Check your email" UI
 │   ├── model/
-│   │   └── use-auth-sync.ts
+│   │   ├── use-login.ts        # Login state & logic
+│   │   └── use-auth-sync.ts    # Cross-tab sync
+│   └── index.ts
+├── features/user-settings/     # Session Management
+│   ├── ui/
+│   │   ├── sessions-list.tsx
+│   │   └── session-card.tsx
+│   ├── model/
+│   │   └── use-sessions.ts
 │   └── index.ts
 ├── shared/lib/
-│   ├── auth-client/            # Client-safe: signIn, signOut
-│   └── auth-server/            # Server-only: getSession, auth
-└── widgets/header/             # Header with Auth Sync
+│   ├── auth-client/            # Client: signIn.magicLink, signOut
+│   ├── auth-server/            # Server: getSession, auth config
+│   └── geo/                    # User Agent parsing
+└── widgets/header/             # Header with UserMenu
 ```
 
-## Architecture Principle
+## Magic Link Login Flow
 
 ```
-Server Component (check session) → Client Component (interactivity)
+1. User enters email → /login
+2. signIn.magicLink() called
+3. Backend webhook sends email
+4. User clicks link → /magic-link/verify?token=...
+5. Token verified → Session created → Redirect to /dashboard
+6. Login notification sent (new device only)
 ```
 
-**NO useSession() in Protected Pages!** → Causes flicker.
+## Auth Client (Magic Link)
 
-## Existing Auth Pages
+```tsx
+import { signIn, signOut } from "@shared/lib/auth-client"
 
-- `/login` - Login with Email/Password
-- `/register` - Registration
-- `/dashboard` - Protected Dashboard
+// Request Magic Link
+await signIn.magicLink({
+  email,
+  callbackURL: "/dashboard",
+  newUserCallbackURL: "/dashboard",
+  errorCallbackURL: "/login?error=verification_failed",
+})
+
+// Sign Out
+await signOut()
+```
 
 ## Server-Side Session (NO FLICKER!)
 
@@ -48,7 +83,6 @@ Server Component (check session) → Client Component (interactivity)
 import { getSession } from "@shared/lib/auth-server"
 import { redirect } from "next/navigation"
 import { Header } from "@widgets/header"
-import { StatsGrid } from "@features/stats"
 
 export default async function DashboardPage() {
   // Server-side Session Check - NO Flicker!
@@ -57,205 +91,98 @@ export default async function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Pass user as prop, not useSession! */}
       <Header user={session.user} />
-      {/* HydrationBoundary for React Query - see data-fetching skill */}
-      <StatsGrid />
+      {/* Content */}
     </div>
   )
 }
 ```
 
-### Header Widget
+## Session Management
+
+Users can view and revoke sessions at `/settings`:
 
 ```tsx
-// widgets/header/ui/header.tsx
-"use client"
+import { useSessions } from "@features/user-settings"
 
-import type { SessionUser } from "@entities/user"
-import { broadcastSignOut, useAuthSync } from "@features/auth"
-import { signOut } from "@shared/lib/auth-client"
-import { Button } from "@shared/ui/button"
-
-export function Header({ user }: { user: SessionUser }) {
-  useAuthSync() // Cross-Tab Listener
-
-  const handleSignOut = async () => {
-    await signOut()
-    await broadcastSignOut()
-    router.push("/")
-  }
+export function SessionsList() {
+  const { sessions, revokeSession, revokeOtherSessions } = useSessions()
 
   return (
-    <header className="border-b">
-      <div className="container flex h-16 items-center justify-between">
-        <span>Welcome, {user.name}</span>
-        <Button variant="outline" onClick={handleSignOut}>
-          Sign Out
-        </Button>
-      </div>
-    </header>
+    <div>
+      {sessions.map((session) => (
+        <SessionCard
+          key={session.id}
+          session={session}
+          onRevoke={revokeSession}
+        />
+      ))}
+      <Button onClick={revokeOtherSessions}>
+        Alle anderen Sessions beenden
+      </Button>
+    </div>
   )
 }
 ```
 
-## Auth Client (only for actions!)
+## Backend Webhooks
 
-```tsx
-import { signIn, signUp, signOut } from "@shared/lib/auth-client"
+All emails are sent by the Go backend (Clean Architecture):
 
-// Sign In (in Login Page)
-await signIn.email({ email, password })
-
-// Sign Up (in Register Page)
-await signUp.email({ name, email, password })
-
-// Sign Out (in Header Button)
-await signOut()
 ```
+POST /api/v1/webhooks/send-magic-link
+POST /api/v1/webhooks/send-verification-email
+POST /api/v1/webhooks/session-created
+```
+
+Protected by `X-Webhook-Secret` header.
+
+## Rate Limiting
+
+- Magic Link: 3 requests per minute
+- Verification Email: 3 requests per minute
 
 ## Cross-Tab Synchronization
 
-Better Auth has **no built-in cross-tab synchronization**. Use `broadcast-channel` library:
-
-```bash
-bun add broadcast-channel
-```
-
-### useAuthSync Hook (FSD)
-
 ```tsx
 // features/auth/model/use-auth-sync.ts
-"use client"
+import { useAuthSync, broadcastSignOut } from "@features/auth"
 
-import { BroadcastChannel } from "broadcast-channel"
-import { useRouter } from "next/navigation"
-import { useEffect } from "react"
+// In Header component
+useAuthSync() // Listen for auth changes
 
-type AuthMessage = { type: "SIGN_OUT" | "SIGN_IN"; timestamp: number }
-
-export function useAuthSync() {
-  const router = useRouter()
-
-  useEffect(() => {
-    const channel = new BroadcastChannel<AuthMessage>("auth-sync", {
-      type: "localstorage", // Fallback for Safari Private Mode
-    })
-
-    channel.onmessage = (msg) => {
-      if (msg.type === "SIGN_OUT") {
-        router.push("/login")
-        router.refresh()
-      }
-    }
-
-    return () => channel.close()
-  }, [router])
-}
-
-export async function broadcastSignOut() {
-  const channel = new BroadcastChannel<AuthMessage>("auth-sync", { type: "localstorage" })
-  await channel.postMessage({ type: "SIGN_OUT", timestamp: Date.now() })
-}
+// On sign out
+await signOut()
+await broadcastSignOut() // Notify other tabs
 ```
 
-### Public API
+## Magic Link Verify Page
 
-```tsx
-// features/auth/index.ts
-export { LoginForm } from "./ui/login-form"
-export { RegisterForm } from "./ui/register-form"
-export { useAuthSync, broadcastSignOut, broadcastSignIn } from "./model/use-auth-sync"
-```
+Custom UI for `/magic-link/verify`:
 
-### Integration in Header Widget
+- **Loading**: Spinner while verifying
+- **Success**: Immediate redirect to dashboard
+- **Rate Limited**: "Zu viele Anfragen" message
+- **Expired**: "Link abgelaufen" message
+- **Invalid**: "Ungültiger Link" message
 
-```tsx
-// widgets/header/ui/header.tsx
-import { broadcastSignOut, useAuthSync } from "@features/auth"
-import { signOut } from "@shared/lib/auth-client"
+## Login Notifications
 
-export function Header({ user }: { user: SessionUser }) {
-  useAuthSync() // Cross-Tab Listener
-
-  const handleSignOut = async () => {
-    await signOut()
-    await broadcastSignOut()
-    router.push("/")
-  }
-  // ...
-}
-```
-
-### Benefits of broadcast-channel
-
-- Safari Private Mode Support
-- localStorage Fallback
-- TypeScript Support
-- WebWorker Support
-
-## Route Protection
-
-### Proxy (middleware)
-
-`frontend/src/proxy.ts` checks cookie-based:
-
-```typescript
-export function proxy(request: NextRequest) {
-  const sessionCookie = request.cookies.get("better-auth.session_token")
-
-  // Protected Route without Session → Login
-  if (isProtectedRoute && !sessionCookie) {
-    return NextResponse.redirect(new URL("/login", request.url))
-  }
-
-  // Auth Route with Session → Dashboard
-  if (isAuthRoute && sessionCookie) {
-    return NextResponse.redirect(new URL("/dashboard", request.url))
-  }
-}
-```
-
-### Folder Structure
-
-```
-src/app/
-├── (auth)/           # Login, Register (redirect when logged in)
-│   ├── login/
-│   └── register/
-├── (protected)/      # Requires Auth
-│   └── dashboard/
-│       ├── page.tsx           # Server Component
-│       ├── header.tsx         # Client Component
-│       └── dashboard-content.tsx
-└── page.tsx          # Public Home
-```
+Email sent on new device/IP:
+- Checks if device/IP combination is known
+- Only sends notification for NEW devices
+- Includes "Sessions verwalten" button to `/settings`
 
 ## IMPORTANT: What NOT to do
 
-❌ **DO NOT** use `useSession()` in Protected Pages
-❌ **DO NOT** use Skeleton for Session Loading
-❌ **DO NOT** use `isPending` check for Session
-❌ **DO NOT** use client-side redirect
+❌ **DO NOT** use `useSession()` in Protected Pages → Causes flicker
+❌ **DO NOT** use password fields → Magic Link only
+❌ **DO NOT** send emails from frontend → Use backend webhooks
+❌ **DO NOT** use direct SQL in auth hooks → Use webhooks
 
 ✅ **INSTEAD**:
 
-- Server Component checks session
+- Server Component checks session with `getSession()`
 - `redirect()` if no session
 - Pass user as prop to Client Components
-- Use `initialData` for React Query
-
-## Real-Time Updates
-
-SSE Hook for automatic data updates:
-
-```tsx
-"use client"
-
-import { useSSE } from "@features/stats"
-
-export function MyComponent() {
-  useSSE() // Connects to /api/v1/events
-  // React Query is automatically invalidated on SSE events
-}
-```
+- All emails via backend webhooks
