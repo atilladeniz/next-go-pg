@@ -10,6 +10,7 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/atilladeniz/next-go-pg/backend/internal/jobs"
+	"github.com/atilladeniz/next-go-pg/backend/internal/middleware"
 	"github.com/atilladeniz/next-go-pg/backend/pkg/logger"
 )
 
@@ -52,8 +53,11 @@ type StartExportResponse struct {
 // @Router /export/start [post]
 func (h *ExportHandler) StartExport(w http.ResponseWriter, r *http.Request) {
 	// Get user from context (set by auth middleware)
-	userID := r.Context().Value("user_id")
-	if userID == nil {
+	// Works for both JWT and Better Auth (withJWTContext populates UserContextKey)
+	var userID string
+	if user := middleware.GetUserFromContext(r.Context()); user != nil {
+		userID = user.ID
+	} else {
 		userID = "anonymous"
 	}
 
@@ -94,7 +98,7 @@ func (h *ExportHandler) StartExport(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Enqueue the export job
-	if err := jobs.EnqueueDataExport(context.Background(), h.jobEnqueuer, jobID, userID.(string), format, req.DataType); err != nil {
+	if err := jobs.EnqueueDataExport(context.Background(), h.jobEnqueuer, jobID, userID, format, req.DataType); err != nil {
 		logger.Error().Err(err).Str("job_id", jobID).Msg("Failed to enqueue export job")
 		respondError(w, http.StatusInternalServerError, "failed to start export")
 		return
@@ -102,7 +106,7 @@ func (h *ExportHandler) StartExport(w http.ResponseWriter, r *http.Request) {
 
 	logger.Info().
 		Str("job_id", jobID).
-		Str("user_id", userID.(string)).
+		Str("user_id", userID).
 		Str("format", req.Format).
 		Str("data_type", req.DataType).
 		Msg("Export job enqueued")
