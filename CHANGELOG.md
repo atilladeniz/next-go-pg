@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.0.1](https://github.com/atilladeniz/next-go-pg/compare/v1.0.0...v1.0.1) (2025-12-07)
+
+
+### Bug Fixes
+
+* resolve Docker multi-arch build for ARM64 ([#10](https://github.com/atilladeniz/next-go-pg/issues/10)) ([cb3677d](https://github.com/atilladeniz/next-go-pg/commit/cb3677dcf04c7ade7d3730c342d2b8d0edba2193))
+* trigger CI for all PRs including release-please ([#12](https://github.com/atilladeniz/next-go-pg/issues/12)) ([5928b86](https://github.com/atilladeniz/next-go-pg/commit/5928b86b46906d21f741c11c4f0b6704146215f3))
+
 ## 1.0.0 (2025-12-07)
 
 
