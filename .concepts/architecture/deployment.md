@@ -264,23 +264,72 @@ flowchart TB
 
 ## Backup Strategy
 
+See [backup-stack.md](./backup-stack.md) for detailed architecture.
+
+### Overview
+
 ```mermaid
-flowchart LR
-    subgraph Daily
-        D1[DB Dump]
-        D2[Upload to S3]
+flowchart TB
+    subgraph BackupStack["Backup Stack (automatic)"]
+        PGB[postgres-backup-s3]
+        INIT[rustfs-init]
+        RFS[RustFS :9000]
     end
 
-    subgraph Weekly
-        W1[Full Server Snapshot]
+    subgraph AppStack["App Stack"]
+        DB[(PostgreSQL)]
+    end
+
+    subgraph Schedule
+        Cron[@daily]
+        Retention[7 days retention]
+    end
+
+    INIT -->|"create bucket"| RFS
+    PGB -->|"pg_dump"| DB
+    PGB -->|"S3 upload"| RFS
+    Cron --> PGB
+    Retention --> PGB
+```
+
+### Backup Components
+
+| Component | Purpose | Port |
+|-----------|---------|------|
+| postgres-backup-s3 | Automatic daily backups | - |
+| rustfs-init | Auto-create bucket | - |
+| RustFS | S3-compatible storage | 9000, 9001 |
+
+### Recovery Flow
+
+```mermaid
+flowchart LR
+    subgraph Disaster
+        D1[DB Corrupt/Lost]
     end
 
     subgraph Recovery
-        R1[Restore from S3]
-        R2[Restore Snapshot]
+        R1[make backup-restore]
+        R2[Download from S3]
+        R3[pg_restore]
     end
 
-    D1 --> D2
-    D2 -.->|Recovery| R1
-    W1 -.->|Recovery| R2
+    subgraph Result
+        OK[DB Restored]
+    end
+
+    D1 --> R1
+    R1 --> R2
+    R2 --> R3
+    R3 --> OK
+```
+
+### Commands
+
+```bash
+make backup-up       # Start automatic backup system
+make backup-down     # Stop backup stack
+make backup-now      # Create backup immediately
+make backup-list     # List all backups
+make backup-restore  # Restore from latest backup
 ```

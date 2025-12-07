@@ -1,0 +1,64 @@
+# Database Backup Stack
+#
+# Usage: docker compose -f docker-compose.dev.yml -f docker-compose.backup.yml up -d
+#
+# Fully automatic PostgreSQL backups to S3-compatible storage (RustFS)
+# No manual configuration needed - just start and it works!
+
+services:
+  # RustFS - S3-compatible object storage (active development, Rust-based)
+  rustfs:
+    image: rustfs/rustfs:latest
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      RUSTFS_VOLUMES: /data
+      RUSTFS_ACCESS_KEY: ${S3_ACCESS_KEY:-rustfsadmin}
+      RUSTFS_SECRET_KEY: ${S3_SECRET_KEY:-rustfsadmin}
+      RUSTFS_CONSOLE_ENABLE: "true"
+      RUSTFS_CORS_ALLOWED_ORIGINS: "*"
+    volumes:
+      - rustfs_data:/data
+    restart: unless-stopped
+
+  # Create bucket and wait for RustFS
+  rustfs-init:
+    image: minio/mc:latest
+    depends_on:
+      - rustfs
+    entrypoint: >
+      /bin/sh -c "
+      echo 'Waiting for RustFS...';
+      until mc alias set s3 http://rustfs:9000 rustfsadmin rustfsadmin 2>/dev/null; do
+        sleep 2;
+      done;
+      mc mb s3/backups --ignore-existing;
+      echo 'Bucket ready';
+      "
+    restart: "no"
+
+  # Automatic PostgreSQL backups
+  pg-backup:
+    image: eeshugerman/postgres-backup-s3:16
+    depends_on:
+      rustfs:
+        condition: service_started
+      db:
+        condition: service_healthy
+    environment:
+      SCHEDULE: ${BACKUP_SCHEDULE:-@daily}
+      BACKUP_KEEP_DAYS: ${BACKUP_KEEP_DAYS:-7}
+      S3_ENDPOINT: http://rustfs:9000
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY:-rustfsadmin}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_KEY:-rustfsadmin}
+      S3_BUCKET: backups
+      S3_PREFIX: postgres
+      POSTGRES_HOST: db
+      POSTGRES_DATABASE: ${POSTGRES_DB:-nextgopg}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    restart: unless-stopped
+
+volumes:
+  rustfs_data:

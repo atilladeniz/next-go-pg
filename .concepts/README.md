@@ -11,6 +11,7 @@ Mermaid-based diagrams for business logic, system design and architecture.
 │   ├── system-context.md        # C4 Level 1: System Context
 │   ├── container.md             # C4 Level 2: Container Diagram
 │   ├── deployment.md            # Deployment Architecture
+│   ├── backup-stack.md          # Database Backup (postgres-backup-s3 + RustFS)
 │   └── infrastructure.md        # Cloud/Server Infrastructure
 ├── flows/                       # Business Logic & Workflows
 │   ├── auth-flow.md             # Authentication Flow
