@@ -14,13 +14,14 @@ linters:
     - misspell
     - unconvert
     - bodyclose
+  exclusions:
+    presets:
+      - common-false-positives
+    rules:
+      - path: docs/
+        linters:
+          - all
 
 formatters:
   enable:
     - gofmt
-
-issues:
-  exclude-rules:
-    - path: docs/
-      linters:
-        - all
