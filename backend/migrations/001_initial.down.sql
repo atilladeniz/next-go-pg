@@ -1,7 +1,4 @@
--- Down migration for initial schema
--- This file should reverse changes made in 001_initial.up.sql
+-- Rollback initial migration
 
--- Example: Drop users table
--- DROP TABLE IF EXISTS users;
-
--- Add your down migration here
+DROP INDEX IF EXISTS idx_user_stats_user_id;
+DROP TABLE IF EXISTS user_stats;

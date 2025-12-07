@@ -1,4 +1,4 @@
-.PHONY: help dev dev-full dev-frontend dev-backend build build-frontend build-backend test clean install install-tools api lint docker-build docker-up docker-down goca-feature deploy deploy-staging deploy-production deploy-rollback deploy-logs deploy-console setup-hooks security-scan security-scan-history fetch-docs search-docs search-docs-index logs-up logs-down logs-open logs-query db-migrate
+.PHONY: help dev dev-full dev-frontend dev-backend build build-frontend build-backend test clean install install-tools api lint docker-build docker-up docker-down goca-feature deploy deploy-staging deploy-production deploy-rollback deploy-logs deploy-console setup-hooks security-scan security-scan-history fetch-docs search-docs search-docs-index logs-up logs-down logs-open logs-query db-migrate migrate-up migrate-down migrate-version migrate-create metrics
 
 .DEFAULT_GOAL := help
 
@@ -33,6 +33,13 @@ help: ## Show available commands
 	@echo "  $(GREEN)db-down$(RESET)           Stop PostgreSQL database"
 	@echo "  $(GREEN)db-reset$(RESET)          Reset database (delete all data)"
 	@echo "  $(GREEN)db-migrate$(RESET)        Run Better Auth + GORM migrations"
+	@echo ""
+	@echo "$(CYAN)━━━ SQL Migrations (golang-migrate) ━━━$(RESET)"
+	@echo ""
+	@echo "  $(GREEN)migrate-up$(RESET)        Run all pending SQL migrations"
+	@echo "  $(GREEN)migrate-down$(RESET)      Rollback last SQL migration"
+	@echo "  $(GREEN)migrate-version$(RESET)   Show current migration version"
+	@echo "  $(GREEN)migrate-create$(RESET)    Create new migration files $(DIM)(name=<name>)$(RESET)"
 	@echo ""
 	@echo "$(CYAN)━━━ Build ━━━$(RESET)"
 	@echo ""
@@ -96,6 +103,10 @@ help: ## Show available commands
 	@echo "  $(GREEN)logs-down$(RESET)         Stop logging stack"
 	@echo "  $(GREEN)logs-open$(RESET)         Open Grafana in browser $(DIM)(localhost:3001)$(RESET)"
 	@echo "  $(GREEN)logs-query$(RESET)        Query logs via CLI $(DIM)(q=\"query\" [limit=100])$(RESET)"
+	@echo ""
+	@echo "$(CYAN)━━━ Monitoring ━━━$(RESET)"
+	@echo ""
+	@echo "  $(GREEN)metrics$(RESET)           View Prometheus metrics $(DIM)(localhost:8080/metrics)$(RESET)"
 	@echo ""
 
 # ━━━ Development ━━━
@@ -361,3 +372,43 @@ else
 		jq -r '.data.result[].values[][1]' 2>/dev/null || \
 		echo "$(RED)Error: Loki not running or query failed$(RESET)"
 endif
+
+# ━━━ SQL Migrations (golang-migrate) ━━━
+
+migrate-up:
+	@echo "$(YELLOW)Running SQL migrations...$(RESET)"
+	cd backend && go run ./cmd/migrate -up
+	@echo "$(GREEN)✓ Migrations complete$(RESET)"
+
+migrate-down:
+	@echo "$(YELLOW)Rolling back last migration...$(RESET)"
+	cd backend && go run ./cmd/migrate -down
+	@echo "$(GREEN)✓ Rollback complete$(RESET)"
+
+migrate-version:
+	@cd backend && go run ./cmd/migrate -version
+
+migrate-create:
+ifndef name
+	@echo "$(RED)Error: name parameter required$(RESET)"
+	@echo ""
+	@echo "Usage: make migrate-create name=<migration_name>"
+	@echo ""
+	@echo "Example: make migrate-create name=add_users_table"
+	@exit 1
+else
+	@NEXT=$$(ls backend/migrations/*.up.sql 2>/dev/null | wc -l | tr -d ' '); \
+	NEXT=$$((NEXT + 1)); \
+	PADDED=$$(printf "%03d" $$NEXT); \
+	touch backend/migrations/$${PADDED}_$(name).up.sql; \
+	touch backend/migrations/$${PADDED}_$(name).down.sql; \
+	echo "$(GREEN)✓ Created migrations:$(RESET)"; \
+	echo "  backend/migrations/$${PADDED}_$(name).up.sql"; \
+	echo "  backend/migrations/$${PADDED}_$(name).down.sql"
+endif
+
+# ━━━ Monitoring ━━━
+
+metrics:
+	@echo "$(CYAN)Opening Prometheus metrics...$(RESET)"
+	@open http://localhost:8080/metrics 2>/dev/null || xdg-open http://localhost:8080/metrics 2>/dev/null || echo "Open http://localhost:8080/metrics in your browser"
