@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.1](https://github.com/atilladeniz/next-go-pg/compare/v1.3.0...v1.3.1) (2025-12-07)
+
+
+### Bug Fixes
+
+* correct swag init directory to eliminate warning ([#31](https://github.com/atilladeniz/next-go-pg/issues/31)) ([d3764d1](https://github.com/atilladeniz/next-go-pg/commit/d3764d1ae26fb61c39c88f883ada73a03ffb3b2d))
+
 ## [1.3.0](https://github.com/atilladeniz/next-go-pg/compare/v1.2.0...v1.3.0) (2025-12-07)
 
 
