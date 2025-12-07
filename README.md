@@ -1,7 +1,6 @@
 # Next-Go-PG
 
 [![CI](https://github.com/atilladeniz/next-go-pg/actions/workflows/ci.yml/badge.svg)](https://github.com/atilladeniz/next-go-pg/actions/workflows/ci.yml)
-[![codecov](https://codecov.io/gh/atilladeniz/next-go-pg/branch/main/graph/badge.svg)](https://codecov.io/gh/atilladeniz/next-go-pg)
 
 Full-Stack Monorepo with Next.js Frontend and Go Backend.
 
