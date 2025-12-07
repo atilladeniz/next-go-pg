@@ -15,6 +15,87 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/export/download/{id}": {
+            "get": {
+                "description": "Downloads the exported file by download ID",
+                "produces": [
+                    "application/octet-stream"
+                ],
+                "tags": [
+                    "export"
+                ],
+                "summary": "Download a completed export",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Download ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "file"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/export/start": {
+            "post": {
+                "description": "Starts a background job to export user data",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "export"
+                ],
+                "summary": "Start a data export job",
+                "parameters": [
+                    {
+                        "description": "Export parameters",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.StartExportRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handler.StartExportResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/hello": {
             "get": {
                 "description": "Returns a hello message, no auth required",
@@ -610,6 +691,30 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "userId": {
+                    "type": "string"
+                }
+            }
+        },
+        "handler.StartExportRequest": {
+            "type": "object",
+            "properties": {
+                "dataType": {
+                    "description": "\"stats\", \"activity\", or \"all\"",
+                    "type": "string"
+                },
+                "format": {
+                    "description": "\"csv\" or \"json\"",
+                    "type": "string"
+                }
+            }
+        },
+        "handler.StartExportResponse": {
+            "type": "object",
+            "properties": {
+                "jobId": {
+                    "type": "string"
+                },
+                "message": {
                     "type": "string"
                 }
             }

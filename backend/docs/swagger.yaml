@@ -68,6 +68,22 @@ definitions:
       userId:
         type: string
     type: object
+  handler.StartExportRequest:
+    properties:
+      dataType:
+        description: '"stats", "activity", or "all"'
+        type: string
+      format:
+        description: '"csv" or "json"'
+        type: string
+    type: object
+  handler.StartExportResponse:
+    properties:
+      jobId:
+        type: string
+      message:
+        type: string
+    type: object
   handler.UpdateStatRequest:
     properties:
       delta:
@@ -113,6 +129,59 @@ info:
   title: Next-Go-PG API
   version: "1.0"
 paths:
+  /export/download/{id}:
+    get:
+      description: Downloads the exported file by download ID
+      parameters:
+      - description: Download ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/octet-stream
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: file
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      summary: Download a completed export
+      tags:
+      - export
+  /export/start:
+    post:
+      consumes:
+      - application/json
+      description: Starts a background job to export user data
+      parameters:
+      - description: Export parameters
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.StartExportRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.StartExportResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      summary: Start a data export job
+      tags:
+      - export
   /hello:
     get:
       consumes:
