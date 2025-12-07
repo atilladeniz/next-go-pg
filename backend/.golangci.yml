@@ -1,9 +1,11 @@
+version: "2"
+
 run:
   timeout: 5m
   modules-download-mode: readonly
 
 linters:
-  disable-all: true
+  default: none
   enable:
     - govet
     - ineffassign
@@ -12,6 +14,10 @@ linters:
     - misspell
     - unconvert
     - bodyclose
+
+formatters:
+  enable:
+    - gofmt
 
 issues:
   exclude-rules:
