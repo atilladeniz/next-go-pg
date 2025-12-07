@@ -148,3 +148,32 @@ func GetSessionFromContext(ctx context.Context) *Session {
 	}
 	return nil
 }
+
+// Helper functions for context manipulation (used by combined middleware)
+func withUserContext(ctx context.Context, user *User) context.Context {
+	return context.WithValue(ctx, UserContextKey, user)
+}
+
+func withSessionContext(ctx context.Context, session *Session) context.Context {
+	return context.WithValue(ctx, SessionContextKey, session)
+}
+
+func withJWTContext(ctx context.Context, claims *JWTClaims) context.Context {
+	ctx = context.WithValue(ctx, JWTContextKey, claims)
+
+	// Also populate User and Session for compatibility
+	user := &User{
+		ID:    claims.Subject,
+		Email: claims.Email,
+		Name:  claims.Name,
+	}
+	ctx = context.WithValue(ctx, UserContextKey, user)
+
+	session := &Session{
+		ID:     claims.SID,
+		UserID: claims.Subject,
+	}
+	ctx = context.WithValue(ctx, SessionContextKey, session)
+
+	return ctx
+}

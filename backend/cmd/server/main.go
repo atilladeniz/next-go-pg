@@ -121,7 +121,13 @@ func main() {
 
 	// Setup API handlers
 	apiHandler := handler.NewAPIHandler(cfg.FrontendURL, sseBroker, statsRepo)
-	authMiddleware := apiHandler.GetAuthMiddleware()
+
+	// Setup combined auth middleware (JWT first, then Better Auth fallback)
+	// This allows Go to validate tokens directly without calling Next.js
+	combinedAuth := middleware.NewCombinedAuthMiddleware(cfg.FrontendURL)
+
+	// Setup webhook handler
+	webhookHandler := handler.NewWebhookHandler(db)
 
 	// API v1 routes
 	apiRouter := router.PathPrefix("/api/v1").Subrouter()
@@ -129,15 +135,15 @@ func main() {
 	// Public routes
 	apiRouter.HandleFunc("/hello", apiHandler.PublicHello).Methods("GET")
 
-	// Protected routes (require auth)
+	// Protected routes (require auth) - uses combined JWT + Better Auth
 	protectedRouter := apiRouter.PathPrefix("/protected").Subrouter()
-	protectedRouter.Use(authMiddleware.RequireAuth)
+	protectedRouter.Use(combinedAuth.RequireAuth)
 	protectedRouter.HandleFunc("/hello", apiHandler.ProtectedHello).Methods("GET")
 
-	// User routes (require auth)
-	apiRouter.Handle("/me", authMiddleware.RequireAuth(http.HandlerFunc(apiHandler.GetCurrentUser))).Methods("GET", "OPTIONS")
-	apiRouter.Handle("/stats", authMiddleware.RequireAuth(http.HandlerFunc(apiHandler.GetUserStats))).Methods("GET", "OPTIONS")
-	apiRouter.Handle("/stats", authMiddleware.RequireAuth(http.HandlerFunc(apiHandler.UpdateUserStats))).Methods("POST", "OPTIONS")
+	// User routes (require auth) - uses combined JWT + Better Auth
+	apiRouter.Handle("/me", combinedAuth.RequireAuth(http.HandlerFunc(apiHandler.GetCurrentUser))).Methods("GET", "OPTIONS")
+	apiRouter.Handle("/stats", combinedAuth.RequireAuth(http.HandlerFunc(apiHandler.GetUserStats))).Methods("GET", "OPTIONS")
+	apiRouter.Handle("/stats", combinedAuth.RequireAuth(http.HandlerFunc(apiHandler.UpdateUserStats))).Methods("POST", "OPTIONS")
 
 	// SSE endpoint for real-time updates
 	apiRouter.Handle("/events", sseBroker).Methods("GET")
@@ -148,6 +154,15 @@ func main() {
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]string{"status": "broadcast sent"})
 	}).Methods("POST")
+
+	// Webhook routes (internal, protected by secret)
+	webhookRouter := apiRouter.PathPrefix("/webhooks").Subrouter()
+	webhookRouter.HandleFunc("/session-created", webhookHandler.SessionCreated).Methods("POST")
+	webhookRouter.HandleFunc("/send-magic-link", webhookHandler.SendMagicLink).Methods("POST")
+	webhookRouter.HandleFunc("/send-verification-email", webhookHandler.SendVerificationEmail).Methods("POST")
+	webhookRouter.HandleFunc("/send-2fa-otp", webhookHandler.Send2FAOTP).Methods("POST")
+	webhookRouter.HandleFunc("/send-2fa-enabled", webhookHandler.Send2FAEnabledNotification).Methods("POST")
+	webhookRouter.HandleFunc("/send-passkey-added", webhookHandler.SendPasskeyAddedNotification).Methods("POST")
 
 	// Setup HTTP server with timeouts
 	server := &http.Server{

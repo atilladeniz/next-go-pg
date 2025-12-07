@@ -15,5 +15,15 @@ services:
       timeout: 5s
       retries: 3
 
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      - "8025:8025"  # Web UI
+      - "1025:1025"  # SMTP
+    environment:
+      - MP_UI_AUTH_FILE=
+      - MP_SMTP_AUTH_ACCEPT_ANY=true
+      - MP_SMTP_AUTH_ALLOW_INSECURE=true
+
 volumes:
   postgres_data:

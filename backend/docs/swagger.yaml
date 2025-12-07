@@ -12,6 +12,63 @@ definitions:
         example: Hello World
         type: string
     type: object
+  internal_handler.Send2FAEnabledNotificationRequest:
+    properties:
+      email:
+        type: string
+      method:
+        description: '"totp" or "passkey"'
+        type: string
+      name:
+        type: string
+    type: object
+  internal_handler.Send2FAOTPRequest:
+    properties:
+      email:
+        type: string
+      name:
+        type: string
+      otp:
+        type: string
+    type: object
+  internal_handler.SendMagicLinkRequest:
+    properties:
+      email:
+        type: string
+      url:
+        type: string
+    type: object
+  internal_handler.SendPasskeyAddedNotificationRequest:
+    properties:
+      device:
+        type: string
+      email:
+        type: string
+      name:
+        type: string
+      passkeyName:
+        type: string
+    type: object
+  internal_handler.SendVerificationEmailRequest:
+    properties:
+      email:
+        type: string
+      name:
+        type: string
+      url:
+        type: string
+    type: object
+  internal_handler.SessionCreatedRequest:
+    properties:
+      ipAddress:
+        type: string
+      sessionId:
+        type: string
+      userAgent:
+        type: string
+      userId:
+        type: string
+    type: object
   internal_handler.UpdateStatRequest:
     properties:
       delta:
@@ -166,6 +223,217 @@ paths:
       summary: Update user statistics
       tags:
       - users
+  /webhooks/send-2fa-enabled:
+    post:
+      consumes:
+      - application/json
+      description: Notifies user that 2FA has been enabled on their account
+      parameters:
+      - description: Webhook secret for authentication
+        in: header
+        name: X-Webhook-Secret
+        required: true
+        type: string
+      - description: Notification data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler.Send2FAEnabledNotificationRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_handler.MessageResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/internal_handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_handler.ErrorResponse'
+      summary: Send 2FA enabled notification
+      tags:
+      - webhooks
+  /webhooks/send-2fa-otp:
+    post:
+      consumes:
+      - application/json
+      description: Called by Better Auth to send 2FA one-time password via email
+      parameters:
+      - description: Webhook secret for authentication
+        in: header
+        name: X-Webhook-Secret
+        required: true
+        type: string
+      - description: OTP data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler.Send2FAOTPRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_handler.MessageResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/internal_handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_handler.ErrorResponse'
+      summary: Send 2FA OTP email
+      tags:
+      - webhooks
+  /webhooks/send-magic-link:
+    post:
+      consumes:
+      - application/json
+      description: Called by Better Auth to send magic link login email
+      parameters:
+      - description: Webhook secret for authentication
+        in: header
+        name: X-Webhook-Secret
+        required: true
+        type: string
+      - description: Magic link data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler.SendMagicLinkRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_handler.MessageResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/internal_handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_handler.ErrorResponse'
+      summary: Send magic link email
+      tags:
+      - webhooks
+  /webhooks/send-passkey-added:
+    post:
+      consumes:
+      - application/json
+      description: Notifies user that a new passkey has been added to their account
+      parameters:
+      - description: Webhook secret for authentication
+        in: header
+        name: X-Webhook-Secret
+        required: true
+        type: string
+      - description: Notification data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler.SendPasskeyAddedNotificationRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_handler.MessageResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/internal_handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_handler.ErrorResponse'
+      summary: Send passkey added notification
+      tags:
+      - webhooks
+  /webhooks/send-verification-email:
+    post:
+      consumes:
+      - application/json
+      description: Called by Better Auth to send email verification link
+      parameters:
+      - description: Webhook secret for authentication
+        in: header
+        name: X-Webhook-Secret
+        required: true
+        type: string
+      - description: Verification data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler.SendVerificationEmailRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_handler.MessageResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/internal_handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_handler.ErrorResponse'
+      summary: Send verification email
+      tags:
+      - webhooks
+  /webhooks/session-created:
+    post:
+      consumes:
+      - application/json
+      description: Called by Better Auth when a new session is created. Sends notification
+        email for new devices.
+      parameters:
+      - description: Webhook secret for authentication
+        in: header
+        name: X-Webhook-Secret
+        required: true
+        type: string
+      - description: Session data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler.SessionCreatedRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_handler.MessageResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/internal_handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_handler.ErrorResponse'
+      summary: Handle new session webhook
+      tags:
+      - webhooks
 securityDefinitions:
   BearerAuth:
     in: header

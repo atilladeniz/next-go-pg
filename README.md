@@ -225,30 +225,60 @@ function MyComponent() {
 
 ## Authentication
 
-Better Auth with Email/Password Login.
+Better Auth with **Magic Link** (passwordless) authentication.
+
+### Flow
+
+1. User enters email on `/login`
+2. Backend sends Magic Link email
+3. User clicks link → Token verified → Logged in
 
 ### Pages
-- `/login` - Sign in
-- `/register` - Sign up
+
+- `/login` - Magic Link login
+- `/magic-link/verify` - Link verification UI
+- `/verify-email` - Email verification for new users
+- `/settings` - Session management (view/revoke sessions)
 - `/dashboard` - Protected area
+
+### Features
+
+- **Passwordless**: Magic Link authentication
+- **Rate Limiting**: 3 requests per minute
+- **Session Management**: View and revoke sessions
+- **Login Notifications**: Email on new device/IP
+- **Cross-Tab Sync**: Logout syncs across tabs
 
 ### Client Usage
 
 ```tsx
-import { signIn, signUp, signOut, useSession } from "@shared/lib/auth-client"
+import { signIn, signOut, authClient } from "@shared/lib/auth-client"
 
-// Get session
-const { data: session } = useSession()
-
-// Sign in
-await signIn.email({ email, password })
-
-// Sign up
-await signUp.email({ name, email, password })
+// Request Magic Link
+await signIn.magicLink({
+  email,
+  callbackURL: "/dashboard",
+})
 
 // Sign out
 await signOut()
+
+// List sessions
+const { data: sessions } = await authClient.listSessions()
+
+// Revoke session
+await authClient.revokeSession({ token })
 ```
+
+### Local Email Testing
+
+Mailpit is included for local email testing:
+
+```bash
+make dev  # Starts Mailpit on port 8025
+```
+
+Open [http://localhost:8025](http://localhost:8025) to view emails.
 
 ## Environment Variables
 

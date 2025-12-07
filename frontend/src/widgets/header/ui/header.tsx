@@ -1,13 +1,12 @@
 "use client"
 
 import type { SessionUser } from "@entities/user"
-import { broadcastSignOut, useAuthSync } from "@features/auth"
+import { useAuthSync } from "@features/auth"
 import { cn } from "@shared/lib"
-import { signOut } from "@shared/lib/auth-client"
-import { Button } from "@shared/ui/button"
 import Link from "next/link"
-import { usePathname, useRouter } from "next/navigation"
+import { usePathname } from "next/navigation"
 import { ModeToggle } from "./mode-toggle"
+import { UserMenu } from "./user-menu"
 
 const navItems = [
 	{ href: "/dashboard", label: "Dashboard" },
@@ -15,17 +14,9 @@ const navItems = [
 ]
 
 export function Header({ user }: { user: SessionUser }) {
-	const router = useRouter()
 	const pathname = usePathname()
 
-	// Cross-Tab Auth Synchronisation
 	useAuthSync()
-
-	const handleSignOut = async () => {
-		await signOut()
-		await broadcastSignOut() // Alle anderen Tabs benachrichtigen
-		router.push("/")
-	}
 
 	return (
 		<header className="border-b">
@@ -52,11 +43,8 @@ export function Header({ user }: { user: SessionUser }) {
 					</nav>
 				</div>
 				<div className="flex items-center gap-3">
-					<span className="text-sm text-muted-foreground">{user.name || user.email}</span>
 					<ModeToggle />
-					<Button variant="outline" size="sm" onClick={handleSignOut}>
-						Abmelden
-					</Button>
+					<UserMenu user={user} />
 				</div>
 			</div>
 		</header>
