@@ -19,7 +19,8 @@ Full-Stack Monorepo with Next.js Frontend and Go Backend.
 ├── shadcn.md           # shadcn/ui
 ├── tailwind.md         # Tailwind CSS 4
 ├── kamal-deploy.md     # Kamal Deployment
-└── logging.md          # Logging (zerolog + Pino)
+├── logging.md          # Logging (zerolog + Pino)
+└── disaster-recovery.md # Database Backups & Recovery
 ```
 
 > **Always check `.docs/` first** before searching the internet!
@@ -37,6 +38,7 @@ Full-Stack Monorepo with Next.js Frontend and Go Backend.
 | API | Swagger/swag → Orval |
 | Logging | zerolog (Go) + Pino (Next.js) |
 | Log Aggregation | Grafana + Loki + Promtail |
+| Database Backups | postgres-backup-s3 + RustFS (S3-compatible) |
 | Linting | Biome + Steiger (FSD) |
 
 ## Prerequisites
@@ -105,8 +107,9 @@ next-go-pg/
 │   │   ├── entities/        # Business Objects (User)
 │   │   └── shared/          # Reusable (UI, API, Lib, Logger)
 │   └── orval.config.ts      # API Generator Config
-├── docker-compose.dev.yml   # Dev Database
+├── docker-compose.dev.yml   # Dev Database + Mailpit
 ├── docker-compose.logging.yml # Logging Stack (Grafana + Loki)
+├── docker-compose.backup.yml  # Backup Stack (postgres-backup-s3 + RustFS)
 ├── deploy/
 │   ├── loki/                # Loki & Promtail Config
 │   └── grafana/             # Grafana Provisioning
@@ -257,6 +260,24 @@ make logs-down    # Stop logging stack
 make logs-open    # Open Grafana (localhost:3001)
 make logs-query q='{level="error"}'  # Query logs via CLI
 ```
+
+### Database Backups
+
+Fully automatic PostgreSQL backups to S3-compatible storage (RustFS).
+
+```bash
+make backup-up       # Start automatic backup system
+make backup-down     # Stop backup stack
+make backup-now      # Create backup immediately
+make backup-list     # List all backups in S3
+make backup-restore  # Restore from latest backup
+```
+
+- **Schedule**: Daily (configurable via `BACKUP_SCHEDULE`)
+- **Retention**: 7 days (configurable via `BACKUP_KEEP_DAYS`)
+- **Storage**: RustFS Console at http://localhost:9001
+
+See [Disaster Recovery](.docs/disaster-recovery.md) for details.
 
 ## API Workflow
 

@@ -1,4 +1,4 @@
-.PHONY: help dev dev-full dev-frontend dev-backend build build-frontend build-backend test clean install install-tools api lint docker-build docker-up docker-down goca-feature deploy deploy-staging deploy-production deploy-rollback deploy-logs deploy-console setup-hooks security-scan security-scan-history fetch-docs search-docs search-docs-index logs-up logs-down logs-open logs-query db-migrate migrate-up migrate-up-silent migrate-down migrate-version migrate-create metrics
+.PHONY: help dev dev-full dev-frontend dev-backend build build-frontend build-backend test clean install install-tools api lint docker-build docker-up docker-down goca-feature deploy deploy-staging deploy-production deploy-rollback deploy-logs deploy-console setup-hooks security-scan security-scan-history fetch-docs search-docs search-docs-index logs-up logs-down logs-open logs-query db-migrate migrate-up migrate-up-silent migrate-down migrate-version migrate-create metrics backup-up backup-down backup-now backup-list backup-restore
 
 .DEFAULT_GOAL := help
 
@@ -107,6 +107,14 @@ help: ## Show available commands
 	@echo "$(CYAN)━━━ Monitoring ━━━$(RESET)"
 	@echo ""
 	@echo "  $(GREEN)metrics$(RESET)           View Prometheus metrics $(DIM)(localhost:8080/metrics)$(RESET)"
+	@echo ""
+	@echo "$(CYAN)━━━ Database Backups ━━━$(RESET)"
+	@echo ""
+	@echo "  $(GREEN)backup-up$(RESET)         Start automatic backup (daily to S3)"
+	@echo "  $(GREEN)backup-down$(RESET)       Stop backup stack"
+	@echo "  $(GREEN)backup-now$(RESET)        Create manual backup now"
+	@echo "  $(GREEN)backup-list$(RESET)       List all backups"
+	@echo "  $(GREEN)backup-restore$(RESET)    Restore from latest or specific backup"
 	@echo ""
 
 # ━━━ Development ━━━
@@ -415,3 +423,47 @@ endif
 metrics:
 	@echo "$(CYAN)Opening Prometheus metrics...$(RESET)"
 	@open http://localhost:8080/metrics 2>/dev/null || xdg-open http://localhost:8080/metrics 2>/dev/null || echo "Open http://localhost:8080/metrics in your browser"
+
+# ━━━ Database Backups ━━━
+
+backup-up:
+	@echo "$(YELLOW)Starting automatic backup system...$(RESET)"
+	@docker compose -f docker-compose.dev.yml -f docker-compose.backup.yml up -d rustfs rustfs-init pg-backup
+	@echo ""
+	@echo "$(GREEN)✓ Backup system running$(RESET)"
+	@echo ""
+	@echo "  Schedule:      $(CYAN)Daily$(RESET) $(DIM)(change with BACKUP_SCHEDULE)$(RESET)"
+	@echo "  Retention:     $(CYAN)7 days$(RESET) $(DIM)(change with BACKUP_KEEP_DAYS)$(RESET)"
+	@echo "  Storage:       $(CYAN)RustFS S3$(RESET) $(DIM)(localhost:9001 for UI)$(RESET)"
+	@echo ""
+	@echo "$(DIM)Commands:$(RESET)"
+	@echo "  make backup-now      $(DIM)# Trigger backup immediately$(RESET)"
+	@echo "  make backup-list     $(DIM)# Show all backups$(RESET)"
+	@echo "  make backup-restore  $(DIM)# Restore from backup$(RESET)"
+	@echo ""
+
+backup-down:
+	@echo "$(YELLOW)Stopping backup system...$(RESET)"
+	@docker compose -f docker-compose.dev.yml -f docker-compose.backup.yml stop pg-backup rustfs
+	@docker compose -f docker-compose.dev.yml -f docker-compose.backup.yml rm -f pg-backup rustfs rustfs-init
+	@echo "$(GREEN)✓ Backup system stopped$(RESET)"
+
+backup-now:
+	@echo "$(YELLOW)Creating backup...$(RESET)"
+	@docker compose -f docker-compose.dev.yml -f docker-compose.backup.yml exec pg-backup sh backup.sh
+	@echo "$(GREEN)✓ Backup complete$(RESET)"
+
+backup-list:
+	@echo "$(CYAN)Backups in S3:$(RESET)"
+	@docker run --rm --network next-go-pg_default --entrypoint sh minio/mc:latest -c "mc alias set s3 http://rustfs:9000 rustfsadmin rustfsadmin >/dev/null 2>&1 && mc ls s3/backups/postgres/" 2>/dev/null || echo "No backups found or backup system not running"
+
+backup-restore:
+	@echo "$(YELLOW)Restoring from latest backup...$(RESET)"
+	@echo "$(YELLOW)⚠ This will overwrite the current database!$(RESET)"
+	@read -p "Are you sure? [y/N] " confirm; \
+	if [ "$$confirm" = "y" ] || [ "$$confirm" = "Y" ]; then \
+		docker compose -f docker-compose.dev.yml -f docker-compose.backup.yml exec pg-backup sh restore.sh; \
+		echo "$(GREEN)✓ Database restored$(RESET)"; \
+	else \
+		echo "Aborted."; \
+	fi

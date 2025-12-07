@@ -57,6 +57,7 @@ Full-Stack Monorepo with Next.js 16 Frontend and Go Backend, PostgreSQL database
 - **Database**: PostgreSQL 16 (Docker)
 - **Dev Environment**: Docker Compose for DB
 - **Log Aggregation**: Grafana + Loki + Promtail (self-hosted)
+- **Database Backups**: postgres-backup-s3 + RustFS (S3-compatible, fully automatic)
 
 ---
 
@@ -500,6 +501,13 @@ make logs-up          # Start logging stack
 make logs-down        # Stop logging stack
 make logs-open        # Open Grafana (localhost:3001)
 make logs-query q='...'  # Query logs via CLI
+
+# Database Backups (automatic, postgres-backup-s3 + RustFS)
+make backup-up        # Start automatic backup system
+make backup-down      # Stop backup stack
+make backup-now       # Create backup immediately
+make backup-list      # List all backups in S3
+make backup-restore   # Restore from latest backup
 ```
 
 ---
@@ -578,6 +586,49 @@ Query logs in Grafana with LogQL:
 ```
 
 See `.docs/logging.md` for full documentation.
+
+---
+
+## Database Backups (Automatic)
+
+Fully automatic PostgreSQL backup system with RustFS (S3-compatible storage).
+
+**No manual configuration required!** Just run `make backup-up`.
+
+### Architecture
+
+See `.concepts/architecture/backup-stack.md` for diagrams.
+
+| Service | Port | Purpose |
+|---------|------|---------|
+| postgres-backup-s3 | - | Automatic daily backups |
+| rustfs-init | - | Auto-creates bucket on startup |
+| RustFS | 9000/9001 | S3-compatible storage |
+
+### Usage
+
+```bash
+make backup-up       # Start automatic backup system
+make backup-down     # Stop backup stack
+make backup-now      # Create backup immediately
+make backup-list     # List all backups in S3
+make backup-restore  # Restore from latest backup
+```
+
+### Configuration (Environment Variables)
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `BACKUP_SCHEDULE` | @daily | Cron schedule |
+| `BACKUP_KEEP_DAYS` | 7 | Retention period |
+| `S3_ACCESS_KEY` | rustfsadmin | RustFS credentials |
+| `S3_SECRET_KEY` | rustfsadmin | RustFS credentials |
+
+### RustFS Console
+
+http://localhost:9001/rustfs/console/ (rustfsadmin/rustfsadmin)
+
+See `.docs/disaster-recovery.md` for full documentation.
 
 ---
 

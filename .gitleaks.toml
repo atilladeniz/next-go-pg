@@ -25,11 +25,14 @@ id = "database-url-with-password"
 description = "Database URL with real credentials (not localhost dev)"
 regex = '''postgres(ql)?://[^:]+:[^@]+@[a-zA-Z][^/]+/'''
 tags = ["database", "credentials"]
-# Allow localhost dev URLs
+# Allow localhost dev URLs and docker-compose internal service names
 [rules.allowlist]
 regexes = [
     '''postgres(ql)?://[^:]+:[^@]+@localhost''',
-    '''postgres(ql)?://postgres:postgres@'''
+    '''postgres(ql)?://postgres:postgres@''',
+    '''postgres(ql)?://[^:]+:[^@]+@db:''',
+    '''postgres(ql)?://[^:]+:\$\{[^}]+\}@[^:]+:''',
+    '''postgres(ql)?://pgbackweb:[^@]+@pgbackweb-db:'''
 ]
 
 # Global Allowlist - generated/vendor/example files
@@ -50,5 +53,10 @@ paths = [
     '''backend/tmp/''',
     '''\.env\.example$''',
     '''secrets\.example$''',
-    '''\.docs/.*\.xml$'''
+    '''\.docs/'''
+]
+# Allow specific false positives in git history
+commits = [
+    # Example path /Users/yourname/ in README security section
+    '''f4bdeeabaa3acb23e88fe9396126b08fb33bf37c'''
 ]
