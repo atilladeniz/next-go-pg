@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.4](https://github.com/atilladeniz/next-go-pg/compare/v1.0.3...v1.0.4) (2025-12-07)
+
+
+### Bug Fixes
+
+* add packages write permission for GHCR ([#19](https://github.com/atilladeniz/next-go-pg/issues/19)) ([cf0ec07](https://github.com/atilladeniz/next-go-pg/commit/cf0ec075aa8d6eb38fcb24d9db810201afea2a5e))
+
 ## [1.0.3](https://github.com/atilladeniz/next-go-pg/compare/v1.0.2...v1.0.3) (2025-12-07)
 
 
