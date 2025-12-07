@@ -13,6 +13,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -53,6 +54,15 @@ var (
 func main() {
 	// Load configuration
 	cfg := config.Load()
+
+	// Validate configuration on startup
+	// In production: fatal on missing required vars
+	// In development: log warnings for common misconfigurations
+	if cfg.Environment == "production" {
+		cfg.MustValidate()
+	} else if err := cfg.ValidateWithWarnings(); err != nil {
+		log.Printf("Configuration warnings: %v", err)
+	}
 
 	// Initialize structured logger with optional Loki integration
 	logger.Init(logger.Config{
