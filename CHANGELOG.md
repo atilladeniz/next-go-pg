@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.1](https://github.com/atilladeniz/next-go-pg/compare/v1.4.0...v1.4.1) (2025-12-07)
+
+
+### Bug Fixes
+
+* remove cookie modification from getSession for Next.js 16 ([#34](https://github.com/atilladeniz/next-go-pg/issues/34)) ([b623a22](https://github.com/atilladeniz/next-go-pg/commit/b623a22bc2c515ba9579bd5a71c645ce8610a318))
+
 ## [1.4.0](https://github.com/atilladeniz/next-go-pg/compare/v1.3.1...v1.4.0) (2025-12-07)
 
 
