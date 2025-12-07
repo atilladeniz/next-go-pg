@@ -1,0 +1,60 @@
+# PR Auto-Labeler Configuration
+# Labels PRs based on changed files
+
+backend:
+  - changed-files:
+      - any-glob-to-any-file: "backend/**/*"
+
+frontend:
+  - changed-files:
+      - any-glob-to-any-file: "frontend/**/*"
+
+documentation:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "**/*.md"
+          - ".docs/**/*"
+          - "docs/**/*"
+
+ci:
+  - changed-files:
+      - any-glob-to-any-file:
+          - ".github/**/*"
+          - "Makefile"
+
+docker:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "**/Dockerfile*"
+          - "docker-compose*.yml"
+          - "deploy/**/*"
+
+api:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "backend/docs/**/*"
+          - "backend/internal/handler/**/*"
+          - "frontend/orval.config.ts"
+          - "frontend/src/shared/api/**/*"
+
+auth:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "backend/internal/middleware/auth*.go"
+          - "backend/internal/middleware/jwt*.go"
+          - "frontend/src/shared/lib/auth*/**/*"
+          - "frontend/src/features/auth/**/*"
+
+database:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "backend/internal/repository/**/*"
+          - "backend/internal/domain/**/*"
+          - "**/migrations/**/*"
+
+config:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "**/.env*"
+          - "**/config/**/*"
+          - "backend/pkg/config/**/*"
