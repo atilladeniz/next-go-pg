@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.5](https://github.com/atilladeniz/next-go-pg/compare/v1.0.4...v1.0.5) (2025-12-07)
+
+
+### Bug Fixes
+
+* skip Docker build check on main ([#21](https://github.com/atilladeniz/next-go-pg/issues/21)) ([6be33c5](https://github.com/atilladeniz/next-go-pg/commit/6be33c52a214e59493b4fe0c7505158ad1a02470))
+
 ## [1.0.4](https://github.com/atilladeniz/next-go-pg/compare/v1.0.3...v1.0.4) (2025-12-07)
 
 
