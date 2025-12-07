@@ -6,7 +6,7 @@
  * OpenAPI spec version: 1.0
  */
 
-export interface InternalHandlerUserStatsResponse {
+export interface HandlerUserStatsResponse {
   activityToday?: number;
   lastLogin?: string;
   memberSince?: string;

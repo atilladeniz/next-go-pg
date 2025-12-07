@@ -1,28 +1,27 @@
 basePath: /api/v1
 definitions:
-  internal_handler.ErrorResponse:
+  handler.ErrorResponse:
     properties:
       error:
         example: unauthorized
         type: string
     type: object
-  internal_handler.MessageResponse:
+  handler.MessageResponse:
     properties:
       message:
         example: Hello World
         type: string
     type: object
-  internal_handler.Send2FAEnabledNotificationRequest:
+  handler.Send2FAEnabledNotificationRequest:
     properties:
       email:
         type: string
       method:
-        description: '"totp" or "passkey"'
         type: string
       name:
         type: string
     type: object
-  internal_handler.Send2FAOTPRequest:
+  handler.Send2FAOTPRequest:
     properties:
       email:
         type: string
@@ -31,14 +30,14 @@ definitions:
       otp:
         type: string
     type: object
-  internal_handler.SendMagicLinkRequest:
+  handler.SendMagicLinkRequest:
     properties:
       email:
         type: string
       url:
         type: string
     type: object
-  internal_handler.SendPasskeyAddedNotificationRequest:
+  handler.SendPasskeyAddedNotificationRequest:
     properties:
       device:
         type: string
@@ -49,7 +48,7 @@ definitions:
       passkeyName:
         type: string
     type: object
-  internal_handler.SendVerificationEmailRequest:
+  handler.SendVerificationEmailRequest:
     properties:
       email:
         type: string
@@ -58,7 +57,7 @@ definitions:
       url:
         type: string
     type: object
-  internal_handler.SessionCreatedRequest:
+  handler.SessionCreatedRequest:
     properties:
       ipAddress:
         type: string
@@ -69,7 +68,7 @@ definitions:
       userId:
         type: string
     type: object
-  internal_handler.UpdateStatRequest:
+  handler.UpdateStatRequest:
     properties:
       delta:
         description: +1 or -1
@@ -80,7 +79,7 @@ definitions:
         example: projects
         type: string
     type: object
-  internal_handler.UserResponse:
+  handler.UserResponse:
     properties:
       email:
         example: john@example.com
@@ -92,7 +91,7 @@ definitions:
         example: John Doe
         type: string
     type: object
-  internal_handler.UserStatsResponse:
+  handler.UserStatsResponse:
     properties:
       activityToday:
         type: integer
@@ -125,7 +124,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/internal_handler.MessageResponse'
+            $ref: '#/definitions/handler.MessageResponse'
       summary: Public hello endpoint
       tags:
       - public
@@ -140,11 +139,11 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/internal_handler.UserResponse'
+            $ref: '#/definitions/handler.UserResponse'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/internal_handler.ErrorResponse'
+            $ref: '#/definitions/handler.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Get current user
@@ -161,11 +160,11 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/internal_handler.MessageResponse'
+            $ref: '#/definitions/handler.MessageResponse'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/internal_handler.ErrorResponse'
+            $ref: '#/definitions/handler.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Protected hello endpoint
@@ -182,11 +181,11 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/internal_handler.UserStatsResponse'
+            $ref: '#/definitions/handler.UserStatsResponse'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/internal_handler.ErrorResponse'
+            $ref: '#/definitions/handler.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Get user statistics
@@ -202,22 +201,22 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/internal_handler.UpdateStatRequest'
+          $ref: '#/definitions/handler.UpdateStatRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/internal_handler.UserStatsResponse'
+            $ref: '#/definitions/handler.UserStatsResponse'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/internal_handler.ErrorResponse'
+            $ref: '#/definitions/handler.ErrorResponse'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/internal_handler.ErrorResponse'
+            $ref: '#/definitions/handler.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Update user statistics
@@ -239,22 +238,22 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/internal_handler.Send2FAEnabledNotificationRequest'
+          $ref: '#/definitions/handler.Send2FAEnabledNotificationRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/internal_handler.MessageResponse'
+            $ref: '#/definitions/handler.MessageResponse'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/internal_handler.ErrorResponse'
+            $ref: '#/definitions/handler.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/internal_handler.ErrorResponse'
+            $ref: '#/definitions/handler.ErrorResponse'
       summary: Send 2FA enabled notification
       tags:
       - webhooks
@@ -274,22 +273,22 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/internal_handler.Send2FAOTPRequest'
+          $ref: '#/definitions/handler.Send2FAOTPRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/internal_handler.MessageResponse'
+            $ref: '#/definitions/handler.MessageResponse'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/internal_handler.ErrorResponse'
+            $ref: '#/definitions/handler.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/internal_handler.ErrorResponse'
+            $ref: '#/definitions/handler.ErrorResponse'
       summary: Send 2FA OTP email
       tags:
       - webhooks
@@ -309,22 +308,22 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/internal_handler.SendMagicLinkRequest'
+          $ref: '#/definitions/handler.SendMagicLinkRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/internal_handler.MessageResponse'
+            $ref: '#/definitions/handler.MessageResponse'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/internal_handler.ErrorResponse'
+            $ref: '#/definitions/handler.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/internal_handler.ErrorResponse'
+            $ref: '#/definitions/handler.ErrorResponse'
       summary: Send magic link email
       tags:
       - webhooks
@@ -344,22 +343,22 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/internal_handler.SendPasskeyAddedNotificationRequest'
+          $ref: '#/definitions/handler.SendPasskeyAddedNotificationRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/internal_handler.MessageResponse'
+            $ref: '#/definitions/handler.MessageResponse'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/internal_handler.ErrorResponse'
+            $ref: '#/definitions/handler.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/internal_handler.ErrorResponse'
+            $ref: '#/definitions/handler.ErrorResponse'
       summary: Send passkey added notification
       tags:
       - webhooks
@@ -379,22 +378,22 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/internal_handler.SendVerificationEmailRequest'
+          $ref: '#/definitions/handler.SendVerificationEmailRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/internal_handler.MessageResponse'
+            $ref: '#/definitions/handler.MessageResponse'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/internal_handler.ErrorResponse'
+            $ref: '#/definitions/handler.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/internal_handler.ErrorResponse'
+            $ref: '#/definitions/handler.ErrorResponse'
       summary: Send verification email
       tags:
       - webhooks
@@ -415,22 +414,22 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/internal_handler.SessionCreatedRequest'
+          $ref: '#/definitions/handler.SessionCreatedRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/internal_handler.MessageResponse'
+            $ref: '#/definitions/handler.MessageResponse'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/internal_handler.ErrorResponse'
+            $ref: '#/definitions/handler.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/internal_handler.ErrorResponse'
+            $ref: '#/definitions/handler.ErrorResponse'
       summary: Handle new session webhook
       tags:
       - webhooks

@@ -6,9 +6,8 @@
  * OpenAPI spec version: 1.0
  */
 
-export interface InternalHandlerSessionCreatedRequest {
-  ipAddress?: string;
-  sessionId?: string;
-  userAgent?: string;
-  userId?: string;
+export interface HandlerSendVerificationEmailRequest {
+  email?: string;
+  name?: string;
+  url?: string;
 }

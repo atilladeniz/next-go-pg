@@ -21,7 +21,7 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
-  InternalHandlerMessageResponse
+  HandlerMessageResponse
 } from '../../models';
 
 import { customFetch } from '../../custom-fetch';
@@ -36,7 +36,7 @@ type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
  * @summary Public hello endpoint
  */
 export type getHelloResponse200 = {
-  data: InternalHandlerMessageResponse
+  data: HandlerMessageResponse
   status: 200
 }
     

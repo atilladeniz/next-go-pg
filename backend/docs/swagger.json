@@ -26,7 +26,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.MessageResponse"
+                            "$ref": "#/definitions/handler.MessageResponse"
                         }
                     }
                 }
@@ -54,13 +54,13 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.UserResponse"
+                            "$ref": "#/definitions/handler.UserResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.ErrorResponse"
+                            "$ref": "#/definitions/handler.ErrorResponse"
                         }
                     }
                 }
@@ -88,13 +88,13 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.MessageResponse"
+                            "$ref": "#/definitions/handler.MessageResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.ErrorResponse"
+                            "$ref": "#/definitions/handler.ErrorResponse"
                         }
                     }
                 }
@@ -122,13 +122,13 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.UserStatsResponse"
+                            "$ref": "#/definitions/handler.UserStatsResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.ErrorResponse"
+                            "$ref": "#/definitions/handler.ErrorResponse"
                         }
                     }
                 }
@@ -157,7 +157,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.UpdateStatRequest"
+                            "$ref": "#/definitions/handler.UpdateStatRequest"
                         }
                     }
                 ],
@@ -165,19 +165,19 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.UserStatsResponse"
+                            "$ref": "#/definitions/handler.UserStatsResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.ErrorResponse"
+                            "$ref": "#/definitions/handler.ErrorResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.ErrorResponse"
+                            "$ref": "#/definitions/handler.ErrorResponse"
                         }
                     }
                 }
@@ -210,7 +210,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.Send2FAEnabledNotificationRequest"
+                            "$ref": "#/definitions/handler.Send2FAEnabledNotificationRequest"
                         }
                     }
                 ],
@@ -218,19 +218,19 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.MessageResponse"
+                            "$ref": "#/definitions/handler.MessageResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.ErrorResponse"
+                            "$ref": "#/definitions/handler.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.ErrorResponse"
+                            "$ref": "#/definitions/handler.ErrorResponse"
                         }
                     }
                 }
@@ -263,7 +263,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.Send2FAOTPRequest"
+                            "$ref": "#/definitions/handler.Send2FAOTPRequest"
                         }
                     }
                 ],
@@ -271,19 +271,19 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.MessageResponse"
+                            "$ref": "#/definitions/handler.MessageResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.ErrorResponse"
+                            "$ref": "#/definitions/handler.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.ErrorResponse"
+                            "$ref": "#/definitions/handler.ErrorResponse"
                         }
                     }
                 }
@@ -316,7 +316,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.SendMagicLinkRequest"
+                            "$ref": "#/definitions/handler.SendMagicLinkRequest"
                         }
                     }
                 ],
@@ -324,19 +324,19 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.MessageResponse"
+                            "$ref": "#/definitions/handler.MessageResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.ErrorResponse"
+                            "$ref": "#/definitions/handler.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.ErrorResponse"
+                            "$ref": "#/definitions/handler.ErrorResponse"
                         }
                     }
                 }
@@ -369,7 +369,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.SendPasskeyAddedNotificationRequest"
+                            "$ref": "#/definitions/handler.SendPasskeyAddedNotificationRequest"
                         }
                     }
                 ],
@@ -377,19 +377,19 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.MessageResponse"
+                            "$ref": "#/definitions/handler.MessageResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.ErrorResponse"
+                            "$ref": "#/definitions/handler.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.ErrorResponse"
+                            "$ref": "#/definitions/handler.ErrorResponse"
                         }
                     }
                 }
@@ -422,7 +422,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.SendVerificationEmailRequest"
+                            "$ref": "#/definitions/handler.SendVerificationEmailRequest"
                         }
                     }
                 ],
@@ -430,19 +430,19 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.MessageResponse"
+                            "$ref": "#/definitions/handler.MessageResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.ErrorResponse"
+                            "$ref": "#/definitions/handler.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.ErrorResponse"
+                            "$ref": "#/definitions/handler.ErrorResponse"
                         }
                     }
                 }
@@ -475,7 +475,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.SessionCreatedRequest"
+                            "$ref": "#/definitions/handler.SessionCreatedRequest"
                         }
                     }
                 ],
@@ -483,19 +483,19 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.MessageResponse"
+                            "$ref": "#/definitions/handler.MessageResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.ErrorResponse"
+                            "$ref": "#/definitions/handler.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.ErrorResponse"
+                            "$ref": "#/definitions/handler.ErrorResponse"
                         }
                     }
                 }
@@ -503,7 +503,7 @@
         }
     },
     "definitions": {
-        "internal_handler.ErrorResponse": {
+        "handler.ErrorResponse": {
             "type": "object",
             "properties": {
                 "error": {
@@ -512,7 +512,7 @@
                 }
             }
         },
-        "internal_handler.MessageResponse": {
+        "handler.MessageResponse": {
             "type": "object",
             "properties": {
                 "message": {
@@ -521,14 +521,13 @@
                 }
             }
         },
-        "internal_handler.Send2FAEnabledNotificationRequest": {
+        "handler.Send2FAEnabledNotificationRequest": {
             "type": "object",
             "properties": {
                 "email": {
                     "type": "string"
                 },
                 "method": {
-                    "description": "\"totp\" or \"passkey\"",
                     "type": "string"
                 },
                 "name": {
@@ -536,7 +535,7 @@
                 }
             }
         },
-        "internal_handler.Send2FAOTPRequest": {
+        "handler.Send2FAOTPRequest": {
             "type": "object",
             "properties": {
                 "email": {
@@ -550,7 +549,7 @@
                 }
             }
         },
-        "internal_handler.SendMagicLinkRequest": {
+        "handler.SendMagicLinkRequest": {
             "type": "object",
             "properties": {
                 "email": {
@@ -561,7 +560,7 @@
                 }
             }
         },
-        "internal_handler.SendPasskeyAddedNotificationRequest": {
+        "handler.SendPasskeyAddedNotificationRequest": {
             "type": "object",
             "properties": {
                 "device": {
@@ -578,7 +577,7 @@
                 }
             }
         },
-        "internal_handler.SendVerificationEmailRequest": {
+        "handler.SendVerificationEmailRequest": {
             "type": "object",
             "properties": {
                 "email": {
@@ -592,7 +591,7 @@
                 }
             }
         },
-        "internal_handler.SessionCreatedRequest": {
+        "handler.SessionCreatedRequest": {
             "type": "object",
             "properties": {
                 "ipAddress": {
@@ -609,7 +608,7 @@
                 }
             }
         },
-        "internal_handler.UpdateStatRequest": {
+        "handler.UpdateStatRequest": {
             "type": "object",
             "properties": {
                 "delta": {
@@ -624,7 +623,7 @@
                 }
             }
         },
-        "internal_handler.UserResponse": {
+        "handler.UserResponse": {
             "type": "object",
             "properties": {
                 "email": {
@@ -641,7 +640,7 @@
                 }
             }
         },
-        "internal_handler.UserStatsResponse": {
+        "handler.UserStatsResponse": {
             "type": "object",
             "properties": {
                 "activityToday": {

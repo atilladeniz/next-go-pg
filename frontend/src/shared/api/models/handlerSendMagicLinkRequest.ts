@@ -6,8 +6,7 @@
  * OpenAPI spec version: 1.0
  */
 
-export interface InternalHandlerSendVerificationEmailRequest {
+export interface HandlerSendMagicLinkRequest {
   email?: string;
-  name?: string;
   url?: string;
 }

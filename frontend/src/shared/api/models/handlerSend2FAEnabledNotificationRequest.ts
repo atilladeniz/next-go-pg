@@ -6,8 +6,8 @@
  * OpenAPI spec version: 1.0
  */
 
-export interface InternalHandlerSend2FAOTPRequest {
+export interface HandlerSend2FAEnabledNotificationRequest {
   email?: string;
+  method?: string;
   name?: string;
-  otp?: string;
 }
