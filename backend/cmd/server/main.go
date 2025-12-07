@@ -113,10 +113,16 @@ func main() {
 	// Setup middlewares
 	loggingMiddleware := middleware.NewLoggingMiddleware()
 	corsMiddleware := middleware.NewCORSMiddleware(cfg.FrontendURL)
+	rateLimitMiddleware := middleware.NewRateLimitMiddleware(middleware.RateLimitConfig{
+		RequestsPerMinute: cfg.RateLimit.RequestsPerMinute,
+		BurstSize:         cfg.RateLimit.BurstSize,
+		SkipPaths:         []string{"/health", "/health/ready", "/health/live"},
+	})
 
 	// Apply middlewares (order matters: logging first to capture all requests)
 	router.Use(loggingMiddleware.Handler)
 	router.Use(corsMiddleware.Handler)
+	router.Use(rateLimitMiddleware.Handler)
 
 	// Health check endpoint with comprehensive checks
 	router.HandleFunc("/health", healthCheckHandler).Methods("GET")

@@ -251,6 +251,12 @@ type Config struct {
 	Database    DatabaseConfig
 	Server      ServerConfig
 	Logging     LoggingConfig
+	RateLimit   RateLimitConfig
+}
+
+type RateLimitConfig struct {
+	RequestsPerMinute int
+	BurstSize         int
 }
 
 type LoggingConfig struct {
@@ -309,6 +315,10 @@ func Load() *Config {
 		Logging: LoggingConfig{
 			AnonymizeIPs: getEnvAsBool("LOG_ANONYMIZE_IPS", false),
 			WithCaller:   getEnvAsBool("LOG_WITH_CALLER", false),
+		},
+		RateLimit: RateLimitConfig{
+			RequestsPerMinute: getEnvAsInt("RATE_LIMIT_REQUESTS_PER_MINUTE", 60),
+			BurstSize:         getEnvAsInt("RATE_LIMIT_BURST_SIZE", 10),
 		},
 	}
 }
