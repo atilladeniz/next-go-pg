@@ -123,6 +123,9 @@ func main() {
 	apiHandler := handler.NewAPIHandler(cfg.FrontendURL, sseBroker, statsRepo)
 	authMiddleware := apiHandler.GetAuthMiddleware()
 
+	// Setup webhook handler
+	webhookHandler := handler.NewWebhookHandler(db)
+
 	// API v1 routes
 	apiRouter := router.PathPrefix("/api/v1").Subrouter()
 
@@ -148,6 +151,10 @@ func main() {
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]string{"status": "broadcast sent"})
 	}).Methods("POST")
+
+	// Webhook routes (internal, protected by secret)
+	webhookRouter := apiRouter.PathPrefix("/webhooks").Subrouter()
+	webhookRouter.HandleFunc("/session-created", webhookHandler.SessionCreated).Methods("POST")
 
 	// Setup HTTP server with timeouts
 	server := &http.Server{

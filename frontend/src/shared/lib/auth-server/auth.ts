@@ -18,20 +18,33 @@ const sendMail = async (to: string, subject: string, html: string) => {
 	})
 }
 
-function parseUserAgent(ua: string | null): string {
-	if (!ua) return "Unbekanntes Gerät"
-	let browser = "Browser"
-	let os = "System"
-	if (ua.includes("Firefox")) browser = "Firefox"
-	else if (ua.includes("Edg/")) browser = "Edge"
-	else if (ua.includes("Chrome")) browser = "Chrome"
-	else if (ua.includes("Safari")) browser = "Safari"
-	if (ua.includes("Windows")) os = "Windows"
-	else if (ua.includes("Mac OS")) os = "macOS"
-	else if (ua.includes("Linux")) os = "Linux"
-	else if (ua.includes("Android")) os = "Android"
-	else if (ua.includes("iPhone") || ua.includes("iPad")) os = "iOS"
-	return `${browser} auf ${os}`
+// Call backend webhook for session notifications
+const notifySessionCreated = async (session: {
+	id: string
+	userId: string
+	userAgent?: string | null
+	ipAddress?: string | null
+}) => {
+	const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080"
+	const webhookSecret = process.env.WEBHOOK_SECRET || ""
+
+	try {
+		await fetch(`${apiUrl}/api/v1/webhooks/session-created`, {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+				"X-Webhook-Secret": webhookSecret,
+			},
+			body: JSON.stringify({
+				sessionId: session.id,
+				userId: session.userId,
+				userAgent: session.userAgent || "",
+				ipAddress: session.ipAddress || "",
+			}),
+		})
+	} catch (error) {
+		console.error("Failed to notify backend about session:", error)
+	}
 }
 
 export const auth = betterAuth({
@@ -84,59 +97,8 @@ export const auth = betterAuth({
 		session: {
 			create: {
 				after: async (session) => {
-					const db = new Pool({ connectionString: process.env.DATABASE_URL })
-					try {
-						// Check if user has logged in from this device/IP before
-						const existingSession = await db.query(
-							`SELECT id FROM "session"
-							 WHERE "userId" = $1
-							 AND "userAgent" = $2
-							 AND "ipAddress" = $3
-							 AND id != $4
-							 LIMIT 1`,
-							[session.userId, session.userAgent, session.ipAddress, session.id],
-						)
-
-						// Skip notification if this device/IP combination is known
-						if (existingSession.rows.length > 0) return
-
-						const result = await db.query('SELECT email, name FROM "user" WHERE id = $1', [
-							session.userId,
-						])
-						const user = result.rows[0]
-						if (!user) return
-
-						const device = parseUserAgent(session.userAgent ?? null)
-						const time = new Date().toLocaleString("de-DE", {
-							dateStyle: "medium",
-							timeStyle: "short",
-						})
-
-						const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
-						const settingsUrl = `${appUrl}/settings`
-
-						await sendMail(
-							user.email,
-							"Neue Anmeldung von neuem Gerät",
-							`
-							<h1>Neue Anmeldung in deinem Konto</h1>
-							<p>Hallo ${user.name || ""},</p>
-							<p>Wir haben eine Anmeldung von einem neuen Gerät oder Standort festgestellt:</p>
-							<ul>
-								<li><strong>Gerät:</strong> ${device}</li>
-								<li><strong>IP-Adresse:</strong> ${session.ipAddress || "Unbekannt"}</li>
-								<li><strong>Zeit:</strong> ${time}</li>
-							</ul>
-							<p>Wenn du das nicht warst, überprüfe bitte sofort deine aktiven Sessions und beende verdächtige Sitzungen:</p>
-							<p><a href="${settingsUrl}" style="display: inline-block; padding: 12px 24px; background-color: #000; color: #fff; text-decoration: none; border-radius: 6px;">Sessions verwalten</a></p>
-							<p style="margin-top: 16px; font-size: 14px; color: #666;">
-								Oder kopiere diesen Link: <a href="${settingsUrl}">${settingsUrl}</a>
-							</p>
-							`,
-						)
-					} finally {
-						await db.end()
-					}
+					// Delegate to backend - clean separation of concerns
+					await notifySessionCreated(session)
 				},
 			},
 		},
@@ -148,7 +110,6 @@ export const auth = betterAuth({
 			sendMagicLink: async ({ email, url }) => {
 				// Rewrite URL from /api/auth/magic-link/verify to /magic-link/verify
 				const verifyUrl = url.replace("/api/auth/magic-link/verify", "/magic-link/verify")
-				const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
 
 				await sendMail(
 					email,
