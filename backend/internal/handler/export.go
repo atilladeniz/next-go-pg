@@ -3,9 +3,11 @@ package handler
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 
 	"github.com/google/uuid"
+	"github.com/gorilla/mux"
 
 	"github.com/atilladeniz/next-go-pg/backend/internal/jobs"
 	"github.com/atilladeniz/next-go-pg/backend/pkg/logger"
@@ -121,12 +123,9 @@ func (h *ExportHandler) StartExport(w http.ResponseWriter, r *http.Request) {
 // @Failure 404 {object} ErrorResponse
 // @Router /export/download/{id} [get]
 func (h *ExportHandler) DownloadExport(w http.ResponseWriter, r *http.Request) {
-	// Get download ID from URL
-	downloadID := r.PathValue("id")
-	if downloadID == "" {
-		// Fallback for older routers
-		downloadID = r.URL.Query().Get("id")
-	}
+	// Get download ID from URL using Gorilla Mux
+	vars := mux.Vars(r)
+	downloadID := vars["id"]
 
 	if downloadID == "" {
 		respondError(w, http.StatusBadRequest, "missing download ID")
@@ -143,7 +142,7 @@ func (h *ExportHandler) DownloadExport(w http.ResponseWriter, r *http.Request) {
 	// Set headers for download
 	w.Header().Set("Content-Type", result.ContentType)
 	w.Header().Set("Content-Disposition", "attachment; filename=\""+result.FileName+"\"")
-	w.Header().Set("Content-Length", string(rune(len(result.Data))))
+	w.Header().Set("Content-Length", fmt.Sprintf("%d", len(result.Data)))
 
 	// Write data
 	w.Write(result.Data)
