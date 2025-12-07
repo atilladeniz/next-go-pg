@@ -121,6 +121,12 @@ func main() {
 	sseBroker = sse.NewBroker()
 	logger.Info().Msg("SSE broker initialized")
 
+	// Setup repositories early (needed by workers)
+	var statsRepo *repository.UserStatsRepository
+	if db != nil {
+		statsRepo = repository.NewUserStatsRepository(db)
+	}
+
 	// Setup River job queue (if database is available)
 	var riverCtx context.Context
 	var riverCancel context.CancelFunc
@@ -174,6 +180,7 @@ func main() {
 				EmailConfig: emailConfig,
 				SSEBroker:   sseBroker,
 				ExportStore: exportStore,
+				StatsRepo:   statsRepo,
 			})
 
 			// Create River client
@@ -217,12 +224,6 @@ func main() {
 
 	// Prometheus metrics endpoint
 	router.Handle("/metrics", promhttp.Handler()).Methods("GET")
-
-	// Setup repositories
-	var statsRepo *repository.UserStatsRepository
-	if db != nil {
-		statsRepo = repository.NewUserStatsRepository(db)
-	}
 
 	// Setup API handlers
 	apiHandler := handler.NewAPIHandler(cfg.FrontendURL, sseBroker, statsRepo)

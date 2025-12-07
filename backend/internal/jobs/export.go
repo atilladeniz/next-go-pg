@@ -10,6 +10,7 @@ import (
 
 	"github.com/riverqueue/river"
 
+	"github.com/atilladeniz/next-go-pg/backend/internal/repository"
 	"github.com/atilladeniz/next-go-pg/backend/internal/sse"
 	"github.com/atilladeniz/next-go-pg/backend/pkg/logger"
 )
@@ -60,6 +61,7 @@ type DataExportWorker struct {
 	river.WorkerDefaults[DataExportArgs]
 	sseBroker   *sse.Broker
 	exportStore *ExportStore
+	statsRepo   *repository.UserStatsRepository
 }
 
 // ExportStore holds completed exports in memory (in production, use object storage)
@@ -102,10 +104,11 @@ func (s *ExportStore) Delete(id string) {
 	delete(s.exports, id)
 }
 
-func NewDataExportWorker(sseBroker *sse.Broker, exportStore *ExportStore) *DataExportWorker {
+func NewDataExportWorker(sseBroker *sse.Broker, exportStore *ExportStore, statsRepo *repository.UserStatsRepository) *DataExportWorker {
 	return &DataExportWorker{
 		sseBroker:   sseBroker,
 		exportStore: exportStore,
+		statsRepo:   statsRepo,
 	}
 }
 
@@ -136,8 +139,8 @@ func (w *DataExportWorker) Work(ctx context.Context, job *river.Job[DataExportAr
 		Message:  "Daten werden gesammelt...",
 	})
 
-	// Generate sample data
-	data := w.generateSampleData(args.UserID, args.DataType)
+	// Get real data from database
+	data := w.generateExportData(args.UserID, args.DataType)
 
 	time.Sleep(500 * time.Millisecond)
 	w.sendProgress(ExportProgress{
@@ -224,104 +227,55 @@ func (w *DataExportWorker) sendProgress(progress ExportProgress) {
 	w.sseBroker.Broadcast("export-progress", string(data))
 }
 
-func (w *DataExportWorker) generateSampleData(userID, dataType string) []map[string]interface{} {
-	// Generate sample data based on data type
+func (w *DataExportWorker) generateExportData(userID, dataType string) []map[string]interface{} {
 	now := time.Now()
+
+	// Try to get real stats from database
+	var projectCount, activityToday, notifications int
+	if w.statsRepo != nil {
+		stats, err := w.statsRepo.GetOrCreate(userID)
+		if err == nil {
+			projectCount = stats.ProjectCount
+			activityToday = stats.ActivityToday
+			notifications = stats.Notifications
+		}
+	}
 
 	switch dataType {
 	case "stats":
+		// Export current stats as time series (simplified - shows current values)
 		return []map[string]interface{}{
 			{
-				"datum":         now.AddDate(0, 0, -6).Format("02.01.2006"),
-				"projekte":      12,
-				"aufgaben":      45,
-				"abgeschlossen": 38,
-			},
-			{
-				"datum":         now.AddDate(0, 0, -5).Format("02.01.2006"),
-				"projekte":      13,
-				"aufgaben":      52,
-				"abgeschlossen": 44,
-			},
-			{
-				"datum":         now.AddDate(0, 0, -4).Format("02.01.2006"),
-				"projekte":      13,
-				"aufgaben":      58,
-				"abgeschlossen": 51,
-			},
-			{
-				"datum":         now.AddDate(0, 0, -3).Format("02.01.2006"),
-				"projekte":      14,
-				"aufgaben":      61,
-				"abgeschlossen": 55,
-			},
-			{
-				"datum":         now.AddDate(0, 0, -2).Format("02.01.2006"),
-				"projekte":      14,
-				"aufgaben":      67,
-				"abgeschlossen": 60,
-			},
-			{
-				"datum":         now.AddDate(0, 0, -1).Format("02.01.2006"),
-				"projekte":      15,
-				"aufgaben":      72,
-				"abgeschlossen": 65,
-			},
-			{
-				"datum":         now.Format("02.01.2006"),
-				"projekte":      15,
-				"aufgaben":      78,
-				"abgeschlossen": 70,
+				"datum":              now.Format("02.01.2006"),
+				"projekte":           projectCount,
+				"aktivitaet":         activityToday,
+				"benachrichtigungen": notifications,
 			},
 		}
 	case "activity":
 		return []map[string]interface{}{
 			{
-				"zeitpunkt": now.Add(-2 * time.Hour).Format("02.01.2006 15:04"),
-				"aktion":    "Projekt erstellt",
-				"details":   "Neues Projekt 'Website Redesign'",
-			},
-			{
-				"zeitpunkt": now.Add(-1 * time.Hour).Format("02.01.2006 15:04"),
-				"aktion":    "Aufgabe abgeschlossen",
-				"details":   "UI Mockups fertiggestellt",
-			},
-			{
-				"zeitpunkt": now.Add(-30 * time.Minute).Format("02.01.2006 15:04"),
-				"aktion":    "Kommentar hinzugefügt",
-				"details":   "Feedback zu Design-Entwürfen",
-			},
-			{
-				"zeitpunkt": now.Add(-15 * time.Minute).Format("02.01.2006 15:04"),
-				"aktion":    "Datei hochgeladen",
-				"details":   "final_design_v2.fig",
+				"zeitpunkt": now.Format("02.01.2006 15:04"),
+				"aktion":    "Export erstellt",
+				"details":   fmt.Sprintf("Aktivität heute: %d", activityToday),
 			},
 		}
 	default: // "all"
 		return []map[string]interface{}{
 			{
-				"kategorie": "Übersicht",
-				"metrik":    "Aktive Projekte",
-				"wert":      15,
-				"trend":     "+2 diese Woche",
+				"kategorie": "Dashboard",
+				"metrik":    "Projekte",
+				"wert":      projectCount,
 			},
 			{
-				"kategorie": "Übersicht",
-				"metrik":    "Offene Aufgaben",
-				"wert":      78,
-				"trend":     "-5 seit gestern",
+				"kategorie": "Dashboard",
+				"metrik":    "Aktivität Heute",
+				"wert":      activityToday,
 			},
 			{
-				"kategorie": "Übersicht",
-				"metrik":    "Abschlussrate",
-				"wert":      "89%",
-				"trend":     "+3% diesen Monat",
-			},
-			{
-				"kategorie": "Team",
-				"metrik":    "Aktive Mitglieder",
-				"wert":      8,
-				"trend":     "Unverändert",
+				"kategorie": "Dashboard",
+				"metrik":    "Benachrichtigungen",
+				"wert":      notifications,
 			},
 		}
 	}

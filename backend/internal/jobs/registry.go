@@ -4,6 +4,7 @@ package jobs
 import (
 	"github.com/riverqueue/river"
 
+	"github.com/atilladeniz/next-go-pg/backend/internal/repository"
 	"github.com/atilladeniz/next-go-pg/backend/internal/sse"
 )
 
@@ -12,6 +13,7 @@ type WorkerDeps struct {
 	EmailConfig *EmailConfig
 	SSEBroker   *sse.Broker
 	ExportStore *ExportStore
+	StatsRepo   *repository.UserStatsRepository
 }
 
 // RegisterWorkers registers all job workers with the given workers registry.
@@ -26,7 +28,7 @@ func RegisterWorkers(workers *river.Workers, deps *WorkerDeps) {
 
 	// Export workers
 	if deps.SSEBroker != nil && deps.ExportStore != nil {
-		river.AddWorker(workers, NewDataExportWorker(deps.SSEBroker, deps.ExportStore))
+		river.AddWorker(workers, NewDataExportWorker(deps.SSEBroker, deps.ExportStore, deps.StatsRepo))
 	}
 }
 
