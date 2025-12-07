@@ -378,3 +378,216 @@ func (h *WebhookHandler) sendEmail(to, subject, body string) error {
 
 	return h.mailer.DialAndSend(m)
 }
+
+// Send2FAOTPRequest is the payload for 2FA OTP email
+type Send2FAOTPRequest struct {
+	Email string `json:"email"`
+	Name  string `json:"name"`
+	OTP   string `json:"otp"`
+}
+
+// Send2FAOTP godoc
+// @Summary Send 2FA OTP email
+// @Description Called by Better Auth to send 2FA one-time password via email
+// @Tags webhooks
+// @Accept json
+// @Produce json
+// @Param X-Webhook-Secret header string true "Webhook secret for authentication"
+// @Param request body Send2FAOTPRequest true "OTP data"
+// @Success 200 {object} MessageResponse
+// @Failure 401 {object} ErrorResponse
+// @Failure 500 {object} ErrorResponse
+// @Router /webhooks/send-2fa-otp [post]
+func (h *WebhookHandler) Send2FAOTP(w http.ResponseWriter, r *http.Request) {
+	if !h.verifySecret(w, r) {
+		return
+	}
+
+	var req Send2FAOTPRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(ErrorResponse{Error: "invalid request body"})
+		return
+	}
+
+	name := req.Name
+	if name == "" {
+		name = "Nutzer"
+	}
+
+	emailBody := `
+		<h1>Dein Sicherheitscode</h1>
+		<p>Hallo ` + name + `,</p>
+		<p>Dein Einmal-Code für die Zwei-Faktor-Authentifizierung lautet:</p>
+		<p style="margin: 24px 0; text-align: center;">
+			<span style="display: inline-block; padding: 16px 32px; background-color: #f4f4f4; font-size: 32px; font-weight: bold; letter-spacing: 8px; font-family: monospace; border-radius: 8px;">` + req.OTP + `</span>
+		</p>
+		<p style="font-size: 14px; color: #666;">Dieser Code ist 3 Minuten gültig.</p>
+		<p style="font-size: 14px; color: #666;">Falls du diesen Code nicht angefordert hast, ignoriere diese E-Mail.</p>
+	`
+
+	if err := h.sendEmail(req.Email, "Dein Sicherheitscode", emailBody); err != nil {
+		logger.Error().Err(err).Str("email", req.Email).Msg("Failed to send 2FA OTP email")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(ErrorResponse{Error: "failed to send email"})
+		return
+	}
+
+	logger.Info().Str("email", req.Email).Msg("2FA OTP email sent")
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(MessageResponse{Message: "2fa otp sent"})
+}
+
+// Send2FAEnabledNotificationRequest is the payload for 2FA enabled notification
+type Send2FAEnabledNotificationRequest struct {
+	Email  string `json:"email"`
+	Name   string `json:"name"`
+	Method string `json:"method"` // "totp" or "passkey"
+}
+
+// Send2FAEnabledNotification godoc
+// @Summary Send 2FA enabled notification
+// @Description Notifies user that 2FA has been enabled on their account
+// @Tags webhooks
+// @Accept json
+// @Produce json
+// @Param X-Webhook-Secret header string true "Webhook secret for authentication"
+// @Param request body Send2FAEnabledNotificationRequest true "Notification data"
+// @Success 200 {object} MessageResponse
+// @Failure 401 {object} ErrorResponse
+// @Failure 500 {object} ErrorResponse
+// @Router /webhooks/send-2fa-enabled [post]
+func (h *WebhookHandler) Send2FAEnabledNotification(w http.ResponseWriter, r *http.Request) {
+	if !h.verifySecret(w, r) {
+		return
+	}
+
+	var req Send2FAEnabledNotificationRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(ErrorResponse{Error: "invalid request body"})
+		return
+	}
+
+	name := req.Name
+	if name == "" {
+		name = "Nutzer"
+	}
+
+	methodName := "Zwei-Faktor-Authentifizierung"
+	if req.Method == "passkey" {
+		methodName = "Passkey"
+	} else if req.Method == "totp" {
+		methodName = "Authenticator-App (TOTP)"
+	}
+
+	appURL := os.Getenv("NEXT_PUBLIC_APP_URL")
+	if appURL == "" {
+		appURL = "http://localhost:3000"
+	}
+	settingsURL := appURL + "/settings"
+
+	emailBody := `
+		<h1>Sicherheit aktiviert</h1>
+		<p>Hallo ` + name + `,</p>
+		<p>Die folgende Sicherheitsmethode wurde für dein Konto aktiviert:</p>
+		<p style="margin: 16px 0; padding: 12px 16px; background-color: #f0f9ff; border-left: 4px solid #0284c7; font-weight: bold;">` + methodName + `</p>
+		<p style="font-size: 14px; color: #666;">Falls du das nicht warst, überprüfe sofort deine Sicherheitseinstellungen:</p>
+		<p style="margin: 16px 0;">
+			<a href="` + settingsURL + `" style="display: inline-block; padding: 12px 24px; background-color: #000; color: #fff; text-decoration: none; border-radius: 6px;">Einstellungen öffnen</a>
+		</p>
+	`
+
+	if err := h.sendEmail(req.Email, "Sicherheitsmethode aktiviert", emailBody); err != nil {
+		logger.Error().Err(err).Str("email", req.Email).Msg("Failed to send 2FA enabled notification")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(ErrorResponse{Error: "failed to send email"})
+		return
+	}
+
+	logger.Info().Str("email", req.Email).Str("method", req.Method).Msg("2FA enabled notification sent")
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(MessageResponse{Message: "notification sent"})
+}
+
+// SendPasskeyAddedNotificationRequest is the payload for passkey added notification
+type SendPasskeyAddedNotificationRequest struct {
+	Email       string `json:"email"`
+	Name        string `json:"name"`
+	PasskeyName string `json:"passkeyName"`
+	Device      string `json:"device"`
+}
+
+// SendPasskeyAddedNotification godoc
+// @Summary Send passkey added notification
+// @Description Notifies user that a new passkey has been added to their account
+// @Tags webhooks
+// @Accept json
+// @Produce json
+// @Param X-Webhook-Secret header string true "Webhook secret for authentication"
+// @Param request body SendPasskeyAddedNotificationRequest true "Notification data"
+// @Success 200 {object} MessageResponse
+// @Failure 401 {object} ErrorResponse
+// @Failure 500 {object} ErrorResponse
+// @Router /webhooks/send-passkey-added [post]
+func (h *WebhookHandler) SendPasskeyAddedNotification(w http.ResponseWriter, r *http.Request) {
+	if !h.verifySecret(w, r) {
+		return
+	}
+
+	var req SendPasskeyAddedNotificationRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(ErrorResponse{Error: "invalid request body"})
+		return
+	}
+
+	name := req.Name
+	if name == "" {
+		name = "Nutzer"
+	}
+
+	passkeyName := req.PasskeyName
+	if passkeyName == "" {
+		passkeyName = "Unbenannt"
+	}
+
+	device := req.Device
+	if device == "" {
+		device = "Unbekanntes Gerät"
+	}
+
+	timeStr := time.Now().Format("02.01.2006, 15:04")
+
+	appURL := os.Getenv("NEXT_PUBLIC_APP_URL")
+	if appURL == "" {
+		appURL = "http://localhost:3000"
+	}
+	settingsURL := appURL + "/settings"
+
+	emailBody := `
+		<h1>Neuer Passkey hinzugefügt</h1>
+		<p>Hallo ` + name + `,</p>
+		<p>Ein neuer Passkey wurde zu deinem Konto hinzugefügt:</p>
+		<ul style="margin: 16px 0; padding: 16px; background-color: #f4f4f4; border-radius: 8px; list-style: none;">
+			<li><strong>Name:</strong> ` + passkeyName + `</li>
+			<li><strong>Gerät:</strong> ` + device + `</li>
+			<li><strong>Hinzugefügt:</strong> ` + timeStr + `</li>
+		</ul>
+		<p style="font-size: 14px; color: #666;">Falls du das nicht warst, entferne den Passkey sofort in deinen Einstellungen:</p>
+		<p style="margin: 16px 0;">
+			<a href="` + settingsURL + `" style="display: inline-block; padding: 12px 24px; background-color: #dc2626; color: #fff; text-decoration: none; border-radius: 6px;">Passkey entfernen</a>
+		</p>
+	`
+
+	if err := h.sendEmail(req.Email, "Neuer Passkey hinzugefügt", emailBody); err != nil {
+		logger.Error().Err(err).Str("email", req.Email).Msg("Failed to send passkey added notification")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(ErrorResponse{Error: "failed to send email"})
+		return
+	}
+
+	logger.Info().Str("email", req.Email).Str("passkey_name", passkeyName).Msg("Passkey added notification sent")
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(MessageResponse{Message: "notification sent"})
+}

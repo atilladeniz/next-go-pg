@@ -157,6 +157,9 @@ func main() {
 	webhookRouter.HandleFunc("/session-created", webhookHandler.SessionCreated).Methods("POST")
 	webhookRouter.HandleFunc("/send-magic-link", webhookHandler.SendMagicLink).Methods("POST")
 	webhookRouter.HandleFunc("/send-verification-email", webhookHandler.SendVerificationEmail).Methods("POST")
+	webhookRouter.HandleFunc("/send-2fa-otp", webhookHandler.Send2FAOTP).Methods("POST")
+	webhookRouter.HandleFunc("/send-2fa-enabled", webhookHandler.Send2FAEnabledNotification).Methods("POST")
+	webhookRouter.HandleFunc("/send-passkey-added", webhookHandler.SendPasskeyAddedNotification).Methods("POST")
 
 	// Setup HTTP server with timeouts
 	server := &http.Server{

@@ -25,9 +25,10 @@ export default function MagicLinkVerifyPage() {
 		}
 
 		async function verifyMagicLink() {
+			if (!token) return
 			try {
 				const result = await authClient.magicLink.verify({
-					query: { token: token! },
+					query: { token },
 				})
 
 				if (result.error) {

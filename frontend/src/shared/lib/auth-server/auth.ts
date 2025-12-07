@@ -1,5 +1,6 @@
+import { passkey } from "@better-auth/passkey"
 import { betterAuth } from "better-auth"
-import { magicLink } from "better-auth/plugins"
+import { magicLink, twoFactor } from "better-auth/plugins"
 import { Pool } from "pg"
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080"
@@ -16,8 +17,8 @@ const callWebhook = async (endpoint: string, data: Record<string, string>) => {
 			},
 			body: JSON.stringify(data),
 		})
-	} catch (error) {
-		console.error(`Failed to call webhook ${endpoint}:`, error)
+	} catch {
+		// Webhook failures are logged by the backend - silent fail to not block auth flow
 	}
 }
 
@@ -90,6 +91,24 @@ export const auth = betterAuth({
 					url: verifyUrl,
 				})
 			},
+		}),
+		twoFactor({
+			issuer: process.env.NEXT_PUBLIC_APP_NAME || "Next-Go-PG",
+			skipVerificationOnEnable: true, // No password for magic link users
+			otpOptions: {
+				async sendOTP({ user, otp }) {
+					await callWebhook("send-2fa-otp", {
+						email: user.email,
+						name: user.name || "",
+						otp,
+					})
+				},
+			},
+		}),
+		passkey({
+			rpID: process.env.PASSKEY_RP_ID || "localhost",
+			rpName: process.env.NEXT_PUBLIC_APP_NAME || "Next-Go-PG",
+			origin: process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
 		}),
 	],
 })

@@ -1,4 +1,5 @@
 import { UserInfo } from "@entities/user"
+import { SecurityCard } from "@features/security-settings"
 import { SessionsList } from "@features/user-settings"
 import { getSession } from "@shared/lib/auth-server"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@shared/ui/card"
@@ -27,6 +28,8 @@ export default async function SettingsPage() {
 						<UserInfo user={user} showEmail />
 					</CardContent>
 				</Card>
+
+				<SecurityCard />
 
 				<Card>
 					<CardHeader>
