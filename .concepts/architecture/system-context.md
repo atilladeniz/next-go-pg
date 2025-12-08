@@ -58,12 +58,16 @@ flowchart LR
         F[Frontend :3000]
         B[Backend :8080]
         D[(PostgreSQL)]
+        R[River Jobs]
     end
 
     U -->|HTTPS| F
     F -->|API Calls| B
+    F <-->|SSE Events| B
     B -->|SQL| D
-    B -->|SMTP| E
+    B -->|Enqueue| R
+    R -->|Process| D
+    R -->|SMTP| E
     B -->|OAuth| G
 ```
 

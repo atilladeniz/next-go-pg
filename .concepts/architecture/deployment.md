@@ -333,3 +333,69 @@ make backup-now      # Create backup immediately
 make backup-list     # List all backups
 make backup-restore  # Restore from latest backup
 ```
+
+## Background Jobs (River)
+
+Das Backend verwendet River als PostgreSQL-native Job Queue für asynchrone Aufgaben.
+
+```mermaid
+flowchart TB
+    subgraph API["HTTP API"]
+        W[Webhook Handler]
+        E[Export Handler]
+    end
+
+    subgraph River["River Job Queue"]
+        Q[(PostgreSQL<br/>river.job)]
+        WK[River Worker]
+    end
+
+    subgraph Jobs["Job Types"]
+        EM[Email Jobs]
+        EX[Export Jobs]
+    end
+
+    subgraph External
+        SMTP[SMTP Server]
+        SSE[SSE Events]
+    end
+
+    W -->|Enqueue| Q
+    E -->|Enqueue| Q
+    Q -->|LISTEN/NOTIFY| WK
+    WK --> EM
+    WK --> EX
+    EM --> SMTP
+    EX --> SSE
+```
+
+### Job Processing Flow
+
+```mermaid
+sequenceDiagram
+    participant API as API Handler
+    participant PG as PostgreSQL
+    participant W as River Worker
+    participant S as SMTP/SSE
+
+    API->>PG: INSERT into river.job
+    PG->>W: NOTIFY (new job)
+    W->>PG: SELECT FOR UPDATE SKIP LOCKED
+    W->>W: Process Job
+    W->>S: Send Email / SSE Event
+    W->>PG: Mark as completed
+```
+
+### Verfügbare Job-Typen
+
+| Job | Beschreibung | Trigger |
+|-----|-------------|---------|
+| `send_magic_link` | Magic Link Login | Auth Webhook |
+| `send_verification_email` | Email Verifizierung | Auth Webhook |
+| `send_2fa_otp` | 2FA Code | Auth Webhook |
+| `send_login_notification` | Login Alert | Auth Webhook |
+| `data_export` | CSV/JSON Export | User Request |
+
+### Fallback
+
+Bei Ausfall von River werden Emails synchron versendet (graceful degradation).

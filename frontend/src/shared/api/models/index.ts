@@ -14,6 +14,8 @@ export * from './handlerSendMagicLinkRequest';
 export * from './handlerSendPasskeyAddedNotificationRequest';
 export * from './handlerSendVerificationEmailRequest';
 export * from './handlerSessionCreatedRequest';
+export * from './handlerStartExportRequest';
+export * from './handlerStartExportResponse';
 export * from './handlerUpdateStatRequest';
 export * from './handlerUserResponse';
 export * from './handlerUserStatsResponse';
