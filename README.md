@@ -16,6 +16,8 @@ Full-Stack Monorepo with Next.js Frontend and Go Backend.
 ├── gorm.md             # GORM ORM
 ├── goca.md             # Goca CLI
 ├── orval.md            # Orval API Generator
+├── river.md            # River Job Queue
+├── background-jobs.md  # Background Job Integration
 ├── shadcn.md           # shadcn/ui
 ├── tailwind.md         # Tailwind CSS 4
 ├── kamal-deploy.md     # Kamal Deployment
@@ -34,7 +36,9 @@ Full-Stack Monorepo with Next.js Frontend and Go Backend.
 | Backend | Go, Gorilla Mux, Clean Architecture, GORM |
 | Code Generator | **Goca CLI** (Go Clean Architecture) |
 | Database | PostgreSQL 16 |
-| Auth | Better Auth |
+| Auth | Better Auth (Magic Link, JWT) |
+| Background Jobs | **River** (PostgreSQL-native, ~66k jobs/sec) |
+| Real-time | Server-Sent Events (SSE) |
 | API | Swagger/swag → Orval |
 | Logging | zerolog (Go) + Pino (Next.js) |
 | Log Aggregation | Grafana + Loki + Promtail |
@@ -96,14 +100,16 @@ next-go-pg/
 │   │   ├── usecase/         # Business Logic (goca make usecase)
 │   │   ├── repository/      # Data Access (goca make repository)
 │   │   ├── handler/         # HTTP Handler (goca make handler)
-│   │   └── middleware/      # Auth, CORS, Logging
+│   │   ├── middleware/      # Auth (JWT + Better Auth), CORS, Logging
+│   │   ├── jobs/            # River Background Jobs
+│   │   └── sse/             # Server-Sent Events Broker
 │   ├── pkg/logger/          # zerolog Logger
 │   └── docs/                # Swagger (generated)
 ├── frontend/                # Next.js Frontend (FSD Architecture)
 │   ├── src/
 │   │   ├── app/             # Next.js App Router
 │   │   ├── widgets/         # Composite UI (Header)
-│   │   ├── features/        # User Interactions (Auth, Stats)
+│   │   ├── features/        # User Interactions (Auth, Stats, Data Export)
 │   │   ├── entities/        # Business Objects (User)
 │   │   └── shared/          # Reusable (UI, API, Lib, Logger)
 │   └── orval.config.ts      # API Generator Config
@@ -292,6 +298,47 @@ function MyComponent() {
   const { data, isLoading } = useGetStats()
   // ...
 }
+```
+
+## Background Jobs (River)
+
+PostgreSQL-native job queue with ~66k jobs/sec throughput.
+
+### Job Types
+
+| Job | Description | Trigger |
+|-----|-------------|---------|
+| `send_magic_link` | Magic Link email | Login request |
+| `send_verification_email` | Email verification | New user |
+| `send_2fa_otp` | 2FA code | 2FA enabled |
+| `send_login_notification` | Login alert | New device/IP |
+| `data_export` | CSV/JSON export | User request |
+
+### Data Export Feature
+
+Export user data with real-time progress via SSE:
+
+```tsx
+// Frontend: Start export
+const { mutate: startExport } = usePostExportStart()
+startExport({ data: { format: "csv", dataType: "all" } })
+
+// Listen for progress via SSE
+useEffect(() => {
+  const es = new EventSource("/api/v1/events")
+  es.addEventListener("export-progress", (e) => {
+    const progress = JSON.parse(e.data)
+    // { jobId, status, progress: 0-100, downloadId }
+  })
+}, [])
+```
+
+### Architecture
+
+```
+User Request → Handler → Enqueue Job → PostgreSQL → River Worker → Process
+                                                          ↓
+                                              SSE Broadcast ← Progress Events
 ```
 
 ## Authentication
