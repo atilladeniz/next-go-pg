@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.5.0](https://github.com/atilladeniz/next-go-pg/compare/v1.4.1...v1.5.0) (2025-12-08)
+
+
+### Features
+
+* River Background Jobs with Data Export ([#36](https://github.com/atilladeniz/next-go-pg/issues/36)) ([310d160](https://github.com/atilladeniz/next-go-pg/commit/310d1605d28903bfe24e72d61c0aaa0b47d19cd1))
+
 ## [1.4.1](https://github.com/atilladeniz/next-go-pg/compare/v1.4.0...v1.4.1) (2025-12-07)
 
 
