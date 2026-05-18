@@ -295,13 +295,13 @@ This project includes a pre-configured Grafana + Loki + Promtail stack for local
 
 ```bash
 # Start logging stack
-make logs-up
+just logs-up
 
 # Open Grafana
-make logs-open  # Opens http://localhost:3001
+just logs-open  # Opens http://localhost:3001
 
 # Stop logging stack
-make logs-down
+just logs-down
 ```
 
 ### Components
@@ -350,9 +350,9 @@ make logs-down
 
 ```bash
 # Query logs from command line
-make logs-query q='{service="next-go-pg-api"}'
-make logs-query q='{level="error"}' limit=50
-make logs-query q='{category="auth"}'
+just logs-query '{service="next-go-pg-api"}'
+just logs-query '{level="error"}' 50
+just logs-query '{category="auth"}'
 ```
 
 ### Configuration Files
@@ -360,7 +360,7 @@ make logs-query q='{category="auth"}'
 - `deploy/loki/loki-config.yml` - Loki configuration
 - `deploy/loki/promtail-config.yml` - Promtail log collection rules
 - `deploy/grafana/provisioning/datasources/datasources.yml` - Grafana datasource
-- `docker-compose.logging.yml` - Docker Compose for logging stack
+- `deploy/compose/docker-compose.logging.yml` - Docker Compose for logging stack
 
 ### Log Labels (for filtering)
 

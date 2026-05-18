@@ -688,7 +688,12 @@ next-go-pg/
 │   │   ├── entities/         # Business Objects (User)
 │   │   └── shared/           # Reusable (UI, API, Lib)
 │   └── orval.config.ts
-└── docker-compose.dev.yml
+└── deploy/
+    └── compose/
+        ├── docker-compose.yml          # Production
+        ├── docker-compose.dev.yml      # Dev DB + Mailpit
+        ├── docker-compose.logging.yml  # Logging stack
+        └── docker-compose.backup.yml   # Backup stack
 ```
 
 ## Conventions

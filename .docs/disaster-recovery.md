@@ -15,13 +15,13 @@ Der Backup-Stack besteht aus:
 
 ```bash
 # Backup-Stack starten
-make backup-up
+just backup-up
 
 # Backup sofort erstellen
-make backup-now
+just backup-now
 
 # Backups anzeigen
-make backup-list
+just backup-list
 
 # RustFS Console öffnen (optional)
 # http://localhost:9001/rustfs/console/
@@ -41,10 +41,10 @@ make backup-list
 
 ```bash
 # Sofort-Backup erstellen
-make backup-now
+just backup-now
 
 # Oder direkt mit pg_dump
-docker compose -f docker-compose.dev.yml exec db pg_dump -U postgres -d nextgopg > backup.sql
+docker compose -f deploy/compose/docker-compose.dev.yml exec db pg_dump -U postgres -d nextgopg > backup.sql
 ```
 
 ## Disaster Recovery Prozess
@@ -53,13 +53,13 @@ docker compose -f docker-compose.dev.yml exec db pg_dump -U postgres -d nextgopg
 
 ```bash
 # 1. Neue Datenbank starten
-make db-up
+just db-up
 
 # 2. Migrations ausführen (Schema erstellen)
-make migrate-up
+just migrate-up
 
 # 3. Daten aus Backup wiederherstellen
-make backup-restore
+just backup-restore
 ```
 
 ### Szenario 2: Kompletter Server-Ausfall
@@ -70,22 +70,22 @@ git clone https://github.com/atilladeniz/next-go-pg.git
 cd next-go-pg
 
 # 2. Dependencies installieren
-make install
+just install
 
 # 3. Datenbank starten
-make db-up
+just db-up
 
 # 4. Migrations ausführen
-make migrate-up
+just migrate-up
 
 # 5. Backup-Stack starten
-make backup-up
+just backup-up
 
 # 6. Daten wiederherstellen (vom letzten Backup)
-make backup-restore
+just backup-restore
 
 # 7. Anwendung starten
-make dev
+just dev
 ```
 
 ### Szenario 3: Production (Docker)
@@ -108,7 +108,7 @@ Backups werden in RustFS gespeichert:
 
 ```bash
 # Backups anzeigen
-make backup-list
+just backup-list
 ```
 
 ### Production (S3/RustFS)
@@ -134,7 +134,7 @@ S3_SECRET_KEY=your-secret-key
 
 | Datei | Beschreibung |
 |-------|--------------|
-| `docker-compose.backup.yml` | postgres-backup-s3 + RustFS Service Definition |
+| `deploy/compose/docker-compose.backup.yml` | postgres-backup-s3 + RustFS Service Definition |
 | `backend/migrations/*.sql` | Schema-Definitionen |
 | `.env` | Datenbank-Credentials |
 
@@ -142,11 +142,11 @@ S3_SECRET_KEY=your-secret-key
 
 | Command | Beschreibung |
 |---------|--------------|
-| `make backup-up` | Startet automatisches Backup-System |
-| `make backup-down` | Stoppt Backup-Stack |
-| `make backup-now` | Erstellt sofort ein Backup |
-| `make backup-list` | Zeigt alle Backups in S3 |
-| `make backup-restore` | Stellt vom letzten Backup wieder her |
+| `just backup-up` | Startet automatisches Backup-System |
+| `just backup-down` | Stoppt Backup-Stack |
+| `just backup-now` | Erstellt sofort ein Backup |
+| `just backup-list` | Zeigt alle Backups in S3 |
+| `just backup-restore` | Stellt vom letzten Backup wieder her |
 
 ## Testen der Recovery
 
@@ -154,26 +154,26 @@ S3_SECRET_KEY=your-secret-key
 
 ```bash
 # 1. Backup erstellen
-make backup-now
+just backup-now
 
 # 2. Backup prüfen
-make backup-list
+just backup-list
 
 # 3. Datenbank löschen
-make db-reset
+just db-reset
 
 # 4. Recovery durchführen
-make db-up
-make migrate-up
-make backup-up
-make backup-restore
+just db-up
+just migrate-up
+just backup-up
+just backup-restore
 
 # 5. Anwendung testen
-make dev
+just dev
 ```
 
 ## Monitoring
 
-- **make backup-list**: Zeigt alle vorhandenen Backups
+- **just backup-list**: Zeigt alle vorhandenen Backups
 - **RustFS Console**: http://localhost:9001/rustfs/console/
 - Container-Logs: `docker logs next-go-pg-pg-backup-1`

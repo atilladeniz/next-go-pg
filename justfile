@@ -47,19 +47,19 @@ dev-backend: db-up
 # Start PostgreSQL database
 [group('db')]
 db-up:
-    @docker compose -f docker-compose.dev.yml up -d --wait
+    @docker compose -f deploy/compose/docker-compose.dev.yml up -d --wait
 
 # Stop PostgreSQL database
 [group('db')]
 db-down:
-    @docker compose -f docker-compose.dev.yml down
+    @docker compose -f deploy/compose/docker-compose.dev.yml down
 
 # Reset database (delete all data)
 [group('db')]
 [confirm("Reset database? All data will be lost. [y/N]")]
 db-reset:
-    @docker compose -f docker-compose.dev.yml down -v
-    @docker compose -f docker-compose.dev.yml up -d --wait
+    @docker compose -f deploy/compose/docker-compose.dev.yml down -v
+    @docker compose -f deploy/compose/docker-compose.dev.yml up -d --wait
 
 # Run Better Auth + GORM migrations
 [group('db')]
@@ -328,7 +328,7 @@ search-docs-index:
 [group('logs')]
 logs-up:
     @echo "📊 Starting logging stack..."
-    @docker compose -f docker-compose.dev.yml -f docker-compose.logging.yml up -d loki promtail grafana
+    @docker compose -f deploy/compose/docker-compose.dev.yml -f deploy/compose/docker-compose.logging.yml up -d loki promtail grafana
     @echo "✓ Logging stack started"
     @echo ""
     @echo "  Grafana:  http://localhost:3001  (admin/admin)"
@@ -339,8 +339,8 @@ logs-up:
 [group('logs')]
 logs-down:
     @echo "Stopping logging stack..."
-    @docker compose -f docker-compose.dev.yml -f docker-compose.logging.yml stop loki promtail grafana
-    @docker compose -f docker-compose.dev.yml -f docker-compose.logging.yml rm -f loki promtail grafana
+    @docker compose -f deploy/compose/docker-compose.dev.yml -f deploy/compose/docker-compose.logging.yml stop loki promtail grafana
+    @docker compose -f deploy/compose/docker-compose.dev.yml -f deploy/compose/docker-compose.logging.yml rm -f loki promtail grafana
     @echo "✓ Logging stack stopped"
 
 # Open Grafana in browser (localhost:3001)
@@ -368,7 +368,7 @@ metrics:
 [group('backup')]
 backup-up:
     @echo "Starting automatic backup system..."
-    @docker compose -f docker-compose.dev.yml -f docker-compose.backup.yml up -d rustfs rustfs-init pg-backup
+    @docker compose -f deploy/compose/docker-compose.dev.yml -f deploy/compose/docker-compose.backup.yml up -d rustfs rustfs-init pg-backup
     @echo ""
     @echo "✓ Backup system running"
     @echo ""
@@ -381,15 +381,15 @@ backup-up:
 [group('backup')]
 backup-down:
     @echo "Stopping backup system..."
-    @docker compose -f docker-compose.dev.yml -f docker-compose.backup.yml stop pg-backup rustfs
-    @docker compose -f docker-compose.dev.yml -f docker-compose.backup.yml rm -f pg-backup rustfs rustfs-init
+    @docker compose -f deploy/compose/docker-compose.dev.yml -f deploy/compose/docker-compose.backup.yml stop pg-backup rustfs
+    @docker compose -f deploy/compose/docker-compose.dev.yml -f deploy/compose/docker-compose.backup.yml rm -f pg-backup rustfs rustfs-init
     @echo "✓ Backup system stopped"
 
 # Create manual backup now
 [group('backup')]
 backup-now:
     @echo "Creating backup..."
-    @docker compose -f docker-compose.dev.yml -f docker-compose.backup.yml exec pg-backup sh backup.sh
+    @docker compose -f deploy/compose/docker-compose.dev.yml -f deploy/compose/docker-compose.backup.yml exec pg-backup sh backup.sh
     @echo "✓ Backup complete"
 
 # List all backups
@@ -403,5 +403,5 @@ backup-list:
 [confirm("⚠  This will overwrite the current database. Continue? [y/N]")]
 backup-restore:
     @echo "Restoring from latest backup..."
-    @docker compose -f docker-compose.dev.yml -f docker-compose.backup.yml exec pg-backup sh restore.sh
+    @docker compose -f deploy/compose/docker-compose.dev.yml -f deploy/compose/docker-compose.backup.yml exec pg-backup sh restore.sh
     @echo "✓ Database restored"
