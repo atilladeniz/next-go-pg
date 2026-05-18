@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.6.0](https://github.com/atilladeniz/next-go-pg/compare/v1.5.0...v1.6.0) (2026-05-18)
+
+
+### Features
+
+* replace Makefile with justfile ([#40](https://github.com/atilladeniz/next-go-pg/issues/40)) ([c04471a](https://github.com/atilladeniz/next-go-pg/commit/c04471ab1f97ecee9ced1c21ad867b1e2163e7ca))
+
 ## [1.5.0](https://github.com/atilladeniz/next-go-pg/compare/v1.4.1...v1.5.0) (2025-12-08)
 
 
