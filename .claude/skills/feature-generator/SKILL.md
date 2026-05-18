@@ -40,7 +40,7 @@ goca make handler Product
 
 # Generate API Client
 cd ..
-make api
+just api
 ```
 
 ## Entity Registry (AutoMigrate)
@@ -71,10 +71,10 @@ goca feature Product --fields "name:string,price:float64,stock:int"
 
 # 3. Generate API
 cd ..
-make api
+just api
 
 # 4. Restart backend (migration runs automatically)
-make dev-backend
+just dev-backend
 ```
 
 ## Server-Side Data Loading Pattern (HydrationBoundary)
@@ -170,7 +170,7 @@ func (h *ProductHandler) GetProducts(w http.ResponseWriter, r *http.Request) {
 
 ```bash
 # Always run after handler changes:
-make api
+just api
 ```
 
 ## Conventions

@@ -26,7 +26,7 @@ $ARGUMENTS
 3. **Generate API Client**:
    ```bash
    cd ..
-   make api
+   just api
    ```
 
 4. **Show next steps** for Frontend integration:

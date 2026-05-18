@@ -152,10 +152,10 @@ goca feature Invoice --fields "userId:string,amount:float64,status:string"
 
 # 3. Swagger + Orval (one command!)
 cd ..
-make api
+just api
 
 # 4. Restart backend (migration runs automatically)
-make dev-backend
+just dev-backend
 ```
 
 ### Entity Registry
@@ -175,17 +175,17 @@ This is the **ONLY** place for AutoMigrate!
 
 ### API Generation Workflow
 
-`make api` automatically runs:
+`just api` automatically runs:
 
 1. **swag init** → Generates `backend/docs/swagger.json` from Go comments
 2. **orval** → Generates TypeScript Hooks in `frontend/src/shared/api/`
 
 ```bash
 # Run after every API change:
-make api
+just api
 
 # Or separately:
-make swagger     # Only generate Swagger
+just swagger     # Only generate Swagger
 cd frontend && bunx orval  # Only run Orval
 ```
 
@@ -194,7 +194,7 @@ cd frontend && bunx orval  # Only run Orval
 When you modify backend endpoints:
 
 1. Add Swagger comments to Handler (`// @Summary`, `// @Router`, etc.)
-2. Run `make api`
+2. Run `just api`
 3. Frontend can use the new hooks (`useGetX`, `usePostX`, etc.)
 
 ---
@@ -472,43 +472,43 @@ export function useSSE() {
 
 ```bash
 # Development
-make dev              # Start DB + Frontend + Backend
-make dev-frontend     # Frontend only (localhost:3000)
-make dev-backend      # Backend only (localhost:8080)
+just dev              # Start DB + Frontend + Backend
+just dev-frontend     # Frontend only (localhost:3000)
+just dev-backend      # Backend only (localhost:8080)
 
 # Database
-make db-up            # Start PostgreSQL
-make db-down          # Stop PostgreSQL
-make db-reset         # Reset database
+just db-up            # Start PostgreSQL
+just db-down          # Stop PostgreSQL
+just db-reset         # Reset database
 
 # API Generation
-make api              # Generate TypeScript client from OpenAPI
+just api              # Generate TypeScript client from OpenAPI
 
 # Quality
-make lint             # Biome + Steiger Linting
-make lint-fix         # Auto-fix Lint Errors
-make typecheck        # TypeScript Check
+just lint             # Biome + Steiger Linting
+just lint-fix         # Auto-fix Lint Errors
+just typecheck        # TypeScript Check
 
 # Security
-make security-scan    # Scan for secrets/sensitive data
-make setup-hooks      # Setup Git Hooks
+just security-scan    # Scan for secrets/sensitive data
+just setup-hooks      # Setup Git Hooks
 
 # Build
-make build            # Build Frontend + Backend
-make build-frontend   # Next.js Production Build
-make build-backend    # Go Binary
+just build            # Build Frontend + Backend
+just build-frontend   # Next.js Production Build
+just build-backend    # Go Binary
 
 # Logging Stack (Grafana + Loki)
-make logs-up          # Start logging stack
-make logs-down        # Stop logging stack
-make logs-open        # Open Grafana (localhost:3001)
-make logs-query q='...'  # Query logs via CLI
+just logs-up          # Start logging stack
+just logs-down        # Stop logging stack
+just logs-open        # Open Grafana (localhost:3001)
+just logs-query '...'    # Query logs via CLI
 
 # Background Jobs (River)
 cd backend
-make river-migrate-up      # Run River migrations
-make river-migrate-down    # Rollback River migration
-make river-migrate-version # Check migration status
+just river-migrate-up      # Run River migrations
+just river-migrate-down    # Rollback River migration
+just river-migrate-version # Check migration status
 ```
 
 ---
@@ -623,8 +623,8 @@ Every HTTP request gets `X-Request-ID` header for distributed tracing.
 Self-hosted log aggregation stack included:
 
 ```bash
-make logs-up      # Start Grafana + Loki + Promtail
-make logs-open    # Open Grafana at localhost:3001
+just logs-up      # Start Grafana + Loki + Promtail
+just logs-open    # Open Grafana at localhost:3001
 ```
 
 Query logs in Grafana with LogQL:
@@ -661,7 +661,7 @@ This project uses **gitleaks** to detect secrets before commit.
 
 ```bash
 # Show what was blocked
-make security-scan
+just security-scan
 
 # Emergency bypass (NOT RECOMMENDED)
 git commit --no-verify
@@ -734,7 +734,7 @@ Rules:
 ### API
 
 - OpenAPI 3.0 as source of truth
-- Run `make api` after spec changes
+- Run `just api` after spec changes
 - Never manually edit generated files
 
 ## Linting Ignores

@@ -29,14 +29,14 @@ GORM migrations run automatically on backend startup. To add a new entity:
 
 2. Restart backend:
    ```bash
-   make dev-backend
+   just dev-backend
    ```
 
 ## Database Commands
 
-- `make db-up` - Start PostgreSQL
-- `make db-down` - Stop PostgreSQL
-- `make db-reset` - Reset database (delete all data)
+- `just db-up` - Start PostgreSQL
+- `just db-down` - Stop PostgreSQL
+- `just db-reset` - Reset database (delete all data)
 
 ## Check Tables
 
