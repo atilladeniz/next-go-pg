@@ -10,7 +10,7 @@ Regenerate Swagger documentation and TypeScript API client.
 ## Command
 
 ```bash
-make api
+just api
 ```
 
 This runs:

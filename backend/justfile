@@ -1,0 +1,160 @@
+# Backend justfile
+#
+# Run `just` from backend/ to list recipes.
+
+set shell := ["bash", "-cu"]
+
+app_name      := "backend"
+docker_image  := "backend:latest"
+migrate_path  := "./migrations"
+database_url  := "postgres://postgres:@localhost/backend?sslmode=disable"
+
+[private]
+default:
+    @just --list --unsorted
+
+# ─── Build / Run ────────────────────────────────────────────────
+
+# Install dependencies
+[group('build')]
+deps:
+    go mod download
+    go mod tidy
+
+# Build the application
+[group('build')]
+build:
+    go build -o bin/{{ app_name }} cmd/server/main.go
+
+# Build for production (static binary, linux)
+[group('build')]
+build-prod:
+    CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -ldflags '-extldflags "-static"' -o bin/{{ app_name }} cmd/server/main.go
+
+# Run the application
+[group('build')]
+run:
+    go run cmd/server/main.go
+
+# Clean build artifacts
+[group('build')]
+clean:
+    rm -rf bin/
+    rm -f coverage.out coverage.html
+
+# ─── Quality ────────────────────────────────────────────────────
+
+# Run tests
+[group('quality')]
+test:
+    go test -v ./...
+
+# Run tests with HTML coverage report
+[group('quality')]
+test-coverage:
+    go test -v -coverprofile=coverage.out ./...
+    go tool cover -html=coverage.out -o coverage.html
+
+# Run linter (golangci-lint)
+[group('quality')]
+lint:
+    golangci-lint run
+
+# Format code
+[group('quality')]
+fmt:
+    go fmt ./...
+
+# Run go vet
+[group('quality')]
+vet:
+    go vet ./...
+
+# Run security scan (gosec)
+[group('quality')]
+sec-scan:
+    gosec ./...
+
+# Upgrade all dependencies
+[group('quality')]
+mod-upgrade:
+    go get -u ./...
+    go mod tidy
+
+# ─── SQL Migrations (golang-migrate) ────────────────────────────
+
+# Install golang-migrate CLI
+[group('migrate')]
+migrate-install:
+    go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest
+
+# Apply database migrations
+[group('migrate')]
+migrate-up:
+    migrate -path {{ migrate_path }} -database "{{ database_url }}" up
+
+# Rollback last migration
+[group('migrate')]
+migrate-down:
+    migrate -path {{ migrate_path }} -database "{{ database_url }}" down 1
+
+# Force migration version (usage: just migrate-force <version>)
+[group('migrate')]
+migrate-force version:
+    migrate -path {{ migrate_path }} -database "{{ database_url }}" force {{ version }}
+
+# ─── River Job Queue ────────────────────────────────────────────
+
+# Run River migrations
+[group('river')]
+river-migrate-up:
+    go run cmd/river-migrate/main.go -up
+
+# Rollback last River migration
+[group('river')]
+river-migrate-down:
+    go run cmd/river-migrate/main.go -down
+
+# Show River migration version
+[group('river')]
+river-migrate-version:
+    go run cmd/river-migrate/main.go -version
+
+# ─── Docker ─────────────────────────────────────────────────────
+
+# Build Docker image
+[group('docker')]
+docker-build:
+    docker build -t {{ docker_image }} .
+
+# Run application in Docker
+[group('docker')]
+docker-run:
+    docker run -p 8080:8080 --env-file .env {{ docker_image }}
+
+# Start services with Docker Compose
+[group('docker')]
+docker-compose-up:
+    docker-compose up -d
+
+# Stop services with Docker Compose
+[group('docker')]
+docker-compose-down:
+    docker-compose down
+
+# ─── Dev helpers ────────────────────────────────────────────────
+
+# Start standalone dev database (not the monorepo compose)
+[group('dev')]
+dev-db:
+    docker run --name backend-postgres -e POSTGRES_DB=backend -e POSTGRES_PASSWORD=password -p 5432:5432 -d postgres:15
+
+# Stop standalone dev database
+[group('dev')]
+dev-db-stop:
+    docker stop backend-postgres && docker rm backend-postgres
+
+# Generate API documentation (Swagger)
+[group('dev')]
+api-docs:
+    swag init -g cmd/server/main.go

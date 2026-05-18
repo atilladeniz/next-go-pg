@@ -17,7 +17,7 @@ Go Handler → swag init → swagger.json → Orval → TypeScript Hooks
 ## One Command for Everything
 
 ```bash
-make api
+just api
 ```
 
 This executes:
@@ -82,7 +82,7 @@ type CreateProductRequest struct {
 ### Step 3: Generate API Client
 
 ```bash
-make api
+just api
 ```
 
 ### Step 4: Use in Frontend
@@ -133,6 +133,6 @@ frontend/src/shared/api/
 ## Important Rules
 
 - **Never** manually edit generated files
-- **Always** run `make api` after handler changes
+- **Always** run `just api` after handler changes
 - Tags become folder names → `@Tags products` → `endpoints/products/`
 - operationId is automatically generated from Router path

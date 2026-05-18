@@ -30,19 +30,19 @@ GORM erstellt die Tabelle automatisch beim Backend-Start.
 ### Start Database
 
 ```bash
-make db-up
+just db-up
 ```
 
 ### Stop Database
 
 ```bash
-make db-down
+just db-down
 ```
 
 ### Reset Database (delete all data)
 
 ```bash
-make db-reset
+just db-reset
 ```
 
 ## Better Auth Tables
@@ -57,7 +57,7 @@ Better Auth uses these tables (auto-created via migration):
 ### Run Better Auth Migration
 
 ```bash
-make db-migrate
+just db-migrate
 ```
 
 Or manually:
@@ -129,12 +129,12 @@ cd frontend && DATABASE_URL="postgres://postgres:postgres@localhost:5432/nextgop
 Start the database:
 
 ```bash
-make db-up
+just db-up
 ```
 
 ### Reset everything
 
 ```bash
-make db-reset
-make db-migrate
+just db-reset
+just db-migrate
 ```

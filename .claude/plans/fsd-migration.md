@@ -239,7 +239,7 @@ export default defineConfig({
 | Risiko | Mitigation |
 |--------|------------|
 | Viele Import-Änderungen | TypeScript zeigt alle Fehler sofort |
-| Orval-Pfade ändern sich | Einmal `make api` nach Migration |
+| Orval-Pfade ändern sich | Einmal `just api` nach Migration |
 | Breaking Changes | Feature-Branch, inkrementelle Migration |
 
 ---
@@ -248,5 +248,5 @@ export default defineConfig({
 
 1. Phase 1-6 sequentiell durchführen
 2. Nach jeder Phase: `bun run typecheck` zum Verifizieren
-3. Am Ende: `make api` für Orval-Regeneration
+3. Am Ende: `just api` für Orval-Regeneration
 4. Steiger-Lint ausführen und Fehler fixen

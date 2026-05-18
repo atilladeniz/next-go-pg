@@ -42,13 +42,13 @@ River creates its own schema in PostgreSQL. Run migrations before starting the s
 cd backend
 
 # Run River migrations
-make river-migrate-up
+just river-migrate-up
 
 # Check migration status
-make river-migrate-version
+just river-migrate-version
 
 # Rollback (if needed)
-make river-migrate-down
+just river-migrate-down
 ```
 
 ### Server Integration
@@ -193,7 +193,7 @@ River operations are logged with structured logging:
 
 2. Verify migrations:
    ```bash
-   make river-migrate-version
+   just river-migrate-version
    ```
 
 3. Check for errors:

@@ -73,16 +73,16 @@ git clone <repo-url>
 cd next-go-pg
 
 # Install dependencies
-make install
+just install
 
 # Start database
-make db-up
+just db-up
 
 # Create Better Auth tables
 cd frontend && DATABASE_URL="postgres://postgres:postgres@localhost:5432/nextgopg" bunx @better-auth/cli migrate -y
 
 # Start development
-make dev
+just dev
 ```
 
 Open:
@@ -119,7 +119,7 @@ next-go-pg/
 ├── deploy/
 │   ├── loki/                # Loki & Promtail Config
 │   └── grafana/             # Grafana Provisioning
-├── Makefile                 # Build Commands
+├── justfile                 # Build Commands (https://github.com/casey/just)
 └── README.md
 ```
 
@@ -175,7 +175,7 @@ Types: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`
 
 This project uses [gitleaks](https://github.com/gitleaks/gitleaks) to prevent committing secrets and sensitive data.
 
-### Setup (automatic with `make install`)
+### Setup (automatic with `just install`)
 
 ```bash
 # Install gitleaks
@@ -183,8 +183,8 @@ brew install gitleaks    # macOS
 # or
 go install github.com/gitleaks/gitleaks/v8@latest
 
-# Setup git hooks (runs automatically with make install)
-make setup-hooks
+# Setup git hooks (runs automatically with just install)
+just setup-hooks
 ```
 
 ### What it scans for
@@ -198,7 +198,7 @@ make setup-hooks
 ### Manual scan
 
 ```bash
-make security-scan    # Scan entire codebase
+just security-scan    # Scan entire codebase
 ```
 
 ### Bypass (not recommended)
@@ -207,64 +207,66 @@ make security-scan    # Scan entire codebase
 git commit --no-verify
 ```
 
-## Make Commands
+## Just Commands
+
+This project uses [just](https://github.com/casey/just) as command runner. Install with `brew install just`. Run `just` (no args) to see all grouped recipes.
 
 ### Development
 
 ```bash
-make dev              # Start DB + Frontend + Backend
-make dev-frontend     # Frontend only (localhost:3000)
-make dev-backend      # Backend only (localhost:8080)
+just dev              # Start DB + Frontend + Backend
+just dev-frontend     # Frontend only (localhost:3000)
+just dev-backend      # Backend only (localhost:8080)
 ```
 
 ### Database
 
 ```bash
-make db-up            # Start PostgreSQL
-make db-down          # Stop PostgreSQL
-make db-reset         # Reset database
+just db-up            # Start PostgreSQL
+just db-down          # Stop PostgreSQL
+just db-reset         # Reset database (prompts for confirmation)
 ```
 
 ### API
 
 ```bash
-make api              # Generate TypeScript client from OpenAPI
+just api              # Generate TypeScript client from OpenAPI
 ```
 
 ### Quality
 
 ```bash
-make lint             # Biome + Steiger (FSD) Linting
-make lint-fix         # Auto-fix
-make typecheck        # TypeScript Check
-make test             # Run tests
-make security-scan    # Scan for secrets
+just lint             # Biome + Steiger (FSD) Linting
+just lint-fix         # Auto-fix
+just typecheck        # TypeScript Check
+just test             # Run tests
+just security-scan    # Scan for secrets
 ```
 
 ### Build
 
 ```bash
-make build            # Frontend + Backend
-make build-frontend   # Next.js Production Build
-make build-backend    # Go Binary
+just build            # Frontend + Backend
+just build-frontend   # Next.js Production Build
+just build-backend    # Go Binary
 ```
 
 ### Documentation
 
 ```bash
-make search-docs q="query"          # Search docs with semantic search
-make search-docs q="query" n=10     # Search with custom result count
-make fetch-docs url=<url>           # Fetch LLM-friendly docs
-make fetch-docs url=<url> name=<n>  # With custom filename
+just search-docs "query"           # Search docs with semantic search
+just search-docs "query" 10        # Custom result count
+just fetch-docs <url>              # Fetch LLM-friendly docs
+just fetch-docs <url> <name>       # With custom filename
 ```
 
 ### Logging Stack
 
 ```bash
-make logs-up      # Start Grafana + Loki + Promtail
-make logs-down    # Stop logging stack
-make logs-open    # Open Grafana (localhost:3001)
-make logs-query q='{level="error"}'  # Query logs via CLI
+just logs-up      # Start Grafana + Loki + Promtail
+just logs-down    # Stop logging stack
+just logs-open    # Open Grafana (localhost:3001)
+just logs-query '{level="error"}'  # Query logs via CLI
 ```
 
 ### Database Backups
@@ -272,11 +274,11 @@ make logs-query q='{level="error"}'  # Query logs via CLI
 Fully automatic PostgreSQL backups to S3-compatible storage (RustFS).
 
 ```bash
-make backup-up       # Start automatic backup system
-make backup-down     # Stop backup stack
-make backup-now      # Create backup immediately
-make backup-list     # List all backups in S3
-make backup-restore  # Restore from latest backup
+just backup-up       # Start automatic backup system
+just backup-down     # Stop backup stack
+just backup-now      # Create backup immediately
+just backup-list     # List all backups in S3
+just backup-restore  # Restore from latest backup (prompts for confirmation)
 ```
 
 - **Schedule**: Daily (configurable via `BACKUP_SCHEDULE`)
@@ -288,7 +290,7 @@ See [Disaster Recovery](.docs/disaster-recovery.md) for details.
 ## API Workflow
 
 1. Add Swagger comments to Go handler
-2. Generate TypeScript client: `make api`
+2. Generate TypeScript client: `just api`
 3. Use generated hooks:
 
 ```tsx
@@ -393,7 +395,7 @@ await authClient.revokeSession({ token })
 Mailpit is included for local email testing:
 
 ```bash
-make dev  # Starts Mailpit on port 8025
+just dev  # Starts Mailpit on port 8025
 ```
 
 Open [http://localhost:8025](http://localhost:8025) to view emails.
@@ -421,15 +423,15 @@ PORT=8080
 ### Development
 
 ```bash
-make db-up    # PostgreSQL only
+just db-up    # PostgreSQL only
 ```
 
 ### Production
 
 ```bash
-make docker-build   # Build images
-make docker-up      # Start containers
-make docker-down    # Stop containers
+just docker-build   # Build images
+just docker-up      # Start containers
+just docker-down    # Stop containers
 ```
 
 ## Generate Backend Features (Goca)
@@ -448,12 +450,12 @@ goca make repository Product
 
 # Swagger + Orval (one command from root!)
 cd ..
-make api
+just api
 ```
 
 ### API Workflow
 
-`make api` automatically runs:
+`just api` automatically runs:
 1. **swag init** → Generates Swagger from Go comments
 2. **orval** → Generates TypeScript React Query Hooks
 

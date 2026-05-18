@@ -32,9 +32,9 @@ Use the semantic search tool to find relevant documentation:
 
 ```bash
 # Search for specific topics
-make search-docs q="prefetchQuery" n=5
-make search-docs q="HydrationBoundary" n=3
-make search-docs q="authentication session" n=5
+just search-docs "prefetchQuery" 5
+just search-docs "HydrationBoundary" 3
+just search-docs "authentication session" 5
 
 # Output is LLM-optimized with relevance scores
 ```
@@ -48,7 +48,7 @@ make search-docs q="authentication session" n=5
 ## Workflow
 
 1. **Question about a technology?**
-   → First: `make search-docs q="your question"` to find relevant sections
+   → First: `just search-docs "your question"` to find relevant sections
    → Or: Read `.docs/<tech>.md` directly if you know the file
 
 2. **Docs not available?**
@@ -63,7 +63,7 @@ make search-docs q="authentication session" n=5
 ```
 User: "How does HydrationBoundary work in TanStack Query?"
 
-1. Run: make search-docs q="HydrationBoundary" n=5
+1. Run: just search-docs "HydrationBoundary" 5
 2. Review the top results with relevance scores
 3. If needed, read full file: .docs/tanstack-query.md
 4. If not found/incomplete:
@@ -78,28 +78,28 @@ When the user asks about tech stack topics, use this pattern:
 
 ```bash
 # Step 1: Search for relevant docs
-make search-docs q="<user question keywords>" n=5
+just search-docs "<user question keywords>" 5
 
 # Step 2: If results found, read the specific section
 # The search output shows file and section info
 
 # Step 3: If no results, fetch new docs
-make fetch-docs url=<documentation-url> name=<tech-name>
+just fetch-docs <documentation-url> <tech-name>
 ```
 
 ## Fetching New Documentation
 
 ```bash
 # Fetch docs from any URL
-make fetch-docs url=https://tanstack.com/query/latest/docs
+just fetch-docs https://tanstack.com/query/latest/docs
 
 # With custom name
-make fetch-docs url=https://nextjs.org/docs name=nextjs
+just fetch-docs https://nextjs.org/docs nextjs
 ```
 
 ## Priority
 
-1. `make search-docs` (semantic search, fast, targeted)
+1. `just search-docs` (semantic search, fast, targeted)
 2. `.docs/` files (local, fast, project-specific)
 3. `.claude/skills/` (project-specific patterns)
 4. Internet (only if local not available)
