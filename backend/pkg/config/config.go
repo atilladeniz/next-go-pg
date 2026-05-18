@@ -287,8 +287,17 @@ type ServerConfig struct {
 // =============================================================================
 
 func Load() *Config {
-	if err := godotenv.Load(); err != nil {
-		log.Println("No .env file found, using environment variables")
+	// Load .env.local first (matches Next.js convention; takes precedence),
+	// then .env as a fallback for any missing vars. Each call ignores
+	// vars that are already set, so the first file wins for conflicts.
+	loaded := false
+	for _, name := range []string{".env.local", ".env"} {
+		if err := godotenv.Load(name); err == nil {
+			loaded = true
+		}
+	}
+	if !loaded {
+		log.Println("No .env or .env.local file found, using environment variables")
 	}
 
 	return &Config{
