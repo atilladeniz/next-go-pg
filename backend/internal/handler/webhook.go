@@ -19,7 +19,6 @@ import (
 	"github.com/mileusna/useragent"
 	"gopkg.in/gomail.v2"
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 )
 
 // WebhookHandler handles all webhook endpoints for email notifications
@@ -457,14 +456,10 @@ func (h *WebhookHandler) isKnownDevice(req SessionCreatedRequest) bool {
 	}
 
 	var count int64
-	err := h.db.Transaction(func(tx *gorm.DB) error {
-		return tx.Table("session").
-			Where(`"userId" = ? AND "userAgent" = ? AND "ipAddress" = ? AND id != ?`,
-				req.UserID, req.UserAgent, req.IPAddress, req.SessionID).
-			Clauses(clause.Locking{Strength: "UPDATE"}).
-			Limit(1).
-			Count(&count).Error
-	})
+	err := h.db.Table("session").
+		Where(`"userId" = ? AND "userAgent" = ? AND "ipAddress" = ? AND id != ?`,
+			req.UserID, req.UserAgent, req.IPAddress, req.SessionID).
+		Count(&count).Error
 
 	if err != nil {
 		logger.Warn().Err(err).Msg("Failed to check for existing sessions")
