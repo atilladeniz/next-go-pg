@@ -113,12 +113,14 @@ next-go-pg/
 │   │   ├── entities/        # Business Objects (User)
 │   │   └── shared/          # Reusable (UI, API, Lib, Logger)
 │   └── orval.config.ts      # API Generator Config
-├── docker-compose.dev.yml   # Dev Database + Mailpit
-├── docker-compose.logging.yml # Logging Stack (Grafana + Loki)
-├── docker-compose.backup.yml  # Backup Stack (postgres-backup-s3 + RustFS)
 ├── deploy/
-│   ├── loki/                # Loki & Promtail Config
-│   └── grafana/             # Grafana Provisioning
+│   ├── compose/                # All docker-compose files
+│   │   ├── docker-compose.yml          # Production
+│   │   ├── docker-compose.dev.yml      # Dev DB + Mailpit
+│   │   ├── docker-compose.logging.yml  # Logging (Grafana + Loki)
+│   │   └── docker-compose.backup.yml   # Backup (postgres-backup-s3 + RustFS)
+│   ├── loki/                   # Loki & Promtail Config
+│   └── grafana/                # Grafana Provisioning
 ├── justfile                 # Build Commands (https://github.com/casey/just)
 └── README.md
 ```
