@@ -1,0 +1,7 @@
+# Bun configuration (frontend workspace)
+# Shared policy with repo-root bunfig.toml; duplicated here so `bun install`
+# from frontend/ applies the same supply-chain guard.
+
+[install]
+minimumReleaseAge = 604800  # 7 days
+minimumReleaseAgeExcludes = []

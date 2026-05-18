@@ -40,15 +40,15 @@ export function SessionCard({ session, onRevoke, isRevoking }: SessionCardProps)
 	}
 
 	return (
-		<Card className={session.isCurrent ? "border-primary" : ""}>
+		<Card className={`w-full ${session.isCurrent ? "border-primary" : ""}`}>
 			<CardContent className="p-4">
 				<div className="flex items-start justify-between gap-4">
-					<div className="flex items-start gap-3">
-						<div className="mt-1 rounded-lg bg-muted p-2">
+					<div className="flex min-w-0 flex-1 items-start gap-3">
+						<div className="mt-1 shrink-0 rounded-lg bg-muted p-2">
 							<DeviceIcon device={device} />
 						</div>
-						<div className="space-y-1">
-							<div className="flex items-center gap-2">
+						<div className="min-w-0 flex-1 space-y-1">
+							<div className="flex flex-wrap items-center gap-2">
 								<span className="font-medium">
 									{browser} auf {os}
 								</span>
@@ -58,12 +58,12 @@ export function SessionCard({ session, onRevoke, isRevoking }: SessionCardProps)
 									</span>
 								)}
 							</div>
-							<div className="flex items-center gap-4 text-sm text-muted-foreground">
-								<span className="flex items-center gap-1">
-									<Globe className="h-3 w-3" />
+							<div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
+								<span className="flex items-center gap-1 break-all">
+									<Globe className="h-3 w-3 shrink-0" />
 									{locationText}
 								</span>
-								<span>IP: {session.ipAddress || "Unbekannt"}</span>
+								<span className="break-all">IP: {session.ipAddress || "Unbekannt"}</span>
 							</div>
 							<div className="text-xs text-muted-foreground">
 								Angemeldet: {formatDate(session.createdAt)}
@@ -74,6 +74,7 @@ export function SessionCard({ session, onRevoke, isRevoking }: SessionCardProps)
 						<Button
 							variant="outline"
 							size="sm"
+							className="shrink-0"
 							onClick={() => onRevoke(session.token)}
 							disabled={isRevoking}
 						>

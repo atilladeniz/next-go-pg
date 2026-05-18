@@ -37,5 +37,4 @@ function customRender(ui: ReactElement, options?: Omit<RenderOptions, "wrapper">
 
 // Re-export everything
 export * from "@testing-library/react"
-export { customRender as render }
-export { createTestQueryClient }
+export { createTestQueryClient, customRender as render }

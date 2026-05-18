@@ -32,7 +32,7 @@ jobs:
         uses: actions/dependency-review-action@v4
         with:
           fail-on-severity: high
-          allow-licenses: MIT, Apache-2.0, BSD-2-Clause, BSD-3-Clause, ISC, 0BSD, CC0-1.0, Unlicense, MPL-2.0
+          allow-licenses: MIT, Apache-2.0, BSD-2-Clause, BSD-3-Clause, ISC, 0BSD, CC0-1.0, Unlicense, MPL-2.0, LicenseRef-scancode-google-patent-license-golang
 
   # =============================================================================
   # Backend (Go)
@@ -49,13 +49,13 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: "1.23"
+          go-version: "1.26"
           cache-dependency-path: backend/go.sum
 
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@v7
         with:
-          version: v2.1.6
+          version: v2.12.2
           working-directory: backend
 
   backend-security:
@@ -70,7 +70,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: "1.23"
+          go-version: "1.26"
           cache-dependency-path: backend/go.sum
 
       - name: Install gosec
@@ -91,7 +91,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: "1.23"
+          go-version: "1.26"
           cache-dependency-path: backend/go.sum
 
       - name: Run tests
@@ -110,7 +110,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: "1.23"
+          go-version: "1.26"
           cache-dependency-path: backend/go.sum
 
       - name: Build

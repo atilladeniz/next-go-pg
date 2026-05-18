@@ -1,0 +1,12 @@
+# Bun configuration
+# https://bun.com/docs/runtime/bunfig
+
+[install]
+# Supply chain protection: block packages published less than 7 days ago.
+# Gives the npm ecosystem and security tooling a window to flag malicious
+# releases before they land in our lockfile. Value is in seconds.
+minimumReleaseAge = 604800  # 7 days
+
+# Packages exempt from the age requirement (e.g. our own internal scopes
+# or vetted security patches). Keep this list small and well-justified.
+minimumReleaseAgeExcludes = []
