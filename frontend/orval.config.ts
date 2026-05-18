@@ -2,10 +2,7 @@ import { defineConfig } from "orval"
 
 export default defineConfig({
 	api: {
-		input: {
-			target: "../backend/docs/swagger.yaml",
-			validation: false,
-		},
+		input: "../backend/docs/swagger.yaml",
 		output: {
 			mode: "tags-split",
 			target: "./src/shared/api/endpoints",

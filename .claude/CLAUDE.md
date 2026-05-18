@@ -1,12 +1,15 @@
 # Next-Go-PG - Project Context
 
-## IMPORTANT: Technical Docs (.docs)
+@../AGENTS.md
 
-**ALWAYS check `.docs/` first** before searching the internet!
+## IMPORTANT: Technical Docs
+
+For **Next.js**: read `frontend/node_modules/next/dist/docs/` — version-matched, always current with the installed `next` package. The repo-root `AGENTS.md` enforces this rule.
+
+For everything else: **check `.docs/` first** before searching the internet:
 
 ```
 .docs/
-├── nextjs.md           # Next.js 16 App Router
 ├── tanstack-query.md   # TanStack Query / React Query
 ├── better-auth.md      # Better Auth
 ├── gorm.md             # GORM ORM
@@ -19,7 +22,7 @@
 └── ...                 # More Tech Stack Docs
 ```
 
-LLM-friendly documentation for the entire tech stack can be found there.
+LLM-friendly documentation for the rest of the tech stack lives there.
 
 ---
 
