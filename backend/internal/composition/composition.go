@@ -123,7 +123,7 @@ func Build(ctx context.Context, in Inputs) (*App, error) {
 	}
 
 	// HTTP layer.
-	apiHandler := handler.NewAPIHandler(cfg.FrontendURL, getStatsUC, incrementStatUC)
+	apiHandler := handler.NewAPIHandler(getStatsUC, incrementStatUC)
 	webhookHandler := handler.NewWebhookHandler(userDirectory)
 	if app.riverJobQueue != nil {
 		webhookHandler = webhookHandler.WithJobEnqueuer(app.riverJobQueue.Client)

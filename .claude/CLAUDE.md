@@ -129,12 +129,35 @@ Configuration is in `backend/.goca.yaml`:
 
 ```
 backend/internal/
-├── domain/           # Entities, Business Rules (goca make entity)
-├── usecase/          # Application Logic (goca make usecase)
-├── repository/       # Data Access (goca make repository)
-├── handler/          # HTTP/API (goca make handler)
-└── middleware/       # Cross-cutting concerns
+├── domain/                       # Pure entities, value objects, aggregate methods (goca make entity)
+├── application/                  # Hexagonal ports + use cases (goca make usecase → output here)
+│   ├── ports.go                  # StatsRepository, EventBroadcaster, UserDirectory, ...
+│   └── *_usecases.go             # GetUserStats, IncrementStatField, ... — each with Execute(ctx, ...)
+├── infrastructure/
+│   └── persistence/              # GORM models + mappers + repository implementations
+│       ├── gorm_models.go        # GORM-tagged structs (unexported)
+│       ├── *_mapper.go           # domain ↔ persistence translation
+│       ├── *_repo.go             # repository impls — compile-time assert against ports
+│       └── registry.go           # AllEntities() — list of GORM models for AutoMigrate
+├── composition/                  # Composition root — Build/Shutdown for the dep graph
+├── handler/                      # HTTP — consumes use cases, never gorm or persistence
+├── middleware/                   # Auth, CORS, logging, rate-limit, metrics
+├── jobs/                         # River workers — consume application ports
+└── sse/                          # SSE broker (satisfies application.EventBroadcaster)
 ```
+
+**Layer dependency direction (inward only):**
+
+```
+composition → handler/jobs/sse → application → domain
+composition → infrastructure   → application → domain
+```
+
+- `domain` imports nothing internal.
+- `application` imports only `domain`.
+- `infrastructure/...` imports only `application` and `domain`.
+- `handler/`, `jobs/`, `sse/` consume use cases and ports from `application/`.
+- `composition` is the only place that knows about everything.
 
 ### Why Goca instead of manual?
 
@@ -151,31 +174,49 @@ backend/internal/
 cd backend
 goca feature Invoice --fields "userId:string,amount:float64,status:string"
 
-# 2. Add entity to registry (internal/domain/registry.go)
-# Add &Invoice{} to AllEntities() function
+# 2. Make the generated entity pure (manual step):
+#    a) Strip GORM tags from internal/domain/invoice.go (keep the type, drop the tags).
+#    b) Move the GORM-tagged copy into internal/infrastructure/persistence/gorm_models.go
+#       as an unexported type (e.g. gormInvoice).
+#    c) Write a mapper in internal/infrastructure/persistence/invoice_mapper.go
+#       (invoiceToDomain / invoiceFromDomain), mirroring user_stats_mapper.go.
+#    d) Append &gormInvoice{} to persistence.AllEntities() in
+#       internal/infrastructure/persistence/registry.go.
 
-# 3. Swagger + Orval (one command!)
+# 3. Promote Goca's generated repository to the persistence layer:
+#    Goca wrote internal/infrastructure/persistence/invoice.go (per .goca.yaml).
+#    Make it implement an application port — declare InvoiceRepository in
+#    internal/application/ports.go, then add the compile-time assertion
+#    `var _ application.InvoiceRepository = (*InvoiceRepository)(nil)`.
+
+# 4. Wire a use case in internal/application/invoice_usecases.go (struct with
+#    Execute(ctx, ...), interface-typed dependencies). Add the wiring step in
+#    internal/composition/composition.go.
+
+# 5. Swagger + Orval (one command!)
 cd ..
 just api
 
-# 4. Restart backend (migration runs automatically)
+# 6. Restart backend (migration runs automatically)
 just dev-backend
 ```
 
 ### Entity Registry
 
-New entities must be registered in `backend/internal/domain/registry.go`:
+New GORM models must be registered in `backend/internal/infrastructure/persistence/registry.go`
+(the old `backend/internal/domain/registry.go` was deleted — the domain layer is pure and
+no longer knows about AutoMigrate):
 
 ```go
-func AllEntities() []interface{} {
-    return []interface{}{
-        &UserStats{},
-        &Invoice{},  // ← New entity here
+func AllEntities() []any {
+    return []any{
+        &gormUserStats{},
+        &gormInvoice{},  // ← New GORM model here
     }
 }
 ```
 
-This is the **ONLY** place for AutoMigrate!
+This is the **ONLY** place for AutoMigrate.
 
 ### API Generation Workflow
 
@@ -718,13 +759,16 @@ next-go-pg/
 │   │   ├── migrate/          # golang-migrate CLI (prod SQL migrations)
 │   │   └── river-migrate/    # River job-queue migration CLI
 │   ├── internal/
-│   │   ├── domain/           # Entities (goca make entity) + registry
-│   │   ├── repository/       # Data Access (goca make repository)
-│   │   ├── handler/          # HTTP Handler (goca make handler)
-│   │   ├── middleware/       # Auth, CORS, Logging, Rate limiting
-│   │   ├── jobs/             # River background jobs
-│   │   ├── sse/              # Server-Sent Events broker
-│   │   └── templates/        # Email templates (Magic Link, etc.)
+│   │   ├── domain/                # Pure entities, value objects (no GORM, no I/O)
+│   │   ├── application/           # Hexagonal ports + use cases (Execute(ctx, ...))
+│   │   ├── infrastructure/
+│   │   │   └── persistence/       # GORM models + mappers + repository impls + AllEntities
+│   │   ├── composition/           # Composition root (Build / Shutdown)
+│   │   ├── handler/               # HTTP handlers (consume application use cases)
+│   │   ├── middleware/            # Auth, CORS, Logging, Rate limiting
+│   │   ├── jobs/                  # River background jobs (consume application ports)
+│   │   ├── sse/                   # Server-Sent Events broker
+│   │   └── templates/             # Email templates (Magic Link, etc.)
 │   ├── migrations/           # SQL migrations (prod only — empty in dev)
 │   └── docs/                 # Swagger JSON (generated)
 ├── frontend/
@@ -747,11 +791,13 @@ next-go-pg/
         └── docker-compose.backup.yml   # Backup stack
 ```
 
-> **Note on `usecase/`**: The clean-architecture pattern reserves a
-> `backend/internal/usecase/` layer for business logic, generated by
-> `goca make usecase`. The directory is created on demand — it doesn't
-> exist yet because no feature has needed a dedicated usecase layer.
-> Handlers currently call repositories directly.
+> **Layer ownership at a glance.** `domain/` holds pure types — no I/O, no GORM.
+> `application/` defines repository ports (interfaces) and use-case structs that
+> orchestrate them via `Execute(ctx, ...)`. `infrastructure/persistence/` holds
+> the GORM-tagged twin types and mappers; each repository impl asserts the port
+> with `var _ application.<Port> = (*<Impl>)(nil)`. `composition/` is the single
+> place that builds the dependency graph. The old `internal/repository/` package
+> was removed by the `backend-clean-architecture` change.
 
 ## Conventions
 

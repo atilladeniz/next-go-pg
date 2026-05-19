@@ -10,20 +10,17 @@ import (
 )
 
 type APIHandler struct {
-	authMiddleware *middleware.AuthMiddleware
-	getStats       *application.GetUserStats
-	incrementStat  *application.IncrementStatField
+	getStats      *application.GetUserStats
+	incrementStat *application.IncrementStatField
 }
 
 func NewAPIHandler(
-	betterAuthURL string,
 	getStats *application.GetUserStats,
 	incrementStat *application.IncrementStatField,
 ) *APIHandler {
 	return &APIHandler{
-		authMiddleware: middleware.NewAuthMiddleware(betterAuthURL),
-		getStats:       getStats,
-		incrementStat:  incrementStat,
+		getStats:      getStats,
+		incrementStat: incrementStat,
 	}
 }
 
@@ -229,11 +226,6 @@ func (h *APIHandler) UpdateUserStats(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(statsResponse(stats))
-}
-
-// GetAuthMiddleware returns the auth middleware for use in routes
-func (h *APIHandler) GetAuthMiddleware() *middleware.AuthMiddleware {
-	return h.authMiddleware
 }
 
 func statsResponse(s *domain.UserStats) UserStatsResponse {

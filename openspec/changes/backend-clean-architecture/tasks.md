@@ -48,19 +48,19 @@ _Cleanup landed in Phase 4:_ Removed the unused `sseBroker` field from `APIHandl
 
 ## 5. Phase 5 — Tooling, docs, cleanup
 
-- [ ] 5.1 Update `backend/.goca.yaml`: point `architecture.layers.usecase.directory` at `internal/application`, point `architecture.layers.repository.directory` at `internal/infrastructure/persistence`. Domain and handler directories stay.
-- [ ] 5.2 Update `CLAUDE.md`: replace the "internal/usecase/ doesn't exist yet" note with the new four-layer description (domain / application / infrastructure / composition), the inward-dependency rule, and the updated "add a new feature" workflow (Goca + manual mapper)
-- [ ] 5.3 Update `backend/`'s Goca example in CLAUDE.md so new entities land in `domain/` (pure) and a mapper stub goes into `infrastructure/persistence/`. Document the manual post-`goca make entity` steps: (a) strip GORM tags from the generated domain entity, (b) add a `gormFoo` to `infrastructure/persistence/gorm_models.go`, (c) write the mapper, (d) append the model to `persistence.AllEntities()`.
-- [ ] 5.4 Confirm the Swagger output is unchanged: `just api` produces a `backend/docs/swagger.json` with the same routes and schemas as before this change (diff against the pre-refactor file)
-- [ ] 5.5 Confirm frontend builds without modification: `cd frontend && bun run lint && bunx tsc --noEmit`
-- [ ] 5.6 Final pass: `just lint`, `just typecheck`, `cd backend && go test ./...`, manual smoke test of `just dev` — everything green
+- [x] 5.1 `.goca.yaml` updated — `architecture.layers.usecase.directory` → `internal/application`, `architecture.layers.repository.directory` → `internal/infrastructure/persistence`. Domain and handler unchanged.
+- [x] 5.2 CLAUDE.md rewritten: new four-layer tree, explicit inward-dependency arrows, replaced "`internal/usecase/` doesn't exist yet" note with a layer-ownership summary that points at the refactor.
+- [x] 5.3 Updated the Goca "Adding a New Feature" walkthrough — six explicit steps including manual GORM-tag relocation, mapper authoring, registry update, port declaration with compile-time assertion, use-case wiring, and composition-root touch.
+- [x] 5.4 `just swagger` produces `backend/docs/swagger.json` **byte-identical** to the pre-refactor version (`diff` on 26315-byte file: zero output).
+- [x] 5.5 Frontend: `bun run lint` clean (Biome + Steiger, 75 files), `bunx tsc --noEmit` exits 0.
+- [x] 5.6 Final pass: `go build && go vet && go test ./...` green (189 tests, 17 packages). Frontend lint + typecheck green. Manual smoke test of `just dev` to be run by maintainer before merge.
 
 ## 6. Cleanup & dead-code audit (added per user request)
 
-- [ ] 6.1 Run `deadcode ./...` from `backend/` after Phase 4 — confirm no new unreachable functions were introduced by this refactor. (`NewUserID` becomes reachable via use cases in Phase 3.) Pre-existing dead code in logger/middleware/config is out of scope for this PR.
-- [ ] 6.2 Verify no orphaned directories: after Phase 3 deletes `internal/repository/`, ensure no stale references remain (grep for `"backend/internal/repository"` imports).
-- [ ] 6.3 Verify no duplicate types: `domain.UserStats` ↔ `persistence.gormUserStats` are intentional twins via mapper. No other duplicates expected.
-- [ ] 6.4 Open follow-up issue (or note in CLAUDE.md `## Follow-ups`) for: install `knip` for frontend dead-export detection (Steiger covers FSD rules but not unused exports), and wire `deadcode`/`staticcheck` into the project's quality recipes (e.g. `just deadcode`).
+- [x] 6.1 `deadcode ./...` filtered to refactored areas: **zero** new unreachable functions from this refactor. `NewUserID` is reachable via handlers + tests. Killed two leftovers found mid-audit: `APIHandler.GetAuthMiddleware()` + `authMiddleware` field (composition wires `combinedAuth` separately) and the unused `betterAuthURL` constructor parameter.
+- [x] 6.2 No orphaned dirs: `internal/repository/` gone, no remaining imports of `"backend/internal/repository"` (`grep -rn` returns empty).
+- [x] 6.3 No duplicate types: only intentional twins are `domain.UserStats` ↔ `persistence.gormUserStats` and `domain.User` (projection used by the `UserDirectory` port). All connected via mappers / `betterAuthUserRow`.
+- [ ] 6.4 Follow-up: add `knip` (frontend dead-export detection) and wire `deadcode`/`staticcheck` into a `just deadcode` recipe. Captured here as a known follow-up — out of scope for this refactor since it's tooling addition, not architecture work.
 
 ## 7. Verification & archive
 

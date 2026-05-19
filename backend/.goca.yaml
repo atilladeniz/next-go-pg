@@ -22,14 +22,14 @@ architecture:
             extensions: {}
         usecase:
             enabled: true
-            directory: internal/usecase
+            directory: internal/application
             patterns: []
             templates: []
             validations: []
             extensions: {}
         repository:
             enabled: true
-            directory: internal/repository
+            directory: internal/infrastructure/persistence
             patterns: []
             templates: []
             validations: []
