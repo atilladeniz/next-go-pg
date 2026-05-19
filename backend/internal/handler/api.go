@@ -7,25 +7,21 @@ import (
 	"github.com/atilladeniz/next-go-pg/backend/internal/application"
 	"github.com/atilladeniz/next-go-pg/backend/internal/domain"
 	"github.com/atilladeniz/next-go-pg/backend/internal/middleware"
-	"github.com/atilladeniz/next-go-pg/backend/internal/sse"
 )
 
 type APIHandler struct {
 	authMiddleware *middleware.AuthMiddleware
-	sseBroker      *sse.Broker
 	getStats       *application.GetUserStats
 	incrementStat  *application.IncrementStatField
 }
 
 func NewAPIHandler(
 	betterAuthURL string,
-	broker *sse.Broker,
 	getStats *application.GetUserStats,
 	incrementStat *application.IncrementStatField,
 ) *APIHandler {
 	return &APIHandler{
 		authMiddleware: middleware.NewAuthMiddleware(betterAuthURL),
-		sseBroker:      broker,
 		getStats:       getStats,
 		incrementStat:  incrementStat,
 	}

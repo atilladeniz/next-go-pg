@@ -12,7 +12,6 @@ import (
 
 	"github.com/atilladeniz/next-go-pg/backend/internal/application"
 	"github.com/atilladeniz/next-go-pg/backend/internal/domain"
-	"github.com/atilladeniz/next-go-pg/backend/internal/sse"
 	"github.com/atilladeniz/next-go-pg/backend/pkg/logger"
 )
 
@@ -60,7 +59,7 @@ type ExportProgress struct {
 // DataExportWorker processes data export jobs.
 type DataExportWorker struct {
 	river.WorkerDefaults[DataExportArgs]
-	sseBroker   *sse.Broker
+	events      application.EventBroadcaster
 	exportStore *ExportStore
 	statsRepo   application.StatsRepository
 }
@@ -105,9 +104,9 @@ func (s *ExportStore) Delete(id string) {
 	delete(s.exports, id)
 }
 
-func NewDataExportWorker(sseBroker *sse.Broker, exportStore *ExportStore, statsRepo application.StatsRepository) *DataExportWorker {
+func NewDataExportWorker(events application.EventBroadcaster, exportStore *ExportStore, statsRepo application.StatsRepository) *DataExportWorker {
 	return &DataExportWorker{
-		sseBroker:   sseBroker,
+		events:      events,
 		exportStore: exportStore,
 		statsRepo:   statsRepo,
 	}
@@ -221,11 +220,11 @@ func (w *DataExportWorker) Work(ctx context.Context, job *river.Job[DataExportAr
 }
 
 func (w *DataExportWorker) sendProgress(progress ExportProgress) {
-	if w.sseBroker == nil {
+	if w.events == nil {
 		return
 	}
 	data, _ := json.Marshal(progress)
-	w.sseBroker.Broadcast("export-progress", string(data))
+	w.events.Broadcast("export-progress", string(data))
 }
 
 func (w *DataExportWorker) generateExportData(ctx context.Context, userID, dataType string) []map[string]interface{} {

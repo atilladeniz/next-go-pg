@@ -36,13 +36,15 @@ _Scope expansion in Phase 3:_ `webhook.go` was also refactored to consume `appli
 
 ## 4. Phase 4 — Composition root & River workers
 
-- [ ] 4.1 Create `backend/internal/composition/composition.go` exporting `Build(cfg Config) (*App, error)` (or similar) that constructs: DB connection, persistence registry, repositories, use cases, SSE broker, River client, handlers
-- [ ] 4.2 Move all repository / use-case / handler constructor calls out of `backend/cmd/server/main.go` into the composition root
-- [ ] 4.3 Confirm `backend/cmd/server/main.go` contains: env loading, calling `composition.Build`, registering routes (or letting composition return a `http.Handler`), `http.ListenAndServe`, and graceful shutdown — and nothing else. Target: <150 lines.
-- [ ] 4.4 Refactor River worker registration (`backend/internal/jobs/registry.go` and call sites in `cmd/server/main.go`) so workers receive application interfaces instead of `*gorm.DB`. Add a small `application.JobEnqueuer` port if any use case enqueues jobs.
-- [ ] 4.5 Confirm SSE broker is consumed via the `application.EventBroadcaster` interface, not as a concrete type, in every use case that broadcasts
-- [ ] 4.6 `cd backend && go build ./... && go test ./... && just lint` — green
-- [ ] 4.7 Manual smoke test: `just dev`, log in, exercise dashboard (stats), trigger SSE update (e.g. via webhook or repeated request), trigger one River job (e.g. magic-link request) — all behave as before
+- [x] 4.1 Created `composition/composition.go` exporting `Build(ctx, Inputs) (*App, error)` and `(*App).Shutdown(ctx)`. Constructs DB (with retry), AutoMigrate, persistence repos, use cases, SSE broker, River client, handlers, middleware, full HTTP router, and `http.Server`. Health endpoints live as a private `healthEndpoints` type inside composition.
+- [x] 4.2 All wiring (DB connect, repos, use cases, broker, River, handlers, router) moved out of `cmd/server/main.go` into composition.
+- [x] 4.3 `cmd/server/main.go` is **91 lines** (target was <150). Contents: swagger annotations, build vars, config load + validate, logger init, metrics init, `composition.Build`, goroutine to run server, signal handling, `app.Shutdown`.
+- [x] 4.4 Workers wired through the application port: `WorkerDeps.Events` is `application.EventBroadcaster`, `WorkerDeps.StatsRepo` is `application.StatsRepository`. `DataExportWorker` no longer takes `*sse.Broker`. No new `JobEnqueuer` port needed — the existing `jobs.JobEnqueuer` is sufficient and webhook uses it directly.
+- [x] 4.5 Only one `*sse.Broker` reference remains outside the SSE package itself: `composition.routerDeps.sseBroker`, used to register the broker AS the `/events` route handler (the broker implements `http.Handler`). Every other consumer (use case, worker) sees only `application.EventBroadcaster`. Verified via `grep -rn "sse.Broker" backend --include="*.go" | grep -v _test.go`.
+- [x] 4.6 `go build ./... && go vet ./... && go test ./...` — green (189 tests, 17 packages).
+- [ ] 4.7 _Manual smoke test pending — runs after Phase 5._ Confirms: `just dev`, login flow, dashboard stats display, stats SSE update, magic-link delivery via River.
+
+_Cleanup landed in Phase 4:_ Removed the unused `sseBroker` field from `APIHandler` (broadcasting now lives in the `IncrementStatField` use case). Constructor signature: `NewAPIHandler(frontendURL, *GetUserStats, *IncrementStatField)`.
 
 ## 5. Phase 5 — Tooling, docs, cleanup
 

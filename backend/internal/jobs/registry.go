@@ -5,13 +5,12 @@ import (
 	"github.com/riverqueue/river"
 
 	"github.com/atilladeniz/next-go-pg/backend/internal/application"
-	"github.com/atilladeniz/next-go-pg/backend/internal/sse"
 )
 
 // WorkerDeps holds dependencies for job workers.
 type WorkerDeps struct {
 	EmailConfig *EmailConfig
-	SSEBroker   *sse.Broker
+	Events      application.EventBroadcaster
 	ExportStore *ExportStore
 	StatsRepo   application.StatsRepository
 }
@@ -27,8 +26,8 @@ func RegisterWorkers(workers *river.Workers, deps *WorkerDeps) {
 	}
 
 	// Export workers
-	if deps.SSEBroker != nil && deps.ExportStore != nil {
-		river.AddWorker(workers, NewDataExportWorker(deps.SSEBroker, deps.ExportStore, deps.StatsRepo))
+	if deps.Events != nil && deps.ExportStore != nil {
+		river.AddWorker(workers, NewDataExportWorker(deps.Events, deps.ExportStore, deps.StatsRepo))
 	}
 }
 
