@@ -17,24 +17,39 @@ Go Backend with Clean Architecture, generated with [Goca CLI](https://github.com
 
 ## Architecture
 
-Clean Architecture with strict layer separation:
+The backend is split into four **bounded contexts** (DDD-strategic), each owning its own Clean-Architecture stack (DDD-tactical). Cross-cutting infrastructure lives in `platform/`; the dependency graph is built in `composition/`.
 
 ```
 internal/
-├── domain/           # Entities, Business Rules
-├── usecase/          # Application Logic
-├── repository/       # Data Access Layer
-├── handler/          # HTTP Handler + Webhooks
-├── middleware/       # Auth, CORS, Logging
-└── sse/              # Server-Sent Events
+├── shared/domain/   # Shared Kernel: UserID, AggregateBase, DomainEvent interface
+├── stats/           # Bounded Context: per-user counters
+├── auth/            # Bounded Context: identity (Better Auth read-only)
+├── notifications/   # Bounded Context: transactional email
+├── exports/         # Bounded Context: CSV/JSON data export
+├── platform/        # Cross-cutting: middleware, SSE broker
+└── composition/     # Composition root + Anti-Corruption Layers
 ```
 
-| Layer | Description | Goca Command |
+Inside each context:
+
+```
+<ctx>/
+├── domain/                       # Pure entities, value objects, aggregate roots, domain events
+├── application/                  # Ports (repositories, publishers, ...) + use-case structs
+├── infrastructure/
+│   ├── persistence/              # GORM model + mapper + repo impl + Entities()
+│   └── ...                       # SSE adapter, River workers, SMTP sender, etc.
+└── interfaces/http/              # HTTP handlers — depend ONLY on this context's application/
+```
+
+| Layer | Description | Goca Command (then relocate into a context) |
 |-------|-------------|--------------|
-| Domain | Entities, Value Objects | `goca make entity` |
-| UseCase | Business Logic | `goca make usecase` |
-| Repository | Database Operations | `goca make repository` |
-| Handler | HTTP Endpoints | `goca make handler` |
+| Domain | Aggregate roots, value objects, domain events | `goca make entity` |
+| Application | Use cases + ports (interfaces) | `goca make usecase` |
+| Infrastructure | GORM repo, SMTP sender, River worker, ... | `goca make repository` |
+| Interfaces (HTTP) | HTTP endpoints | `goca make handler` |
+
+Cross-context references are forbidden. The composition root is the only place that knows about every context, the database, and River — and is also where Anti-Corruption Layers (e.g. `statsToExportsReader`, `authToNotificationsDirectory`) translate between contexts.
 
 ## Quick Start
 
@@ -101,23 +116,48 @@ curl -X POST http://localhost:8080/api/v1/users \
 ```
 backend/
 ├── cmd/
-│   └── server/           # Application entry point
-│       └── main.go
+│   ├── server/           # Application entry point (composition.Build → ListenAndServe)
+│   ├── migrate/          # golang-migrate CLI (prod SQL migrations)
+│   └── river-migrate/    # River job-queue migration CLI
 ├── internal/
-│   ├── domain/           # Entities (goca make entity)
-│   ├── usecase/          # Business Logic (goca make usecase)
-│   ├── repository/       # Data Access (goca make repository)
-│   ├── handler/          # HTTP Handler (goca make handler)
-│   ├── middleware/       # Auth, CORS
-│   └── sse/              # Server-Sent Events
+│   ├── shared/domain/                    # Shared Kernel (UserID, AggregateBase, DomainEvent)
+│   ├── stats/                            # Bounded Context: per-user counters
+│   │   ├── domain/                       # UserStats aggregate, StatField VO, events
+│   │   ├── application/                  # Ports + use cases (Execute(ctx, ...))
+│   │   ├── infrastructure/
+│   │   │   ├── persistence/              # GORM model + mapper + repo + Entities()
+│   │   │   └── events/                   # Domain-event → SSE publisher
+│   │   └── interfaces/http/              # /stats endpoints
+│   ├── auth/                             # Bounded Context: identity (Better Auth)
+│   │   ├── domain/                       # User projection
+│   │   ├── application/                  # UserDirectory port
+│   │   ├── infrastructure/betterauth/    # GORM adapter over Better Auth tables
+│   │   └── interfaces/http/              # /me, /hello, /protected/hello
+│   ├── notifications/                    # Bounded Context: transactional email
+│   │   ├── application/                  # EmailSender, JobEnqueuer, UserDirectory ports
+│   │   ├── infrastructure/
+│   │   │   ├── email/                    # gomail SMTP sender
+│   │   │   └── jobs/                     # River email workers + enqueuer
+│   │   └── interfaces/http/              # /webhooks/*
+│   ├── exports/                          # Bounded Context: data export
+│   │   ├── domain/                       # Format, Status VOs
+│   │   ├── application/                  # Store, ProgressPublisher, JobEnqueuer, StatsReader
+│   │   ├── infrastructure/
+│   │   │   └── jobs/                     # River export worker + enqueuer
+│   │   └── interfaces/http/              # /export/*
+│   ├── platform/                         # Cross-cutting infrastructure
+│   │   ├── middleware/                   # Auth, CORS, logging, rate-limit, metrics
+│   │   └── sse/                          # SSE broker
+│   └── composition/                      # Composition root + Anti-Corruption Layers
 ├── pkg/
 │   ├── config/           # Application configuration
-│   └── logger/           # zerolog Logger (structured JSON)
-├── docs/                 # Swagger documentation
+│   ├── logger/           # zerolog Logger (structured JSON)
+│   └── river/            # River client wrapper
+├── migrations/           # SQL migrations (prod only — empty in dev)
+├── docs/                 # Swagger documentation (generated)
 ├── .goca.yaml            # Goca configuration
 ├── .env                  # Environment variables
 ├── .env.example          # Configuration example
-├── Makefile              # Build commands
 └── go.mod
 ```
 
@@ -155,19 +195,21 @@ goca make handler Product
 
 ### Entity Registry (AutoMigrate)
 
-After `goca feature`, the new entity must be registered in `internal/domain/registry.go`:
+There is **no central registry**. Each bounded context that owns persistence exposes its own `Entities()` function from `internal/<ctx>/infrastructure/persistence/registry.go`. The composition root aggregates them in `runAutoMigrations`:
 
 ```go
-// internal/domain/registry.go
-func AllEntities() []interface{} {
-    return []interface{}{
-        &UserStats{},
-        &Product{},  // ← Add new entity here
-    }
+// internal/<ctx>/infrastructure/persistence/registry.go
+func Entities() []any {
+    return []any{&gormProduct{}}  // unexported GORM-tagged twin of the domain type
 }
+
+// internal/composition/composition.go (runAutoMigrations)
+entities := []any{}
+entities = append(entities, statspersist.Entities()...)
+entities = append(entities, productspersist.Entities()...)  // ← new context
 ```
 
-This is the **ONLY** place - `main.go` remains unchanged!
+`cmd/server/main.go` remains unchanged — it just calls `composition.Build`.
 
 ### After Goca/API Changes
 
@@ -305,7 +347,7 @@ All webhooks are protected by `X-Webhook-Secret` header.
 
 ### Webhook Handler
 
-Located at `internal/handler/webhook.go`:
+Located at `internal/notifications/interfaces/http/handler.go`:
 
 - **SendMagicLink**: Sends Magic Link emails via SMTP
 - **SendVerificationEmail**: Sends email verification links

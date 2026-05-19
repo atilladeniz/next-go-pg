@@ -6,16 +6,19 @@ allowed-tools: Read, Edit, Write, Bash, Glob, Grep
 
 # Feature Generator
 
-Create complete full-stack features following Clean Architecture with Goca.
+Create complete full-stack features. Backend follows **bounded contexts** (DDD-strategic) with Clean-Architecture layers (DDD-tactical) inside each context. Frontend follows Feature-Sliced Design.
 
 ## Feature Structure
 
-### Backend (Go with Goca)
+### Backend (Go) — bounded-context layout
 
-1. **Entity** in `backend/internal/domain/` → `goca make entity`
-2. **Repository** in `backend/internal/repository/` → `goca make repository`
-3. **UseCase** in `backend/internal/usecase/` → `goca make usecase`
-4. **Handler** in `backend/internal/handler/` → `goca make handler`
+Each aggregate lives inside one bounded context (e.g. `stats/`, `auth/`, `notifications/`, `exports/`, or a brand-new one). Goca scaffolds the four layers into `internal/_goca_inbox/` (ignored by `go build`); you then **relocate** the output into the target context.
+
+1. **Domain** → `goca make entity` → move into `backend/internal/<ctx>/domain/` (strip GORM tags; embed `shared.AggregateBase` if it raises events; add value-object constructors)
+2. **Application port + use case** → `goca make usecase` → split into `backend/internal/<ctx>/application/ports.go` and `<ctx>/application/<aggregate>_usecases.go`
+3. **Infrastructure (persistence)** → `goca make repository` → split into `backend/internal/<ctx>/infrastructure/persistence/{gorm_models.go, <aggregate>_mapper.go, <aggregate>_repo.go, registry.go}`. Add the compile-time assertion `var _ <ctx>app.<Aggregate>Repository = (*Repository)(nil)`.
+4. **HTTP adapter** → `goca make handler` → move into `backend/internal/<ctx>/interfaces/http/handler.go`. Imports ONLY this context's `application/`.
+5. **Wire in `internal/composition/composition.go`** — build the repository, use cases, handler; append `Entities()` to `runAutoMigrations`. If the context needs data from another context, write an Anti-Corruption Layer in `composition.go` (mirror `statsToExportsReader` / `authToNotificationsDirectory`).
 
 ### Frontend (React)
 
@@ -45,35 +48,41 @@ just api
 
 ## Entity Registry (AutoMigrate)
 
-After `goca feature`, the new entity must be registered in `backend/internal/domain/registry.go`:
+There is **no central registry**. Each bounded context owns its own `Entities()` function under `internal/<ctx>/infrastructure/persistence/registry.go`. The composition root aggregates them:
 
 ```go
-// internal/domain/registry.go
-func AllEntities() []interface{} {
-    return []interface{}{
-        &UserStats{},
-        &Product{},  // ← Add new entity here!
-    }
+// internal/<ctx>/infrastructure/persistence/registry.go
+func Entities() []any {
+    return []any{&gormProduct{}}
 }
-```
 
-This is the **ONLY** place where new entities need to be registered!
+// internal/composition/composition.go (runAutoMigrations)
+entities = append(entities, productspersist.Entities()...)
+```
 
 ## Complete Workflow
 
 ```bash
-# 1. Generate feature
+# 1. Scaffold into _goca_inbox/
 cd backend
 goca feature Product --fields "name:string,price:float64,stock:int"
 
-# 2. Add entity to registry
-# backend/internal/domain/registry.go → add &Product{}
+# 2. Relocate the four generated files into a bounded context:
+#    - domain  → internal/<ctx>/domain/
+#    - usecase → internal/<ctx>/application/
+#    - repo    → internal/<ctx>/infrastructure/persistence/
+#    - handler → internal/<ctx>/interfaces/http/
+#    Strip GORM tags from the domain type, write a GORM twin + mapper,
+#    add Entities() to the context's persistence/registry.go.
 
-# 3. Generate API
+# 3. Wire in internal/composition/composition.go
+#    (repo, usecase, handler; append Entities() to AutoMigrate)
+
+# 4. Generate Swagger + Orval API client
 cd ..
 just api
 
-# 4. Restart backend (migration runs automatically)
+# 5. Restart backend (AutoMigrate runs on startup)
 just dev-backend
 ```
 
@@ -149,7 +158,7 @@ export function ProductList() {
 ## Backend Handler mit Swagger
 
 ```go
-// internal/handler/product.go
+// internal/<ctx>/interfaces/http/handler.go
 
 // GetProducts godoc
 // @Summary List all products

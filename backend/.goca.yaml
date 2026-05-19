@@ -12,31 +12,37 @@ project:
         - api
     metadata: {}
 architecture:
+    # NOTE: the backend lives in bounded contexts under
+    # internal/<ctx>/{domain,application,infrastructure,interfaces/http}/.
+    # Goca assumes a flat layout, so each layer below points at an
+    # inbox path (prefixed with `_` so `go build ./...` ignores it).
+    # After running goca, move the generated files into the target
+    # context and rewrite the package declaration / imports.
     layers:
         domain:
             enabled: true
-            directory: internal/domain
+            directory: internal/_goca_inbox/domain
             patterns: []
             templates: []
             validations: []
             extensions: {}
         usecase:
             enabled: true
-            directory: internal/application
+            directory: internal/_goca_inbox/application
             patterns: []
             templates: []
             validations: []
             extensions: {}
         repository:
             enabled: true
-            directory: internal/infrastructure/persistence
+            directory: internal/_goca_inbox/infrastructure/persistence
             patterns: []
             templates: []
             validations: []
             extensions: {}
         handler:
             enabled: true
-            directory: internal/handler
+            directory: internal/_goca_inbox/interfaces/http
             patterns: []
             templates: []
             validations: []

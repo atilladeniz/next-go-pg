@@ -125,39 +125,58 @@ Configuration is in `backend/.goca.yaml`:
 - `database.type`: postgres
 - `generation.swagger.enabled`: true
 
-### Clean Architecture Layers
+### Bounded Contexts + Clean Architecture Layers
+
+The backend is split into four **bounded contexts** (DDD-strategic), each owning its own four-layer Clean Architecture stack (DDD-tactical). Cross-cutting infrastructure lives in `platform/`; the only place that wires everything together is `composition/`.
 
 ```
 backend/internal/
-├── domain/                       # Pure entities, value objects, aggregate methods (goca make entity)
-├── application/                  # Hexagonal ports + use cases (goca make usecase → output here)
-│   ├── ports.go                  # StatsRepository, EventBroadcaster, UserDirectory, ...
-│   └── *_usecases.go             # GetUserStats, IncrementStatField, ... — each with Execute(ctx, ...)
-├── infrastructure/               # Concrete adapter implementations of application ports
-│   ├── persistence/              # GORM models + mappers + repository implementations
-│   │   ├── gorm_models.go        # GORM-tagged structs (unexported)
-│   │   ├── *_mapper.go           # domain ↔ persistence translation
-│   │   ├── *_repo.go             # repository impls — compile-time assert against ports
-│   │   └── registry.go           # AllEntities() — list of GORM models for AutoMigrate
-│   └── sse/                      # SSE broker — satisfies application.EventBroadcaster
-├── composition/                  # Composition root — Build/Shutdown for the dep graph
-├── handler/                      # HTTP — consumes use cases, never gorm or persistence
-├── middleware/                   # Auth, CORS, logging, rate-limit, metrics
-└── jobs/                         # River workers — consume application ports
+├── shared/domain/                # Shared Kernel: UserID, AggregateBase, DomainEvent interface
+├── stats/                        # Bounded Context: per-user counters
+│   ├── domain/                   # UserStats aggregate, StatField VO, StatIncremented event
+│   ├── application/              # Repository port, DomainEventPublisher, GetUserStats / IncrementStatField use cases
+│   ├── infrastructure/
+│   │   ├── persistence/          # GORM model + mapper + repository impl + Entities()
+│   │   └── events/               # SSE-backed domain event publisher
+│   └── interfaces/http/          # /stats endpoints
+├── auth/                         # Bounded Context: identity (read-only, owned by Better Auth)
+│   ├── domain/                   # User projection
+│   ├── application/              # UserDirectory port
+│   ├── infrastructure/betterauth # GORM adapter over Better Auth's user / session tables
+│   └── interfaces/http/          # /me, /hello, /protected/hello
+├── notifications/                # Bounded Context: transactional email
+│   ├── application/              # EmailSender, JobEnqueuer, UserDirectory ports + payloads
+│   ├── infrastructure/
+│   │   ├── email/                # gomail sender adapter
+│   │   └── jobs/                 # River workers + enqueuer
+│   └── interfaces/http/          # /webhooks/*
+├── exports/                      # Bounded Context: user data export
+│   ├── domain/                   # Format, Status VOs
+│   ├── application/              # Store, ProgressPublisher, JobEnqueuer, StatsReader (ACL)
+│   ├── infrastructure/
+│   │   ├── (memory store)        # in-memory artifact store
+│   │   └── jobs/                 # DataExportWorker + enqueuer
+│   └── interfaces/http/          # /export/*
+├── platform/                     # Cross-cutting infrastructure
+│   ├── middleware/               # Auth, CORS, logging, rate-limit, metrics
+│   └── sse/                      # SSE broker
+└── composition/                  # Composition root — Build / Shutdown + Anti-Corruption Layers
 ```
 
 **Layer dependency direction (inward only):**
 
 ```
-composition → handler/jobs → application → domain
-composition → infrastructure   → application → domain
+composition → <ctx>/interfaces/http → <ctx>/application → <ctx>/domain
+composition → <ctx>/infrastructure  → <ctx>/application → <ctx>/domain
+<all>       → shared/domain
 ```
 
-- `domain` imports nothing internal.
-- `application` imports only `domain`.
-- `infrastructure/...` imports only `application` and `domain`.
-- `handler/`, `jobs/` consume use cases and ports from `application/`.
-- `composition` is the only place that knows about everything.
+- Each context's `domain/` imports nothing internal except the Shared Kernel (`shared/domain`).
+- Each context's `application/` imports only its own `domain/` and the Shared Kernel.
+- Each context's `infrastructure/...` imports only its own `application/` and `domain/`.
+- Each context's `interfaces/http/` consumes only its own `application/`. **Never** another context's package, and **never** GORM.
+- Contexts never import each other. Cross-context wiring goes through an **Anti-Corruption Layer** in `composition/composition.go` (e.g. `statsToExportsReader`, `authToNotificationsDirectory`).
+- `composition/` is the only package that knows about every context, the database, and River.
 
 ### Why Goca instead of manual?
 
@@ -169,54 +188,77 @@ composition → infrastructure   → application → domain
 
 ### Example: Adding a New Feature
 
+A new aggregate (`Invoice`) lives **inside a bounded context**. If it doesn't fit any existing context, create a new one — every new aggregate also creates a new top-level folder under `internal/`.
+
 ```bash
-# 1. Generate feature
+# 1. Generate feature (Goca scaffolds the four layers; you then relocate
+#    them into the target bounded context).
 cd backend
 goca feature Invoice --fields "userId:string,amount:float64,status:string"
 
-# 2. Make the generated entity pure (manual step):
-#    a) Strip GORM tags from internal/domain/invoice.go (keep the type, drop the tags).
-#    b) Move the GORM-tagged copy into internal/infrastructure/persistence/gorm_models.go
-#       as an unexported type (e.g. gormInvoice).
-#    c) Write a mapper in internal/infrastructure/persistence/invoice_mapper.go
-#       (invoiceToDomain / invoiceFromDomain), mirroring user_stats_mapper.go.
-#    d) Append &gormInvoice{} to persistence.AllEntities() in
-#       internal/infrastructure/persistence/registry.go.
+# 2. Decide which bounded context owns Invoice (e.g. a new "billing/" context).
+#    Move and split the generated files:
+#
+#    a) Domain (pure): internal/billing/domain/invoice.go
+#       - Strip every GORM tag; embed shared.AggregateBase if it raises events.
+#       - Define value objects (e.g. InvoiceID, Money) with constructor invariants.
+#       - Define domain events (e.g. InvoicePaid) implementing EventName() string.
+#
+#    b) GORM model + mapper: internal/billing/infrastructure/persistence/
+#       - gorm_models.go      → unexported gormInvoice with GORM tags
+#       - invoice_mapper.go   → invoiceToDomain / invoiceFromDomain
+#       - registry.go         → Entities() returns []any{&gormInvoice{}}
+#
+#    c) Application port: internal/billing/application/ports.go
+#       - InvoiceRepository interface (methods take *billing.Invoice / shared.UserID)
+#
+#    d) Repository impl: internal/billing/infrastructure/persistence/invoice_repo.go
+#       - `var _ billingapp.InvoiceRepository = (*Repository)(nil)`
+#       - Save MUST NOT replace *agg as a whole — wipes pending events.
+#         Mutate only DB-owned fields back into agg (see stats/.../repository.go).
 
-# 3. Promote Goca's generated repository to the persistence layer:
-#    Goca wrote internal/infrastructure/persistence/invoice.go (per .goca.yaml).
-#    Make it implement an application port — declare InvoiceRepository in
-#    internal/application/ports.go, then add the compile-time assertion
-#    `var _ application.InvoiceRepository = (*InvoiceRepository)(nil)`.
+# 3. Use case: internal/billing/application/invoice_usecases.go
+#    - Struct with Execute(ctx, ...), interface-typed dependencies.
+#    - Pull domain events BEFORE Save: events := agg.PullEvents()
 
-# 4. Wire a use case in internal/application/invoice_usecases.go (struct with
-#    Execute(ctx, ...), interface-typed dependencies). Add the wiring step in
-#    internal/composition/composition.go.
+# 4. HTTP adapter: internal/billing/interfaces/http/handler.go
+#    - Depends ONLY on billingapp.*. Never imports gorm, persistence, or any
+#      other bounded context.
 
-# 5. Swagger + Orval (one command!)
+# 5. Wire in internal/composition/composition.go:
+#    - billingRepo := billingpersist.NewRepository(db)
+#    - billingHandler := billinghttp.NewHandler(usecase, ...)
+#    - Append billingpersist.Entities()... to runAutoMigrations.
+#    - If billing needs data from another context, write an ACL adapter here
+#      (mirror statsToExportsReader / authToNotificationsDirectory).
+
+# 6. Swagger + Orval
 cd ..
 just api
 
-# 6. Restart backend (migration runs automatically)
+# 7. Restart backend (AutoMigrate runs on startup)
 just dev-backend
 ```
 
 ### Entity Registry
 
-New GORM models must be registered in `backend/internal/infrastructure/persistence/registry.go`
-(the old `backend/internal/domain/registry.go` was deleted — the domain layer is pure and
-no longer knows about AutoMigrate):
+Each bounded context that owns persistence exports its own `Entities()` function
+from `internal/<context>/infrastructure/persistence/`. The composition root
+aggregates them in `runAutoMigrations`:
 
 ```go
-func AllEntities() []any {
-    return []any{
-        &gormUserStats{},
-        &gormInvoice{},  // ← New GORM model here
-    }
+// internal/<context>/infrastructure/persistence/registry.go
+func Entities() []any {
+    return []any{&gormInvoice{}}
 }
+
+// internal/composition/composition.go (runAutoMigrations)
+entities := []any{}
+entities = append(entities, statspersist.Entities()...)
+entities = append(entities, billingpersist.Entities()...)  // ← new context
 ```
 
-This is the **ONLY** place for AutoMigrate.
+There is **no central registry** — each context owns its own. The composition root is the only place that knows about every context's models.
 
 ### API Generation Workflow
 
@@ -502,17 +544,18 @@ export function useSSE() {
 - `frontend/src/features/user-settings/` - Session Management (List, Revoke)
 - `frontend/src/features/security-settings/` - 2FA / TOTP setup + Backup Codes
 - `frontend/src/features/data-export/` - CSV/JSON export with SSE progress
-- `backend/internal/handler/webhook.go` - Email Webhooks (Magic Link, Verification, Login Notification)
+- `backend/internal/notifications/interfaces/http/handler.go` - Email Webhooks (Magic Link, Verification, Login Notification)
 
 ### Real-time
 
-- `backend/internal/infrastructure/sse/broker.go` - SSE Broker
+- `backend/internal/platform/sse/broker.go` - SSE Broker (platform-wide)
+- `backend/internal/stats/infrastructure/events/publisher.go` - Stats domain-event → SSE adapter
 - `frontend/src/features/stats/model/use-sse.ts` - SSE Client Hook
 
 ### Logging
 
 - `backend/pkg/logger/logger.go` - zerolog Logger with helpers
-- `backend/internal/middleware/logging.go` - HTTP request logging + Request-ID
+- `backend/internal/platform/middleware/logging.go` - HTTP request logging + Request-ID
 - `frontend/src/shared/lib/logger/index.ts` - Pino Logger
 
 ### UI Components (FSD Paths)
@@ -570,11 +613,11 @@ just spec-validate         # Validate all changes and specs
 
 ## Migration Strategy: Dev (AutoMigrate) vs Prod (SQL)
 
-**Dev path** (`just dev` → `cmd/server`): GORM `AutoMigrate` runs for every entity in `internal/domain/registry.go`. River's job-queue schema is migrated on startup via `riverPkg.RunMigrations`. **No CLI tool is invoked.**
+**Dev path** (`just dev` → `cmd/server` → `composition.Build`): GORM `AutoMigrate` runs for every entity contributed by each bounded context's `infrastructure/persistence/Entities()` function (currently `statspersist.Entities()`). River's job-queue schema is migrated on startup via `riverPkg.RunMigrations`. **No CLI tool is invoked.**
 
 **Prod path** (`just prod-migrate-up` / `just prod-river-migrate-up`): For clustered deployments where multiple replicas can't safely race on AutoMigrate, use `backend/cmd/migrate` (golang-migrate against SQL files in `backend/migrations/`) and `backend/cmd/river-migrate` as pre-deploy hooks. Currently optional — the single-replica Kamal setup is fine with AutoMigrate. The `backend/migrations/` folder ships empty by default; add SQL files only when AutoMigrate stops being sufficient.
 
-**Don't mix.** If you add a SQL migration, also keep the Go entity in `registry.go` in sync — otherwise AutoMigrate and the SQL files describe two different schemas.
+**Don't mix.** If you add a SQL migration, also keep the Go entity in the relevant context's `Entities()` in sync — otherwise AutoMigrate and the SQL files describe two different schemas.
 
 ---
 
@@ -616,24 +659,32 @@ Webhook Request → Job Enqueue → PostgreSQL → River Worker → Email Send
 
 ### Adding New Jobs
 
-1. Define job args in `backend/internal/jobs/email.go`
+Job workers live inside the bounded context that owns the work.
+
+1. Define job args + worker in `backend/internal/<ctx>/infrastructure/jobs/`
 2. Implement worker with `river.WorkerDefaults`
-3. Register in `backend/internal/jobs/registry.go`
-4. Create enqueue helper in `backend/internal/jobs/enqueue.go`
+3. Register in that context's `jobs/registry.go` (called from composition)
+4. Create enqueue helper in that context's `jobs/enqueue.go`
+5. Expose a `JobEnqueuer` port in `<ctx>/application/ports.go` so handlers depend on the interface, not the River client.
 
 ### Files
 
 ```
-backend/internal/jobs/
-├── email.go      # Job workers (email types)
+backend/internal/notifications/infrastructure/jobs/
+├── workers.go    # Email workers (Magic Link, Verification, 2FA, ...)
 ├── registry.go   # Worker registration
-└── enqueue.go    # Enqueue helpers
+└── enqueue.go    # Enqueuer adapter — implements notifapp.JobEnqueuer
+
+backend/internal/exports/infrastructure/jobs/
+├── worker.go     # DataExportWorker
+├── registry.go   # Worker registration
+└── enqueue.go    # Enqueuer adapter — implements exportsapp.JobEnqueuer
 
 backend/pkg/river/
 └── client.go     # River client wrapper
 
 backend/cmd/river-migrate/
-└── main.go       # Migration CLI
+└── main.go       # Migration CLI (prod)
 ```
 
 ### Fallback
@@ -755,20 +806,40 @@ git commit --no-verify
 next-go-pg/
 ├── backend/
 │   ├── cmd/
-│   │   ├── server/           # Main API server (boots AutoMigrate + River)
+│   │   ├── server/           # Main API server (loads config → composition.Build → ListenAndServe)
 │   │   ├── migrate/          # golang-migrate CLI (prod SQL migrations)
 │   │   └── river-migrate/    # River job-queue migration CLI
 │   ├── internal/
-│   │   ├── domain/                # Pure entities, value objects (no GORM, no I/O)
-│   │   ├── application/           # Hexagonal ports + use cases (Execute(ctx, ...))
-│   │   ├── infrastructure/
-│   │   │   └── persistence/       # GORM models + mappers + repository impls + AllEntities
-│   │   ├── composition/           # Composition root (Build / Shutdown)
-│   │   ├── handler/               # HTTP handlers (consume application use cases)
-│   │   ├── middleware/            # Auth, CORS, Logging, Rate limiting
-│   │   ├── jobs/                  # River background jobs (consume application ports)
-│   │   ├── sse/                   # Server-Sent Events broker
-│   │   └── templates/             # Email templates (Magic Link, etc.)
+│   │   ├── shared/domain/             # Shared Kernel (UserID, AggregateBase, DomainEvent)
+│   │   ├── stats/                     # Bounded Context (per-user counters)
+│   │   │   ├── domain/                # Pure: aggregate, value objects, events
+│   │   │   ├── application/           # Ports + use cases
+│   │   │   ├── infrastructure/
+│   │   │   │   ├── persistence/       # GORM model + mapper + repo + Entities()
+│   │   │   │   └── events/            # Domain-event → SSE adapter
+│   │   │   └── interfaces/http/       # /stats endpoints
+│   │   ├── auth/                      # Bounded Context (Better Auth integration)
+│   │   │   ├── domain/                # User projection
+│   │   │   ├── application/           # UserDirectory port
+│   │   │   ├── infrastructure/betterauth/  # GORM adapter over Better Auth tables
+│   │   │   └── interfaces/http/       # /me, /hello, /protected/hello
+│   │   ├── notifications/             # Bounded Context (transactional email)
+│   │   │   ├── application/           # EmailSender, JobEnqueuer, UserDirectory ports
+│   │   │   ├── infrastructure/
+│   │   │   │   ├── email/             # gomail SMTP sender
+│   │   │   │   └── jobs/              # River email workers + enqueuer
+│   │   │   └── interfaces/http/       # /webhooks/*
+│   │   ├── exports/                   # Bounded Context (CSV/JSON data export)
+│   │   │   ├── domain/                # Format, Status VOs
+│   │   │   ├── application/           # Store, ProgressPublisher, JobEnqueuer, StatsReader
+│   │   │   ├── infrastructure/
+│   │   │   │   ├── (memory store)     # in-memory artifact store
+│   │   │   │   └── jobs/              # River export worker + enqueuer
+│   │   │   └── interfaces/http/       # /export/*
+│   │   ├── platform/                  # Cross-cutting infrastructure
+│   │   │   ├── middleware/            # Auth, CORS, Logging, Rate limit, Metrics
+│   │   │   └── sse/                   # Server-Sent Events broker
+│   │   └── composition/               # Composition root + Anti-Corruption Layers
 │   ├── migrations/           # SQL migrations (prod only — empty in dev)
 │   └── docs/                 # Swagger JSON (generated)
 ├── frontend/
@@ -791,13 +862,19 @@ next-go-pg/
         └── docker-compose.backup.yml   # Backup stack
 ```
 
-> **Layer ownership at a glance.** `domain/` holds pure types — no I/O, no GORM.
-> `application/` defines repository ports (interfaces) and use-case structs that
-> orchestrate them via `Execute(ctx, ...)`. `infrastructure/persistence/` holds
-> the GORM-tagged twin types and mappers; each repository impl asserts the port
-> with `var _ application.<Port> = (*<Impl>)(nil)`. `composition/` is the single
-> place that builds the dependency graph. The old `internal/repository/` package
-> was removed by the `backend-clean-architecture` change.
+> **Layer ownership at a glance.** Each bounded context owns four layers.
+> `<ctx>/domain/` holds pure types — no I/O, no GORM — plus value objects with
+> constructor invariants, aggregate roots embedding `shared.AggregateBase`, and
+> domain events implementing `EventName() string`. `<ctx>/application/` defines
+> repository / publisher / enqueuer ports and use-case structs that orchestrate
+> them via `Execute(ctx, ...)`. `<ctx>/infrastructure/persistence/` holds the
+> GORM-tagged twin types and mappers; each repository impl asserts the port
+> with `var _ <ctx>app.<Port> = (*<Impl>)(nil)`. `<ctx>/interfaces/http/`
+> imports only its own `application/` package. `composition/` is the single
+> place that builds the dependency graph and wires Anti-Corruption Layers
+> between contexts (e.g. `statsToExportsReader`, `authToNotificationsDirectory`).
+> The old flat `internal/{domain,repository,handler,usecase,jobs,sse,templates}/`
+> packages were removed by the `backend-clean-architecture` change.
 
 ## Conventions
 
@@ -899,11 +976,15 @@ Handler → Enqueue Job → PostgreSQL → River Worker → Process → SSE Even
 ### Key Files
 
 ```
-backend/internal/jobs/
-├── registry.go     # Worker registration with WorkerDeps
-├── enqueue.go      # EnqueueMagicLink, EnqueueDataExport, etc.
-├── email.go        # Email workers (Magic Link, Verification, etc.)
-└── export.go       # Data export worker with SSE progress
+backend/internal/notifications/infrastructure/jobs/
+├── registry.go     # Worker registration
+├── enqueue.go      # Adapter implementing notifapp.JobEnqueuer
+└── workers.go      # Email workers (Magic Link, Verification, 2FA, ...)
+
+backend/internal/exports/infrastructure/jobs/
+├── registry.go     # Worker registration
+├── enqueue.go      # Adapter implementing exportsapp.JobEnqueuer
+└── worker.go       # Data export worker with SSE progress
 
 frontend/src/features/data-export/
 ├── model/use-export.ts   # SSE listener for export-progress
@@ -913,6 +994,7 @@ frontend/src/features/data-export/
 ### Adding a New Job
 
 ```go
+// internal/<ctx>/infrastructure/jobs/...
 // 1. Define args struct
 type MyJobArgs struct {
     UserID string `json:"userId"`
@@ -926,15 +1008,15 @@ type MyJobWorker struct {
 }
 
 func (w *MyJobWorker) Work(ctx context.Context, job *river.Job[MyJobArgs]) error {
-    // Process job
+    // Process job (depend only on this context's application ports)
     return nil
 }
 
-// 3. Register in registry.go
+// 3. Register in this context's registry.go (called from composition)
 river.AddWorker(workers, &MyJobWorker{})
 
-// 4. Enqueue from handler
-jobs.EnqueueMyJob(riverClient, args)
+// 4. Expose <ctx>app.JobEnqueuer port and have enqueue.go implement it.
+//    HTTP handlers depend on the port, never on the River client.
 ```
 
 ### Fallback
@@ -977,11 +1059,12 @@ Protected by `X-Webhook-Secret` header.
 ### Auth Files
 
 ```
-frontend/src/shared/lib/auth-server/auth.ts   # Better Auth config
-frontend/src/shared/lib/auth-client/          # Client (magicLinkClient plugin)
-frontend/src/features/auth/                   # Login UI + hooks
-frontend/src/features/user-settings/          # Session management
-backend/internal/handler/webhook.go           # Email webhooks
+frontend/src/shared/lib/auth-server/auth.ts                       # Better Auth config
+frontend/src/shared/lib/auth-client/                              # Client (magicLinkClient plugin)
+frontend/src/features/auth/                                       # Login UI + hooks
+frontend/src/features/user-settings/                              # Session management
+backend/internal/auth/                                            # Auth bounded context (UserDirectory port + Better Auth adapter)
+backend/internal/notifications/interfaces/http/handler.go         # Email webhooks (consumes notifapp.EmailSender + notifapp.UserDirectory)
 ```
 
 ### Session Management

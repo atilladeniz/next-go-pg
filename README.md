@@ -114,19 +114,19 @@ See `.docs/openspec.md` for the full cheatsheet and `AGENTS.md` for the workflow
 
 ```
 next-go-pg/
-├── backend/                 # Go Backend (Clean Architecture)
+├── backend/                 # Go Backend (Bounded Contexts + Clean Architecture)
 │   ├── cmd/
-│   │   ├── server/          # Main API server (boots AutoMigrate + River)
+│   │   ├── server/          # Main API server (loads config → composition.Build)
 │   │   ├── migrate/         # golang-migrate CLI (prod SQL migrations)
 │   │   └── river-migrate/   # River job-queue migration CLI
 │   ├── internal/
-│   │   ├── domain/          # Entities (goca make entity) + registry
-│   │   ├── repository/      # Data Access (goca make repository)
-│   │   ├── handler/         # HTTP Handler (goca make handler)
-│   │   ├── middleware/      # Auth (JWT + Better Auth), CORS, Logging, Rate limit
-│   │   ├── jobs/            # River Background Jobs
-│   │   ├── sse/             # Server-Sent Events Broker
-│   │   └── templates/       # Email templates (Magic Link, etc.)
+│   │   ├── shared/domain/   # Shared Kernel (UserID, AggregateBase, DomainEvent)
+│   │   ├── stats/           # BC: per-user counters (domain, application, infra, http)
+│   │   ├── auth/            # BC: identity (Better Auth read-only adapter)
+│   │   ├── notifications/   # BC: transactional email (webhooks + River workers)
+│   │   ├── exports/         # BC: CSV/JSON data export with SSE progress
+│   │   ├── platform/        # Cross-cutting: middleware (Auth/CORS/Log) + SSE broker
+│   │   └── composition/     # Composition root + Anti-Corruption Layers
 │   ├── migrations/          # SQL migrations (prod only — empty in dev)
 │   ├── pkg/logger/          # zerolog Logger
 │   └── docs/                # Swagger (generated)
