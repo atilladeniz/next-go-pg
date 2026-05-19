@@ -8,7 +8,10 @@ WORKDIR /app
 # Dependencies stage
 FROM base AS deps
 COPY package.json bun.lock ./
-RUN bun install --frozen-lockfile
+# Cache Bun's package store across builds so repeated installs only
+# re-resolve, not re-download.
+RUN --mount=type=cache,id=bun-store,target=/root/.bun/install/cache \
+    bun install --frozen-lockfile
 
 # Builder stage
 FROM base AS builder
@@ -19,7 +22,10 @@ ENV NEXT_TELEMETRY_DISABLED=1
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-RUN bun run build
+# Persist Next.js's incremental build cache so unchanged routes/pages
+# don't re-transpile on every image build.
+RUN --mount=type=cache,id=next-build,target=/app/.next/cache \
+    bun run build
 
 # Production stage - use distroless for security
 FROM gcr.io/distroless/nodejs22-debian12:nonroot AS runner

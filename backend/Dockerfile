@@ -9,18 +9,20 @@ ARG TARGETARCH
 
 WORKDIR /app
 
-# Install dependencies
+# Install dependencies (mounted module cache survives layer invalidation)
 COPY go.mod go.sum ./
-RUN go mod download
+RUN --mount=type=cache,id=gomod,target=/go/pkg/mod \
+    go mod download
 
 # Copy source code
 COPY . .
 
-# Build the server binary
-RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -ldflags="-s -w" -o bin/backend cmd/server/main.go
-
-# Build the migrate binary
-RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -ldflags="-s -w" -o bin/migrate cmd/migrate/main.go
+# Build with persistent module + build caches so incremental builds
+# only recompile changed packages.
+RUN --mount=type=cache,id=gomod,target=/go/pkg/mod \
+    --mount=type=cache,id=gobuild,target=/root/.cache/go-build \
+    CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -ldflags="-s -w" -o bin/backend cmd/server/main.go && \
+    CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -ldflags="-s -w" -o bin/migrate cmd/migrate/main.go
 
 # Final stage - Alpine for shell support (needed for entrypoint)
 FROM alpine:3.20
