@@ -120,6 +120,52 @@ func TestIncrementStatField_negativeClampedAtZero_eventReflectsClamp(t *testing.
 	}
 }
 
+// repoThatOverwritesAggregate mimics a buggy persistence adapter
+// (like the one we shipped briefly) that copies a fresh value back
+// into *agg after Save — wiping the AggregateBase and its pending
+// events. The use case must publish events anyway: it pulls them
+// BEFORE Save, so this style of repo bug cannot break realtime SSE.
+type repoThatOverwritesAggregate struct{ inner *fakeRepo }
+
+func (r *repoThatOverwritesAggregate) GetOrCreate(ctx context.Context, uid shared.UserID) (*stats.UserStats, error) {
+	return r.inner.GetOrCreate(ctx, uid)
+}
+
+func (r *repoThatOverwritesAggregate) Save(ctx context.Context, agg *stats.UserStats) error {
+	if err := r.inner.Save(ctx, agg); err != nil {
+		return err
+	}
+	// Vicious move: replace *agg with a brand-new value that has no
+	// pending events. Mirrors GORM round-trip's destructive copy.
+	fresh := stats.UserStats{
+		ID:            agg.ID,
+		UserID:        agg.UserID,
+		ProjectCount:  agg.ProjectCount,
+		ActivityToday: agg.ActivityToday,
+		Notifications: agg.Notifications,
+		LastLogin:     agg.LastLogin,
+		MemberSince:   agg.MemberSince,
+		CreatedAt:     agg.CreatedAt,
+		UpdatedAt:     agg.UpdatedAt,
+	}
+	*agg = fresh
+	return nil
+}
+
+func TestIncrementStatField_publishesEvents_evenIfRepoReplacesAggregate(t *testing.T) {
+	repo := &repoThatOverwritesAggregate{inner: newFakeRepo()}
+	pub := &fakePublisher{}
+	uc := statsapp.IncrementStatField{Repo: repo, Events: pub}
+
+	uid, _ := shared.NewUserID("user-realtime")
+	if _, err := uc.Execute(context.Background(), uid, stats.StatFieldProjects, 1); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(pub.events) != 1 {
+		t.Fatalf("published events = %d, want 1 — events lost to repo round-trip", len(pub.events))
+	}
+}
+
 func TestIncrementStatField_saveFailure_noPublish(t *testing.T) {
 	repo := newFakeRepo()
 	repo.failSave = true

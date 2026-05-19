@@ -45,12 +45,20 @@ func (r *Repository) GetOrCreate(ctx context.Context, userID shared.UserID) (*st
 }
 
 // Save persists changes and reflects GORM-managed timestamps back into
-// the caller's domain value.
+// the caller's domain value WITHOUT replacing the aggregate as a whole —
+// that would wipe AggregateBase.pendingEvents and the use case would
+// never see the events the aggregate just recorded. Mutate the fields
+// the database owns; leave everything else (including pending events)
+// alone.
 func (r *Repository) Save(ctx context.Context, agg *stats.UserStats) error {
 	m := fromDomain(*agg)
 	if err := r.db.WithContext(ctx).Save(&m).Error; err != nil {
 		return err
 	}
-	*agg = toDomain(m)
+	agg.ID = m.ID
+	agg.LastLogin = m.LastLogin
+	agg.MemberSince = m.MemberSince
+	agg.CreatedAt = m.CreatedAt
+	agg.UpdatedAt = m.UpdatedAt
 	return nil
 }

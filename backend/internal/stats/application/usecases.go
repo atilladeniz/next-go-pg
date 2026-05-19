@@ -29,10 +29,13 @@ func (uc IncrementStatField) Execute(ctx context.Context, userID shared.UserID, 
 		return nil, err
 	}
 	agg.IncrementField(field, delta)
+	// Pull events BEFORE Save so the use case doesn't depend on a
+	// repository implementation that might rebuild the aggregate from
+	// its persisted form (and would drop the pending event list).
+	events := agg.PullEvents()
 	if err := uc.Repo.Save(ctx, agg); err != nil {
 		return nil, err
 	}
-	events := agg.PullEvents()
 	if uc.Events != nil && len(events) > 0 {
 		if err := uc.Events.Publish(ctx, events...); err != nil {
 			return agg, err
