@@ -17,12 +17,12 @@ default:
 
 # Start DB, frontend and backend
 [group('dev')]
-dev: db-up _migrate-up-silent api
+dev: db-up api
     bun run dev:all
 
 # Start everything (+ Grafana, Loki, Promtail)
 [group('dev')]
-dev-full: db-up _migrate-up-silent logs-up api
+dev-full: db-up logs-up api
     @echo ""
     @echo "✓ Full dev environment ready"
     @echo ""
@@ -68,34 +68,37 @@ db-migrate:
     cd frontend && bunx dotenv-cli -e .env.local -- bunx @better-auth/cli@latest migrate --config src/shared/lib/auth-server/auth.ts --yes
     @echo "✓ Migrations complete"
 
-# ─── SQL Migrations (golang-migrate) ────────────────────────────
+# ─── Production Migrations (golang-migrate + River) ─────────────
+# These recipes drive `backend/cmd/migrate` and `backend/cmd/river-migrate`
+# directly against the SQL files in `backend/migrations/`. They are NOT
+# part of the dev path — `just dev` boots `cmd/server`, which runs GORM
+# AutoMigrate (from `internal/domain/registry.go`) and River migrations
+# on startup. Use these `prod-*` recipes for clustered deployments where
+# AutoMigrate is unsafe (multiple replicas racing) and you want a
+# deploy-hook step that owns schema changes.
 
-# Run all pending SQL migrations
-[group('migrate')]
-migrate-up:
+# Apply all pending SQL migrations (production deploy hook)
+[group('prod-migrate')]
+prod-migrate-up:
     @echo "Running SQL migrations..."
     cd backend && go run ./cmd/migrate -up
     @echo "✓ Migrations complete"
 
-[private]
-_migrate-up-silent:
-    @cd backend && go run ./cmd/migrate -up 2>/dev/null || true
-
 # Rollback last SQL migration
-[group('migrate')]
-migrate-down:
+[group('prod-migrate')]
+prod-migrate-down:
     @echo "Rolling back last migration..."
     cd backend && go run ./cmd/migrate -down
     @echo "✓ Rollback complete"
 
 # Show current migration version
-[group('migrate')]
-migrate-version:
+[group('prod-migrate')]
+prod-migrate-version:
     @cd backend && go run ./cmd/migrate -version
 
-# Create new migration files (usage: just migrate-create <name>)
-[group('migrate')]
-migrate-create name:
+# Create new migration files (usage: just prod-migrate-create <name>)
+[group('prod-migrate')]
+prod-migrate-create name:
     #!/usr/bin/env bash
     set -eu
     NEXT=$(ls backend/migrations/*.up.sql 2>/dev/null | wc -l | tr -d ' ')
@@ -106,6 +109,21 @@ migrate-create name:
     echo "✓ Created migrations:"
     echo "  backend/migrations/${PADDED}_{{ name }}.up.sql"
     echo "  backend/migrations/${PADDED}_{{ name }}.down.sql"
+
+# Apply River job-queue migrations (production deploy hook)
+[group('prod-migrate')]
+prod-river-migrate-up:
+    cd backend && go run ./cmd/river-migrate -up
+
+# Rollback last River job-queue migration
+[group('prod-migrate')]
+prod-river-migrate-down:
+    cd backend && go run ./cmd/river-migrate -down
+
+# Show River job-queue migration version
+[group('prod-migrate')]
+prod-river-migrate-version:
+    cd backend && go run ./cmd/river-migrate -version
 
 # ─── Build ──────────────────────────────────────────────────────
 
