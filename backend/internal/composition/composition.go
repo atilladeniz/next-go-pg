@@ -24,6 +24,7 @@ import (
 
 	"github.com/atilladeniz/next-go-pg/backend/internal/application"
 	"github.com/atilladeniz/next-go-pg/backend/internal/handler"
+	"github.com/atilladeniz/next-go-pg/backend/internal/infrastructure/email"
 	"github.com/atilladeniz/next-go-pg/backend/internal/infrastructure/persistence"
 	"github.com/atilladeniz/next-go-pg/backend/internal/infrastructure/sse"
 	"github.com/atilladeniz/next-go-pg/backend/internal/jobs"
@@ -76,6 +77,11 @@ func Build(ctx context.Context, in Inputs) (*App, error) {
 	sseBroker := sse.NewBroker()
 	logger.Info().Msg("SSE broker initialized")
 
+	// Email sender — always constructed; configures SMTP transport
+	// from env. Used both by webhook handlers (sync fallback) and by
+	// the email workers.
+	emailSender := email.NewSender(emailConfigFromEnv())
+
 	// Persistence + use cases (only with DB).
 	var statsRepo application.StatsRepository
 	var userDirectory application.UserDirectory
@@ -102,7 +108,7 @@ func Build(ctx context.Context, in Inputs) (*App, error) {
 
 			workers := river.NewWorkers()
 			jobs.RegisterWorkers(workers, &jobs.WorkerDeps{
-				EmailConfig: emailConfigFromEnv(),
+				EmailSender: emailSender,
 				Events:      sseBroker,
 				ExportStore: exportStore,
 				StatsRepo:   statsRepo,
@@ -124,7 +130,7 @@ func Build(ctx context.Context, in Inputs) (*App, error) {
 
 	// HTTP layer.
 	apiHandler := handler.NewAPIHandler(getStatsUC, incrementStatUC)
-	webhookHandler := handler.NewWebhookHandler(userDirectory)
+	webhookHandler := handler.NewWebhookHandler(userDirectory, emailSender)
 	var jobEnqueuer application.JobEnqueuer
 	if app.riverJobQueue != nil {
 		jobEnqueuer = jobs.NewEnqueuer(app.riverJobQueue.Client)
@@ -386,7 +392,7 @@ func runAutoMigrations(database *gorm.DB) error {
 	return nil
 }
 
-func emailConfigFromEnv() *jobs.EmailConfig {
+func emailConfigFromEnv() email.Config {
 	smtpHost := os.Getenv("SMTP_HOST")
 	if smtpHost == "" {
 		smtpHost = "127.0.0.1"
@@ -405,5 +411,10 @@ func emailConfigFromEnv() *jobs.EmailConfig {
 	if appURL == "" {
 		appURL = "http://localhost:3000"
 	}
-	return jobs.NewEmailConfig(smtpHost, smtpPort, smtpFrom, appURL)
+	return email.Config{
+		SMTPHost: smtpHost,
+		SMTPPort: smtpPort,
+		SMTPFrom: smtpFrom,
+		AppURL:   appURL,
+	}
 }

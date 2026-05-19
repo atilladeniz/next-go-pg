@@ -19,7 +19,7 @@ The backend SHALL organize its Go packages into four horizontal layers under `ba
 #### Scenario: Adapter implementations live under infrastructure
 
 - **WHEN** a contributor inspects `backend/internal/infrastructure/`
-- **THEN** it contains `persistence/` (GORM-backed adapters) and `sse/` (the Server-Sent-Events adapter that satisfies `application.EventBroadcaster`)
+- **THEN** it contains `persistence/` (GORM-backed adapters), `sse/` (the SSE broker that satisfies `application.EventBroadcaster`), and `email/` (the gomail-backed adapter that satisfies `application.EmailSender`)
 - **AND** any new concrete implementation of an `application/` port lands here, not at the top level of `internal/`
 
 ### Requirement: Pure domain layer

@@ -56,7 +56,7 @@ func TestWebhookSecretVerification(t *testing.T) {
 				os.Unsetenv("WEBHOOK_SECRET")
 			}
 
-			handler := NewWebhookHandler(nil)
+			handler := NewWebhookHandler(nil, nil)
 
 			// Create request with magic link payload
 			payload := SendMagicLinkRequest{
@@ -172,7 +172,7 @@ func TestSendMagicLinkRequestValidation(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			os.Unsetenv("WEBHOOK_SECRET") // No secret required
-			handler := NewWebhookHandler(nil)
+			handler := NewWebhookHandler(nil, nil)
 
 			req := httptest.NewRequest(http.MethodPost, "/webhooks/send-magic-link", bytes.NewReader([]byte(tt.body)))
 			req.Header.Set("Content-Type", "application/json")
@@ -212,7 +212,7 @@ func TestSessionCreatedRequestValidation(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			os.Unsetenv("WEBHOOK_SECRET")
-			handler := NewWebhookHandler(nil)
+			handler := NewWebhookHandler(nil, nil)
 
 			req := httptest.NewRequest(http.MethodPost, "/webhooks/session-created", bytes.NewReader([]byte(tt.body)))
 			req.Header.Set("Content-Type", "application/json")
@@ -251,7 +251,7 @@ func TestSendVerificationEmailRequestValidation(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			os.Unsetenv("WEBHOOK_SECRET")
-			handler := NewWebhookHandler(nil)
+			handler := NewWebhookHandler(nil, nil)
 
 			req := httptest.NewRequest(http.MethodPost, "/webhooks/send-verification-email", bytes.NewReader([]byte(tt.body)))
 			req.Header.Set("Content-Type", "application/json")
@@ -271,7 +271,7 @@ func TestSendVerificationEmailRequestValidation(t *testing.T) {
 // TestSend2FAOTPRequestValidation tests 2FA OTP webhook
 func TestSend2FAOTPRequestValidation(t *testing.T) {
 	os.Unsetenv("WEBHOOK_SECRET")
-	handler := NewWebhookHandler(nil)
+	handler := NewWebhookHandler(nil, nil)
 
 	tests := []struct {
 		name           string
@@ -442,132 +442,12 @@ func TestComputeHMAC(t *testing.T) {
 	assert.NotEqual(t, result, result3)
 }
 
-// TestGetEnvOrDefault tests environment variable helper
-func TestGetEnvOrDefault(t *testing.T) {
-	tests := []struct {
-		name     string
-		key      string
-		setValue string
-		setEnv   bool
-		fallback string
-		expected string
-	}{
-		{
-			name:     "env set",
-			key:      "TEST_ENV_VAR",
-			setValue: "custom-value",
-			setEnv:   true,
-			fallback: "default",
-			expected: "custom-value",
-		},
-		{
-			name:     "env not set",
-			key:      "TEST_ENV_VAR_NOT_SET",
-			setEnv:   false,
-			fallback: "default",
-			expected: "default",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if tt.setEnv {
-				os.Setenv(tt.key, tt.setValue)
-				defer os.Unsetenv(tt.key)
-			}
-
-			result := getEnvOrDefault(tt.key, tt.fallback)
-			assert.Equal(t, tt.expected, result)
-		})
-	}
-}
-
-// TestGetEnvAsIntOrDefault tests integer environment variable helper
-func TestGetEnvAsIntOrDefault(t *testing.T) {
-	tests := []struct {
-		name     string
-		key      string
-		setValue string
-		setEnv   bool
-		fallback int
-		expected int
-	}{
-		{
-			name:     "valid int",
-			key:      "TEST_INT_VAR",
-			setValue: "8080",
-			setEnv:   true,
-			fallback: 3000,
-			expected: 8080,
-		},
-		{
-			name:     "invalid int",
-			key:      "TEST_INT_VAR_INVALID",
-			setValue: "not-a-number",
-			setEnv:   true,
-			fallback: 3000,
-			expected: 3000,
-		},
-		{
-			name:     "not set",
-			key:      "TEST_INT_VAR_NOT_SET",
-			setEnv:   false,
-			fallback: 3000,
-			expected: 3000,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if tt.setEnv {
-				os.Setenv(tt.key, tt.setValue)
-				defer os.Unsetenv(tt.key)
-			}
-
-			result := getEnvAsIntOrDefault(tt.key, tt.fallback)
-			assert.Equal(t, tt.expected, result)
-		})
-	}
-}
-
-// TestWebhookHandlerCreation tests handler initialization
-func TestWebhookHandlerCreation(t *testing.T) {
-	// Test with default values
-	os.Unsetenv("SMTP_HOST")
-	os.Unsetenv("SMTP_PORT")
-	os.Unsetenv("SMTP_FROM")
-	os.Unsetenv("NEXT_PUBLIC_APP_URL")
-
-	handler := NewWebhookHandler(nil)
-
-	assert.NotNil(t, handler)
-	assert.NotNil(t, handler.mailer)
-	assert.NotNil(t, handler.config)
-	assert.Equal(t, "noreply@localhost", handler.config.smtpFrom)
-	assert.Equal(t, "http://localhost:3000", handler.config.appURL)
-	assert.Equal(t, "http://localhost:3000/settings", handler.config.settingsURL)
-}
-
-// TestWebhookHandlerWithCustomEnv tests handler with custom environment
-func TestWebhookHandlerWithCustomEnv(t *testing.T) {
-	os.Setenv("SMTP_HOST", "smtp.example.com")
-	os.Setenv("SMTP_PORT", "587")
-	os.Setenv("SMTP_FROM", "no-reply@example.com")
-	os.Setenv("NEXT_PUBLIC_APP_URL", "https://app.example.com")
-	defer func() {
-		os.Unsetenv("SMTP_HOST")
-		os.Unsetenv("SMTP_PORT")
-		os.Unsetenv("SMTP_FROM")
-		os.Unsetenv("NEXT_PUBLIC_APP_URL")
-	}()
-
-	handler := NewWebhookHandler(nil)
-
-	assert.NotNil(t, handler)
-	assert.Equal(t, "no-reply@example.com", handler.config.smtpFrom)
-	assert.Equal(t, "https://app.example.com", handler.config.appURL)
-	assert.Equal(t, "https://app.example.com/settings", handler.config.settingsURL)
-}
+// Note: Tests for getEnvOrDefault, getEnvAsIntOrDefault,
+// TestWebhookHandlerCreation, and TestWebhookHandlerWithCustomEnv used
+// to live here. They asserted on internal fields (handler.mailer,
+// handler.config.smtpFrom) that no longer exist — the webhook handler
+// owns no SMTP state. Email rendering and SMTP transport now live
+// behind application.EmailSender; env loading happens in composition.
 
 // TestRespondJSON tests JSON response helper
 func TestRespondJSON(t *testing.T) {

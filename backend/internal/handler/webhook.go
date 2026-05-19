@@ -9,55 +9,32 @@ import (
 	"encoding/json"
 	"net/http"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 
 	"github.com/atilladeniz/next-go-pg/backend/internal/application"
 	"github.com/atilladeniz/next-go-pg/backend/internal/domain"
-	"github.com/atilladeniz/next-go-pg/backend/internal/templates"
 	"github.com/atilladeniz/next-go-pg/backend/pkg/logger"
 	"github.com/mileusna/useragent"
-	"gopkg.in/gomail.v2"
 )
 
-// WebhookHandler handles all webhook endpoints for email notifications
+// WebhookHandler handles all webhook endpoints for email notifications.
+// It owns no transport state — rendering + SMTP live behind the
+// application.EmailSender port; async dispatch lives behind
+// application.JobEnqueuer.
 type WebhookHandler struct {
 	users       application.UserDirectory
-	mailer      *gomail.Dialer
-	config      *webhookConfig
-	jobEnqueuer application.JobEnqueuer // Optional: if set, emails are sent via background jobs
+	emails      application.EmailSender
+	jobEnqueuer application.JobEnqueuer
 }
 
-type webhookConfig struct {
-	smtpFrom    string
-	appURL      string
-	settingsURL string
+// NewWebhookHandler creates a webhook handler. users and emails may be
+// nil — in degraded modes the relevant endpoints fail fast with 503.
+func NewWebhookHandler(users application.UserDirectory, emails application.EmailSender) *WebhookHandler {
+	return &WebhookHandler{users: users, emails: emails}
 }
 
-// NewWebhookHandler creates a new webhook handler with mailer configuration.
-// users may be nil — in that case device-detection and email lookups
-// degrade gracefully (treat every login as a new device, return empty user).
-func NewWebhookHandler(users application.UserDirectory) *WebhookHandler {
-	smtpHost := getEnvOrDefault("SMTP_HOST", "127.0.0.1")
-	smtpPort := getEnvAsIntOrDefault("SMTP_PORT", 1025)
-	appURL := getEnvOrDefault("NEXT_PUBLIC_APP_URL", "http://localhost:3000")
-
-	dialer := gomail.NewDialer(smtpHost, smtpPort, "", "")
-	dialer.SSL = false
-
-	return &WebhookHandler{
-		users:  users,
-		mailer: dialer,
-		config: &webhookConfig{
-			smtpFrom:    getEnvOrDefault("SMTP_FROM", "noreply@localhost"),
-			appURL:      appURL,
-			settingsURL: appURL + "/settings",
-		},
-	}
-}
-
-// WithJobEnqueuer sets the job enqueuer for background email processing
+// WithJobEnqueuer sets the job enqueuer for background email processing.
 func (h *WebhookHandler) WithJobEnqueuer(enqueuer application.JobEnqueuer) *WebhookHandler {
 	h.jobEnqueuer = enqueuer
 	return h
@@ -102,7 +79,7 @@ type SendPasskeyAddedNotificationRequest struct {
 	Device      string `json:"device"`
 }
 
-// --- Handlers ---
+// --- Endpoints ---
 
 // SessionCreated godoc
 // @Summary Handle new session webhook
@@ -127,13 +104,11 @@ func (h *WebhookHandler) SessionCreated(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// Check if device is known (with locking to prevent race conditions)
 	if h.isKnownDevice(r.Context(), req) {
 		respondJSON(w, MessageResponse{Message: "known device, notification skipped"})
 		return
 	}
 
-	// Get user info
 	user, err := h.getUserByID(r.Context(), req.UserID)
 	if err != nil {
 		logger.Warn().Err(err).Str("user_id", req.UserID).Msg("User not found for session notification")
@@ -141,24 +116,17 @@ func (h *WebhookHandler) SessionCreated(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// Render and send email
-	body, err := templates.RenderLoginNotification(templates.LoginNotificationData{
-		EmailData: templates.EmailData{
-			AppURL:      h.config.appURL,
-			SettingsURL: h.config.settingsURL,
-		},
+	if h.emails == nil {
+		respondError(w, http.StatusServiceUnavailable, "email service unavailable")
+		return
+	}
+
+	if err := h.emails.SendLoginNotification(r.Context(), user.Email, application.LoginNotificationPayload{
 		UserName:  coalesce(user.Name, "Nutzer"),
 		Device:    parseUserAgent(req.UserAgent),
 		IPAddress: coalesce(req.IPAddress, "Unbekannt"),
 		Time:      formatTimeGerman(time.Now()),
-	})
-	if err != nil {
-		logger.Error().Err(err).Msg("Failed to render login notification template")
-		respondError(w, http.StatusInternalServerError, "template error")
-		return
-	}
-
-	if err := h.sendEmail(user.Email, "Neue Anmeldung von neuem Gerät", body); err != nil {
+	}); err != nil {
 		logger.Error().Err(err).Str("email", user.Email).Msg("Failed to send login notification email")
 		respondError(w, http.StatusInternalServerError, "failed to send email")
 		return
@@ -191,7 +159,6 @@ func (h *WebhookHandler) SendMagicLink(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Use background job if available
 	if h.jobEnqueuer != nil {
 		if err := h.jobEnqueuer.EnqueueMagicLink(context.Background(), req.Email, req.URL); err != nil {
 			logger.Error().Err(err).Str("email", req.Email).Msg("Failed to enqueue magic link job")
@@ -203,18 +170,12 @@ func (h *WebhookHandler) SendMagicLink(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Fallback to synchronous sending
-	body, err := templates.RenderMagicLink(templates.MagicLinkData{
-		EmailData:    templates.EmailData{AppURL: h.config.appURL},
-		MagicLinkURL: req.URL,
-	})
-	if err != nil {
-		logger.Error().Err(err).Msg("Failed to render magic link template")
-		respondError(w, http.StatusInternalServerError, "template error")
+	if h.emails == nil {
+		respondError(w, http.StatusServiceUnavailable, "email service unavailable")
 		return
 	}
 
-	if err := h.sendEmail(req.Email, "Dein Anmelde-Link", body); err != nil {
+	if err := h.emails.SendMagicLink(r.Context(), req.Email, application.MagicLinkPayload{URL: req.URL}); err != nil {
 		logger.Error().Err(err).Str("email", req.Email).Msg("Failed to send magic link email")
 		respondError(w, http.StatusInternalServerError, "failed to send email")
 		return
@@ -247,7 +208,6 @@ func (h *WebhookHandler) SendVerificationEmail(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	// Use background job if available
 	if h.jobEnqueuer != nil {
 		if err := h.jobEnqueuer.EnqueueVerificationEmail(context.Background(), req.Email, req.Name, req.URL); err != nil {
 			logger.Error().Err(err).Str("email", req.Email).Msg("Failed to enqueue verification email job")
@@ -259,18 +219,12 @@ func (h *WebhookHandler) SendVerificationEmail(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	// Fallback to synchronous sending
-	body, err := templates.RenderVerification(templates.VerificationData{
-		EmailData: templates.EmailData{AppURL: h.config.appURL},
-		VerifyURL: req.URL,
-	})
-	if err != nil {
-		logger.Error().Err(err).Msg("Failed to render verification template")
-		respondError(w, http.StatusInternalServerError, "template error")
+	if h.emails == nil {
+		respondError(w, http.StatusServiceUnavailable, "email service unavailable")
 		return
 	}
 
-	if err := h.sendEmail(req.Email, "E-Mail bestätigen", body); err != nil {
+	if err := h.emails.SendVerification(r.Context(), req.Email, application.VerificationPayload{URL: req.URL}); err != nil {
 		logger.Error().Err(err).Str("email", req.Email).Msg("Failed to send verification email")
 		respondError(w, http.StatusInternalServerError, "failed to send email")
 		return
@@ -303,7 +257,6 @@ func (h *WebhookHandler) Send2FAOTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Use background job if available
 	if h.jobEnqueuer != nil {
 		if err := h.jobEnqueuer.Enqueue2FAOTP(context.Background(), req.Email, req.Name, req.OTP); err != nil {
 			logger.Error().Err(err).Str("email", req.Email).Msg("Failed to enqueue 2FA OTP job")
@@ -315,19 +268,15 @@ func (h *WebhookHandler) Send2FAOTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Fallback to synchronous sending
-	body, err := templates.RenderTwoFactorOTP(templates.TwoFactorOTPData{
-		EmailData: templates.EmailData{AppURL: h.config.appURL},
-		UserName:  coalesce(req.Name, "Nutzer"),
-		OTP:       req.OTP,
-	})
-	if err != nil {
-		logger.Error().Err(err).Msg("Failed to render 2FA OTP template")
-		respondError(w, http.StatusInternalServerError, "template error")
+	if h.emails == nil {
+		respondError(w, http.StatusServiceUnavailable, "email service unavailable")
 		return
 	}
 
-	if err := h.sendEmail(req.Email, "Dein Sicherheitscode", body); err != nil {
+	if err := h.emails.Send2FAOTP(r.Context(), req.Email, application.TwoFactorOTPPayload{
+		UserName: coalesce(req.Name, "Nutzer"),
+		OTP:      req.OTP,
+	}); err != nil {
 		logger.Error().Err(err).Str("email", req.Email).Msg("Failed to send 2FA OTP email")
 		respondError(w, http.StatusInternalServerError, "failed to send email")
 		return
@@ -360,18 +309,15 @@ func (h *WebhookHandler) Send2FAEnabledNotification(w http.ResponseWriter, r *ht
 		return
 	}
 
-	body, err := templates.RenderTwoFactorEnabled(templates.TwoFactorEnabledData{
-		EmailData:  templates.EmailData{AppURL: h.config.appURL, SettingsURL: h.config.settingsURL},
-		UserName:   coalesce(req.Name, "Nutzer"),
-		MethodName: mapMethodToGerman(req.Method),
-	})
-	if err != nil {
-		logger.Error().Err(err).Msg("Failed to render 2FA enabled template")
-		respondError(w, http.StatusInternalServerError, "template error")
+	if h.emails == nil {
+		respondError(w, http.StatusServiceUnavailable, "email service unavailable")
 		return
 	}
 
-	if err := h.sendEmail(req.Email, "Sicherheitsmethode aktiviert", body); err != nil {
+	if err := h.emails.SendTwoFactorEnabled(r.Context(), req.Email, application.TwoFactorEnabledPayload{
+		UserName:   coalesce(req.Name, "Nutzer"),
+		MethodName: mapMethodToGerman(req.Method),
+	}); err != nil {
 		logger.Error().Err(err).Str("email", req.Email).Msg("Failed to send 2FA enabled notification")
 		respondError(w, http.StatusInternalServerError, "failed to send email")
 		return
@@ -404,20 +350,17 @@ func (h *WebhookHandler) SendPasskeyAddedNotification(w http.ResponseWriter, r *
 		return
 	}
 
-	body, err := templates.RenderPasskeyAdded(templates.PasskeyAddedData{
-		EmailData:   templates.EmailData{AppURL: h.config.appURL, SettingsURL: h.config.settingsURL},
+	if h.emails == nil {
+		respondError(w, http.StatusServiceUnavailable, "email service unavailable")
+		return
+	}
+
+	if err := h.emails.SendPasskeyAdded(r.Context(), req.Email, application.PasskeyAddedPayload{
 		UserName:    coalesce(req.Name, "Nutzer"),
 		PasskeyName: coalesce(req.PasskeyName, "Unbenannt"),
 		Device:      coalesce(req.Device, "Unbekanntes Gerät"),
 		Time:        formatTimeGerman(time.Now()),
-	})
-	if err != nil {
-		logger.Error().Err(err).Msg("Failed to render passkey added template")
-		respondError(w, http.StatusInternalServerError, "template error")
-		return
-	}
-
-	if err := h.sendEmail(req.Email, "Neuer Passkey hinzugefügt", body); err != nil {
+	}); err != nil {
 		logger.Error().Err(err).Str("email", req.Email).Msg("Failed to send passkey added notification")
 		respondError(w, http.StatusInternalServerError, "failed to send email")
 		return
@@ -427,29 +370,19 @@ func (h *WebhookHandler) SendPasskeyAddedNotification(w http.ResponseWriter, r *
 	respondJSON(w, MessageResponse{Message: "notification sent"})
 }
 
-// --- Helper Methods ---
+// --- Helpers ---
 
 func (h *WebhookHandler) verifySecret(w http.ResponseWriter, r *http.Request) bool {
 	webhookSecret := os.Getenv("WEBHOOK_SECRET")
 	if webhookSecret == "" {
 		return true // No secret configured, allow all
 	}
-
 	providedSecret := r.Header.Get("X-Webhook-Secret")
 	if !verifyWebhookSecret(providedSecret, webhookSecret) {
 		respondError(w, http.StatusUnauthorized, "invalid webhook secret")
 		return false
 	}
 	return true
-}
-
-func (h *WebhookHandler) sendEmail(to, subject, body string) error {
-	m := gomail.NewMessage()
-	m.SetHeader("From", h.config.smtpFrom)
-	m.SetHeader("To", to)
-	m.SetHeader("Subject", subject)
-	m.SetBody("text/html", body)
-	return h.mailer.DialAndSend(m)
 }
 
 func (h *WebhookHandler) isKnownDevice(ctx context.Context, req SessionCreatedRequest) bool {
@@ -495,96 +428,74 @@ func ComputeHMAC(message, key string) string {
 	return hex.EncodeToString(mac.Sum(nil))
 }
 
+func decodeJSON(r *http.Request, v any) error {
+	return json.NewDecoder(r.Body).Decode(v)
+}
+
+func respondJSON(w http.ResponseWriter, payload any) {
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(payload)
+}
+
+func respondError(w http.ResponseWriter, status int, message string) {
+	w.WriteHeader(status)
+	respondJSON(w, ErrorResponse{Error: message})
+}
+
+func coalesce(values ...string) string {
+	for _, v := range values {
+		if strings.TrimSpace(v) != "" {
+			return v
+		}
+	}
+	return ""
+}
+
 func parseUserAgent(uaString string) string {
 	if uaString == "" {
 		return "Unbekanntes Gerät"
 	}
 
-	ua := useragent.Parse(uaString)
-
-	// Handle bots
-	if ua.Bot {
-		return "Automatisierter Zugriff (Bot)"
-	}
-
-	// Handle CLI tools
-	lowerUA := strings.ToLower(uaString)
+	// Special-case common CLI / API tools the useragent library treats
+	// as plain strings.
+	lower := strings.ToLower(uaString)
 	switch {
-	case strings.Contains(lowerUA, "curl"):
+	case strings.HasPrefix(lower, "curl/"):
 		return "Kommandozeile (curl)"
-	case strings.Contains(lowerUA, "wget"):
+	case strings.HasPrefix(lower, "wget/"):
 		return "Kommandozeile (wget)"
-	case strings.Contains(lowerUA, "httpie"):
-		return "Kommandozeile (HTTPie)"
-	case strings.Contains(lowerUA, "postman"):
+	case strings.HasPrefix(lower, "postmanruntime/"):
 		return "API-Client (Postman)"
-	case strings.Contains(lowerUA, "insomnia"):
+	case strings.HasPrefix(lower, "insomnia/"):
 		return "API-Client (Insomnia)"
 	}
 
-	browser := coalesce(ua.Name, "Browser")
-	osName := coalesce(ua.OS, "System")
-
-	// Normalize OS names
-	switch {
-	case strings.Contains(osName, "Mac"):
-		osName = "macOS"
-	case strings.Contains(osName, "iOS"):
-		osName = "iOS"
+	ua := useragent.Parse(uaString)
+	if ua.Name == "" {
+		return "Unbekanntes Gerät"
 	}
+	parts := []string{ua.Name}
+	if ua.OS != "" {
+		parts = append(parts, "auf", ua.OS)
+	}
+	return strings.Join(parts, " ")
+}
 
-	return browser + " auf " + osName
+func formatTimeGerman(t time.Time) string {
+	return t.Format("02.01.2006 um 15:04 Uhr")
 }
 
 func mapMethodToGerman(method string) string {
 	switch method {
-	case "passkey":
-		return "Passkey"
 	case "totp":
 		return "Authenticator-App (TOTP)"
+	case "email-otp":
+		return "E-Mail-OTP"
+	case "passkey":
+		return "Passkey"
+	case "backup-codes":
+		return "Backup-Codes"
 	default:
 		return "Zwei-Faktor-Authentifizierung"
 	}
-}
-
-func formatTimeGerman(t time.Time) string {
-	return t.Format("02.01.2006, 15:04")
-}
-
-func coalesce(value, fallback string) string {
-	if value == "" {
-		return fallback
-	}
-	return value
-}
-
-func getEnvOrDefault(key, fallback string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
-	}
-	return fallback
-}
-
-func getEnvAsIntOrDefault(key string, fallback int) int {
-	if value := os.Getenv(key); value != "" {
-		if intVal, err := strconv.Atoi(value); err == nil {
-			return intVal
-		}
-	}
-	return fallback
-}
-
-func decodeJSON(r *http.Request, v any) error {
-	return json.NewDecoder(r.Body).Decode(v)
-}
-
-func respondJSON(w http.ResponseWriter, data any) {
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(data)
-}
-
-func respondError(w http.ResponseWriter, status int, message string) {
-	w.WriteHeader(status)
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(ErrorResponse{Error: message})
 }
