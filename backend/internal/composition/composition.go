@@ -1,8 +1,8 @@
 // Package composition is the application's composition root. It owns
-// the dependency graph — DB connections, repositories, use cases,
-// handlers, the HTTP router, and background workers — and returns a
-// ready-to-run *App. cmd/server only loads config, calls Build, runs
-// the server, and shuts it down on signal.
+// the dependency graph — DB connections, persistence + SSE adapters,
+// use cases, handlers, the HTTP router, and background workers — and
+// returns a ready-to-run *App. cmd/server only loads config, calls
+// Build, runs the server, and shuts it down on signal.
 package composition
 
 import (
@@ -25,9 +25,9 @@ import (
 	"github.com/atilladeniz/next-go-pg/backend/internal/application"
 	"github.com/atilladeniz/next-go-pg/backend/internal/handler"
 	"github.com/atilladeniz/next-go-pg/backend/internal/infrastructure/persistence"
+	"github.com/atilladeniz/next-go-pg/backend/internal/infrastructure/sse"
 	"github.com/atilladeniz/next-go-pg/backend/internal/jobs"
 	"github.com/atilladeniz/next-go-pg/backend/internal/middleware"
-	"github.com/atilladeniz/next-go-pg/backend/internal/sse"
 	"github.com/atilladeniz/next-go-pg/backend/pkg/config"
 	"github.com/atilladeniz/next-go-pg/backend/pkg/logger"
 	riverPkg "github.com/atilladeniz/next-go-pg/backend/pkg/river"

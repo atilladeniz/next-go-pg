@@ -133,30 +133,30 @@ backend/internal/
 ├── application/                  # Hexagonal ports + use cases (goca make usecase → output here)
 │   ├── ports.go                  # StatsRepository, EventBroadcaster, UserDirectory, ...
 │   └── *_usecases.go             # GetUserStats, IncrementStatField, ... — each with Execute(ctx, ...)
-├── infrastructure/
-│   └── persistence/              # GORM models + mappers + repository implementations
-│       ├── gorm_models.go        # GORM-tagged structs (unexported)
-│       ├── *_mapper.go           # domain ↔ persistence translation
-│       ├── *_repo.go             # repository impls — compile-time assert against ports
-│       └── registry.go           # AllEntities() — list of GORM models for AutoMigrate
+├── infrastructure/               # Concrete adapter implementations of application ports
+│   ├── persistence/              # GORM models + mappers + repository implementations
+│   │   ├── gorm_models.go        # GORM-tagged structs (unexported)
+│   │   ├── *_mapper.go           # domain ↔ persistence translation
+│   │   ├── *_repo.go             # repository impls — compile-time assert against ports
+│   │   └── registry.go           # AllEntities() — list of GORM models for AutoMigrate
+│   └── sse/                      # SSE broker — satisfies application.EventBroadcaster
 ├── composition/                  # Composition root — Build/Shutdown for the dep graph
 ├── handler/                      # HTTP — consumes use cases, never gorm or persistence
 ├── middleware/                   # Auth, CORS, logging, rate-limit, metrics
-├── jobs/                         # River workers — consume application ports
-└── sse/                          # SSE broker (satisfies application.EventBroadcaster)
+└── jobs/                         # River workers — consume application ports
 ```
 
 **Layer dependency direction (inward only):**
 
 ```
-composition → handler/jobs/sse → application → domain
+composition → handler/jobs → application → domain
 composition → infrastructure   → application → domain
 ```
 
 - `domain` imports nothing internal.
 - `application` imports only `domain`.
 - `infrastructure/...` imports only `application` and `domain`.
-- `handler/`, `jobs/`, `sse/` consume use cases and ports from `application/`.
+- `handler/`, `jobs/` consume use cases and ports from `application/`.
 - `composition` is the only place that knows about everything.
 
 ### Why Goca instead of manual?
@@ -506,7 +506,7 @@ export function useSSE() {
 
 ### Real-time
 
-- `backend/internal/sse/broker.go` - SSE Broker
+- `backend/internal/infrastructure/sse/broker.go` - SSE Broker
 - `frontend/src/features/stats/model/use-sse.ts` - SSE Client Hook
 
 ### Logging

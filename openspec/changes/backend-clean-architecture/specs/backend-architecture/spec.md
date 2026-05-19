@@ -10,11 +10,17 @@ The backend SHALL organize its Go packages into four horizontal layers under `ba
 - **THEN** the directories `domain/`, `application/`, `infrastructure/persistence/`, and `composition/` exist
 - **AND** each contains at least one Go file owned by that layer
 
-#### Scenario: HTTP, jobs, middleware, and SSE retain their own packages
+#### Scenario: HTTP, jobs, and middleware retain their own top-level packages
 
 - **WHEN** a contributor inspects `backend/internal/`
-- **THEN** the packages `handler/`, `middleware/`, `jobs/`, and `sse/` continue to exist alongside the four core layers
-- **AND** they depend on `application/` and `domain/` for business types, not on `infrastructure/persistence/` directly
+- **THEN** the packages `handler/`, `middleware/`, and `jobs/` continue to exist alongside the four core layers
+- **AND** they depend on `application/` and `domain/` for business types, not on `infrastructure/...` directly
+
+#### Scenario: Adapter implementations live under infrastructure
+
+- **WHEN** a contributor inspects `backend/internal/infrastructure/`
+- **THEN** it contains `persistence/` (GORM-backed adapters) and `sse/` (the Server-Sent-Events adapter that satisfies `application.EventBroadcaster`)
+- **AND** any new concrete implementation of an `application/` port lands here, not at the top level of `internal/`
 
 ### Requirement: Pure domain layer
 
@@ -130,9 +136,9 @@ A `backend/internal/composition` package SHALL build the full application depend
 The codebase SHALL enforce a strict inward dependency direction: outer layers may depend on inner layers, never the reverse.
 
 The allowed direction is:
-`composition → handler/jobs/sse → application → domain`
+`composition → handler/jobs → application → domain`
 and
-`composition → infrastructure → application → domain`
+`composition → infrastructure/{persistence,sse} → application → domain`
 
 #### Scenario: Domain depends on nothing internal
 
