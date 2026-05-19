@@ -19,6 +19,7 @@ For everything else: **check `.docs/` first** before searching the internet:
 ├── logging.md          # Logging (zerolog + Pino)
 ├── river.md            # River Job Queue
 ├── background-jobs.md  # Background Job Integration Guide
+├── openspec.md         # OpenSpec slash-command cheatsheet
 └── ...                 # More Tech Stack Docs
 ```
 
@@ -512,7 +513,28 @@ cd backend
 just river-migrate-up      # Run River migrations
 just river-migrate-down    # Rollback River migration
 just river-migrate-version # Check migration status
+
+# Spec-driven development (OpenSpec)
+just spec-list             # List active changes
+just spec-validate         # Validate all changes and specs
 ```
+
+---
+
+## Spec-driven Development (OpenSpec)
+
+Non-trivial features go through OpenSpec before implementation. Slash commands and full workflow are documented in `AGENTS.md` (loaded automatically) and `.docs/openspec.md` (cheatsheet).
+
+**Workflow:**
+
+1. `/opsx:propose "<idea>"` — create change + artifacts (proposal, design, tasks)
+2. Review/edit artifacts under `openspec/changes/<name>/`
+3. `/opsx:apply` — implement the tasks
+4. `/opsx:verify` then `/opsx:archive`
+
+**Rule:** Before touching code for a feature listed under `openspec/changes/`, read its `proposal.md` (and `design.md` if present) first. The spec is the contract.
+
+Prerequisite (one-time): `npm install -g @fission-ai/openspec@latest`
 
 ---
 
