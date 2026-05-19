@@ -1,9 +1,14 @@
 // Package application is the notifications bounded context's use-case
-// layer. It defines two ports: EmailSender (synchronous send) and
-// JobEnqueuer (asynchronous send via the queue).
+// layer. It defines three ports: EmailSender (synchronous send),
+// JobEnqueuer (asynchronous send via the queue), and UserDirectory
+// (look up the minimum user info needed to personalise an email).
 package application
 
-import "context"
+import (
+	"context"
+
+	shared "github.com/atilladeniz/next-go-pg/backend/internal/shared/domain"
+)
 
 // EmailSender renders and dispatches transactional emails. The
 // concrete implementation lives under internal/notifications/infrastructure/email/.
@@ -23,4 +28,22 @@ type JobEnqueuer interface {
 	EnqueueVerificationEmail(ctx context.Context, email, name, url string) error
 	Enqueue2FAOTP(ctx context.Context, email, name, otp string) error
 	EnqueueLoginNotification(ctx context.Context, email, userName, device, ipAddress string) error
+}
+
+// UserDirectory is the notifications context's port for the user-info
+// it needs in order to send personalised emails. The auth context owns
+// the actual user records; an anti-corruption adapter in the
+// composition root translates between auth's UserDirectory and this
+// notifications-local port so the two contexts stay decoupled.
+type UserDirectory interface {
+	UserByID(ctx context.Context, userID shared.UserID) (UserSnapshot, error)
+	HasKnownDevice(ctx context.Context, userID shared.UserID, userAgent, ipAddress, excludeSessionID string) (bool, error)
+}
+
+// UserSnapshot is the minimal projection notifications consumes. It
+// intentionally carries only what an email template might render —
+// nothing about credentials, sessions, or identity provenance.
+type UserSnapshot struct {
+	Email string
+	Name  string
 }

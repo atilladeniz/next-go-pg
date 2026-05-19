@@ -15,7 +15,6 @@ import (
 	"strings"
 	"time"
 
-	authapp "github.com/atilladeniz/next-go-pg/backend/internal/auth/application"
 	notifapp "github.com/atilladeniz/next-go-pg/backend/internal/notifications/application"
 	shared "github.com/atilladeniz/next-go-pg/backend/internal/shared/domain"
 	"github.com/atilladeniz/next-go-pg/backend/pkg/logger"
@@ -25,12 +24,12 @@ import (
 // Handler exposes the email-webhook endpoints. Both users and emails
 // may be nil — degraded modes fail fast with 503.
 type Handler struct {
-	users       authapp.UserDirectory
+	users       notifapp.UserDirectory
 	emails      notifapp.EmailSender
 	jobEnqueuer notifapp.JobEnqueuer
 }
 
-func NewHandler(users authapp.UserDirectory, emails notifapp.EmailSender) *Handler {
+func NewHandler(users notifapp.UserDirectory, emails notifapp.EmailSender) *Handler {
 	return &Handler{users: users, emails: emails}
 }
 
@@ -410,21 +409,15 @@ func (h *Handler) isKnownDevice(ctx context.Context, req SessionCreatedRequest) 
 	return known
 }
 
-type userInfo struct{ Email, Name string }
-
-func (h *Handler) getUserByID(ctx context.Context, userID string) (*userInfo, error) {
+func (h *Handler) getUserByID(ctx context.Context, userID string) (notifapp.UserSnapshot, error) {
 	if h.users == nil {
-		return &userInfo{}, nil
+		return notifapp.UserSnapshot{}, nil
 	}
 	uid, err := shared.NewUserID(userID)
 	if err != nil {
-		return nil, err
+		return notifapp.UserSnapshot{}, err
 	}
-	u, err := h.users.UserByID(ctx, uid)
-	if err != nil {
-		return nil, err
-	}
-	return &userInfo{Email: u.Email, Name: u.Name}, nil
+	return h.users.UserByID(ctx, uid)
 }
 
 // VerifyWebhookSecret performs a constant-time comparison.

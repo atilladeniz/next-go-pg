@@ -157,7 +157,15 @@ func Build(ctx context.Context, in Inputs) (*App, error) {
 	// HTTP layer — per-context handlers.
 	authHandler := authhttp.NewHandler()
 	statsHandler := statshttp.NewHandler(getStatsUC, incrementStatUC)
-	webhookHandler := notifhttp.NewHandler(userDirectory, emailSender)
+
+	// ACL: notifications declares a local UserDirectory port. The
+	// composition root adapts auth's UserDirectory to it so the two
+	// contexts stay decoupled.
+	var notifUsers notifapp.UserDirectory
+	if userDirectory != nil {
+		notifUsers = &authToNotificationsDirectory{users: userDirectory}
+	}
+	webhookHandler := notifhttp.NewHandler(notifUsers, emailSender)
 	if notifEnqueuer != nil {
 		webhookHandler = webhookHandler.WithJobEnqueuer(notifEnqueuer)
 	}
@@ -227,6 +235,26 @@ func (r *statsToExportsReader) Read(ctx context.Context, userID string) (exports
 		Activity:      s.ActivityToday,
 		Notifications: s.Notifications,
 	}, nil
+}
+
+// authToNotificationsDirectory is the anti-corruption layer between
+// the auth and notifications bounded contexts. Notifications declares
+// the shape it needs (UserSnapshot); composition implements it against
+// auth's UserDirectory port.
+type authToNotificationsDirectory struct {
+	users authapp.UserDirectory
+}
+
+func (a *authToNotificationsDirectory) UserByID(ctx context.Context, userID shared.UserID) (notifapp.UserSnapshot, error) {
+	u, err := a.users.UserByID(ctx, userID)
+	if err != nil {
+		return notifapp.UserSnapshot{}, err
+	}
+	return notifapp.UserSnapshot{Email: u.Email, Name: u.Name}, nil
+}
+
+func (a *authToNotificationsDirectory) HasKnownDevice(ctx context.Context, userID shared.UserID, userAgent, ipAddress, excludeSessionID string) (bool, error) {
+	return a.users.HasKnownDevice(ctx, userID, userAgent, ipAddress, excludeSessionID)
 }
 
 // --- internals -----------------------------------------------------
