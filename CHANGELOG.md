@@ -3,9 +3,14 @@
 ## [1.8.0](https://github.com/atilladeniz/next-go-pg/compare/v1.7.0...v1.8.0) (2026-05-19)
 
 
-### Features
+### CI
 
-* cut v1.8.0 release marker ([#54](https://github.com/atilladeniz/next-go-pg/issues/54)) ([7535925](https://github.com/atilladeniz/next-go-pg/commit/7535925507201f859486ce8f2f8030aed0dfbb91))
+* fix path-filter false positives so doc-only PRs skip Docker rebuilds ([#51](https://github.com/atilladeniz/next-go-pg/pull/51)) ([c2b3756](https://github.com/atilladeniz/next-go-pg/commit/c2b3756bbb5cfc72685b6e58ce2df8ec66d51f87))
+
+
+### Refactors
+
+* streamline cmd-binary migration story — closes [#45](https://github.com/atilladeniz/next-go-pg/issues/45) (Option D); migrate recipes renamed to `prod-migrate-*`, drift-causing `001_initial.sql` removed ([#52](https://github.com/atilladeniz/next-go-pg/pull/52)) ([45e1f02](https://github.com/atilladeniz/next-go-pg/commit/45e1f028a2bba89df4e96b3df2a52c0e1ec5f4f9))
 
 ## [1.7.0](https://github.com/atilladeniz/next-go-pg/compare/v1.6.0...v1.7.0) (2026-05-19)
 
