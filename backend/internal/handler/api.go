@@ -153,7 +153,7 @@ func (h *APIHandler) GetUserStats(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response := UserStatsResponse{
-		UserID:        stats.UserID,
+		UserID:        string(stats.UserID),
 		ProjectCount:  stats.ProjectCount,
 		ActivityToday: stats.ActivityToday,
 		Notifications: stats.Notifications,
@@ -218,7 +218,7 @@ func (h *APIHandler) UpdateUserStats(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response := UserStatsResponse{
-		UserID:        stats.UserID,
+		UserID:        string(stats.UserID),
 		ProjectCount:  stats.ProjectCount,
 		ActivityToday: stats.ActivityToday,
 		Notifications: stats.Notifications,

@@ -6,18 +6,24 @@
 
 ## 2. Phase 2 — Domain split for UserStats
 
-- [ ] 2.1 Add `backend/internal/domain/value_objects.go` with `UserID` (newtype with `NewUserID(string) (UserID, error)` rejecting empty) and `StatField` (enum with `NewStatField(string) (StatField, error)` over the current allowed fields)
-- [ ] 2.2 Rewrite `backend/internal/domain/user_stats.go`: remove GORM tags, replace raw `string` user ID with `UserID`, add domain method `UserStats.IncrementField(field StatField, delta int)` that clamps the resulting count at 0 (currently lives in repository)
-- [ ] 2.3 Create `backend/internal/infrastructure/persistence/gorm_models.go` with the GORM-tagged `gormUserStats` struct mirroring the previous schema (table name, indexes, primary key)
-- [ ] 2.4 Create `backend/internal/infrastructure/persistence/user_stats_mapper.go` with `toDomain` and `fromDomain` functions
-- [ ] 2.5 Move `AllEntities()` from `backend/internal/domain/registry.go` to `backend/internal/infrastructure/persistence/registry.go`; update it to return GORM models. Delete the old `domain/registry.go`.
-- [ ] 2.6 Confirm `backend/internal/domain` has no import of `gorm.io/...`, `database/sql`, `net/http`, or any other `backend/internal/...` package — run `go list -deps ./internal/domain` and inspect
-- [ ] 2.7 `cd backend && go build ./... && just lint` — green
+- [x] 2.1 Added `backend/internal/domain/value_objects.go` with `UserID` (newtype, empty rejected) and `StatField` (int enum, parsed via `NewStatField`).
+- [x] 2.2 Rewrote `backend/internal/domain/user_stats.go`: GORM tags stripped, `UserID` field typed as `domain.UserID`, `IncrementField(StatField, int)` method clamps at zero.
+- [x] 2.3 Created `backend/internal/infrastructure/persistence/gorm_models.go` with unexported `gormUserStats` (all original GORM tags preserved) + `TableName()`.
+- [x] 2.4 Created `backend/internal/infrastructure/persistence/user_stats_mapper.go` (`userStatsToDomain` / `userStatsFromDomain`).
+- [x] 2.5 Created `backend/internal/infrastructure/persistence/registry.go` returning `*gormUserStats`. Deleted `backend/internal/domain/registry.go`. Wired `cmd/server/main.go` to `persistence.AllEntities()`.
+- [x] 2.6 `go list -deps ./internal/domain | grep -E "gorm|database/sql|net/http|backend/internal"` returns only the package itself — zero forbidden dependencies.
+- [x] 2.7 `go build ./... && go vet ./... && go test ./...` — green (185 tests pass).
+
+_Reshuffle notes for Phase 2:_
+- Pulled task 3.2 forward: `persistence.UserStatsRepository` is implemented now (satisfies `application.StatsRepository`, has compile-time assertion). Necessary because the OLD `internal/repository/user_stats.go` had to keep delegating somewhere once domain went pure.
+- Old `internal/repository/user_stats.go` is now a thin facade (delegates to persistence repo, keeps `IncrementField` because handler still calls it). Phase 3 deletes the facade.
+- `IncrementField` clamping moved from facade into domain method (`UserStats.IncrementField`); the wire-level field name is parsed via `domain.NewStatField`.
+- Handler's `*UserStatsResponse.UserID` is `string`, domain's is `domain.UserID` — added `string(stats.UserID)` conversions at the two boundary points in `handler/api.go`.
 
 ## 3. Phase 3 — Application layer & handler rewire
 
 - [ ] 3.1 Confirm `backend/internal/application/ports.go` signatures (already landed in Phase 1). Swap the `string` user-ID for `domain.UserID` from Phase 2.
-- [ ] 3.2 Implement `backend/internal/infrastructure/persistence/user_stats_repo.go` satisfying `application.StatsRepository`, using the mapper. Add compile-time assertion `var _ application.StatsRepository = (*UserStatsRepository)(nil)`.
+- [x] 3.2 _(landed in Phase 2)_ `backend/internal/infrastructure/persistence/user_stats_repo.go` implements `application.StatsRepository` with compile-time assertion.
 - [ ] 3.3 Create `backend/internal/application/stats_usecases.go` with use-case structs (`GetUserStats`, `IncrementStatField`) each exposing `Execute(ctx, …)` and holding `Repo`, `Events` as interface-typed fields
 - [ ] 3.4 Rewrite `backend/internal/handler/api.go`: constructor takes use cases (or the application interfaces) instead of `*repository.UserStatsRepository`. Replace direct repo calls with `usecase.Execute(...)`.
 - [ ] 3.5 Confirm `backend/internal/handler` no longer imports `gorm.io/...` or `backend/internal/infrastructure/...` (grep + `go list -deps`)

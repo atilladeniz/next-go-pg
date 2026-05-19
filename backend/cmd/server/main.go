@@ -24,8 +24,8 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/riverqueue/river"
 
-	"github.com/atilladeniz/next-go-pg/backend/internal/domain"
 	"github.com/atilladeniz/next-go-pg/backend/internal/handler"
+	"github.com/atilladeniz/next-go-pg/backend/internal/infrastructure/persistence"
 	"github.com/atilladeniz/next-go-pg/backend/internal/jobs"
 	"github.com/atilladeniz/next-go-pg/backend/internal/middleware"
 	"github.com/atilladeniz/next-go-pg/backend/internal/repository"
@@ -470,9 +470,9 @@ func runAutoMigrations(database *gorm.DB) error {
 
 	logger.Info().Msg("Running GORM auto-migrations")
 
-	// Get all entities from the domain registry
-	// New entities only need to be added to domain.AllEntities()
-	entities := domain.AllEntities()
+	// Get all entities from the persistence registry.
+	// New entities only need to be added to persistence.AllEntities().
+	entities := persistence.AllEntities()
 
 	// Run auto-migration for all entities
 	for _, entity := range entities {

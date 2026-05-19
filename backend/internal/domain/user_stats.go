@@ -1,23 +1,37 @@
 package domain
 
-import (
-	"time"
-)
+import "time"
 
-// UserStats represents user statistics stored in the database
+// UserStats is the pure-domain representation of a user's statistics row.
+// It has no persistence concerns — GORM-tagged models live in
+// internal/infrastructure/persistence and are translated via a mapper.
 type UserStats struct {
-	ID            uint      `gorm:"primaryKey"`
-	UserID        string    `gorm:"uniqueIndex;not null"`
-	ProjectCount  int       `gorm:"default:0"`
-	ActivityToday int       `gorm:"default:0"`
-	Notifications int       `gorm:"default:0"`
-	LastLogin     time.Time `gorm:"autoUpdateTime"`
-	MemberSince   time.Time `gorm:"autoCreateTime"`
-	CreatedAt     time.Time `gorm:"autoCreateTime"`
-	UpdatedAt     time.Time `gorm:"autoUpdateTime"`
+	ID            uint
+	UserID        UserID
+	ProjectCount  int
+	ActivityToday int
+	Notifications int
+	LastLogin     time.Time
+	MemberSince   time.Time
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
 }
 
-// TableName specifies the table name for GORM
-func (UserStats) TableName() string {
-	return "user_stats"
+// IncrementField adjusts the counter selected by field. The result is
+// clamped at zero — the domain refuses to represent negative counts.
+func (s *UserStats) IncrementField(field StatField, delta int) {
+	bump := func(v *int) {
+		*v += delta
+		if *v < 0 {
+			*v = 0
+		}
+	}
+	switch field {
+	case StatFieldProjects:
+		bump(&s.ProjectCount)
+	case StatFieldActivity:
+		bump(&s.ActivityToday)
+	case StatFieldNotifications:
+		bump(&s.Notifications)
+	}
 }
