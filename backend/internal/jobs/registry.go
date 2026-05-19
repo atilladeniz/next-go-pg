@@ -4,7 +4,7 @@ package jobs
 import (
 	"github.com/riverqueue/river"
 
-	"github.com/atilladeniz/next-go-pg/backend/internal/repository"
+	"github.com/atilladeniz/next-go-pg/backend/internal/application"
 	"github.com/atilladeniz/next-go-pg/backend/internal/sse"
 )
 
@@ -13,7 +13,7 @@ type WorkerDeps struct {
 	EmailConfig *EmailConfig
 	SSEBroker   *sse.Broker
 	ExportStore *ExportStore
-	StatsRepo   *repository.UserStatsRepository
+	StatsRepo   application.StatsRepository
 }
 
 // RegisterWorkers registers all job workers with the given workers registry.

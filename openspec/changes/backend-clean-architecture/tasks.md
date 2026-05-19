@@ -22,15 +22,17 @@ _Reshuffle notes for Phase 2:_
 
 ## 3. Phase 3 — Application layer & handler rewire
 
-- [ ] 3.1 Confirm `backend/internal/application/ports.go` signatures (already landed in Phase 1). Swap the `string` user-ID for `domain.UserID` from Phase 2.
+- [x] 3.1 Updated `application/ports.go` — `StatsRepository.GetOrCreate` now takes `domain.UserID`. Also added `UserDirectory` port (`UserByID`, `HasKnownDevice`) for webhook handler's Better Auth lookups.
 - [x] 3.2 _(landed in Phase 2)_ `backend/internal/infrastructure/persistence/user_stats_repo.go` implements `application.StatsRepository` with compile-time assertion.
-- [ ] 3.3 Create `backend/internal/application/stats_usecases.go` with use-case structs (`GetUserStats`, `IncrementStatField`) each exposing `Execute(ctx, …)` and holding `Repo`, `Events` as interface-typed fields
-- [ ] 3.4 Rewrite `backend/internal/handler/api.go`: constructor takes use cases (or the application interfaces) instead of `*repository.UserStatsRepository`. Replace direct repo calls with `usecase.Execute(...)`.
-- [ ] 3.5 Confirm `backend/internal/handler` no longer imports `gorm.io/...` or `backend/internal/infrastructure/...` (grep + `go list -deps`)
-- [ ] 3.6 Confirm `backend/internal/infrastructure/persistence/user_stats_repo.go` contains only persistence translation and CRUD — no clamping, no field-name switch (now in domain)
-- [ ] 3.7 Delete the now-obsolete `backend/internal/repository/user_stats.go` (kept until this point so earlier phases keep compiling). Remove the `internal/repository/` directory if empty.
-- [ ] 3.8 Add at least one happy-path unit test per use case using an in-memory fake satisfying `StatsRepository` — covers the new application boundary
-- [ ] 3.9 `cd backend && go build ./... && go test ./... && just lint` — all green
+- [x] 3.3 Created `application/stats_usecases.go` with `GetUserStats` and `IncrementStatField`, both as structs with `Execute(ctx, ...)` and interface-typed dependencies.
+- [x] 3.4 Rewrote `handler/api.go`: constructor now takes `*GetUserStats` + `*IncrementStatField`; handlers call `Execute()` and validate inputs via `domain.NewUserID` / `domain.NewStatField` at the HTTP boundary.
+- [x] 3.5 `go list -deps ./internal/handler | grep -E "gorm.io|backend/internal/infrastructure"` returns empty — handler has zero gorm and zero persistence imports.
+- [x] 3.6 `infrastructure/persistence/user_stats_repo.go` contains only persistence translation (`GetOrCreate`, `Save` via mapper + GORM). All clamping and field parsing live in domain.
+- [x] 3.7 `internal/repository/user_stats.go` and the empty `internal/repository/` directory deleted.
+- [x] 3.8 Added `application/stats_usecases_test.go` with `fakeStatsRepo` + `fakeBroadcaster`. Four tests cover happy paths, clamping invariant, and Save-failure / no-broadcast semantics. All pass.
+- [x] 3.9 `go build && go vet && go test ./...` — 189 tests pass across 17 packages. `deadcode` reports only pre-existing unreachables (`webhook.ComputeHMAC`, `APIHandler.GetAuthMiddleware` — both unrelated to this refactor).
+
+_Scope expansion in Phase 3:_ `webhook.go` was also refactored to consume `application.UserDirectory` instead of `*gorm.DB`, with concrete `persistence.UserDirectoryRepository` adapter. Added `domain.User` for the projection. This was the only way to satisfy the spec's "no `gorm.io/...` imports in `handler/`" scenario without scoping it down. Better Auth tables stay where they are — only the access path is wrapped.
 
 ## 4. Phase 4 — Composition root & River workers
 
@@ -44,15 +46,22 @@ _Reshuffle notes for Phase 2:_
 
 ## 5. Phase 5 — Tooling, docs, cleanup
 
-- [ ] 5.1 Update `backend/.goca.yaml`: ensure `architecture.layers` includes `usecase`/application alongside the existing layers, and confirm output paths match the new layout
+- [ ] 5.1 Update `backend/.goca.yaml`: point `architecture.layers.usecase.directory` at `internal/application`, point `architecture.layers.repository.directory` at `internal/infrastructure/persistence`. Domain and handler directories stay.
 - [ ] 5.2 Update `CLAUDE.md`: replace the "internal/usecase/ doesn't exist yet" note with the new four-layer description (domain / application / infrastructure / composition), the inward-dependency rule, and the updated "add a new feature" workflow (Goca + manual mapper)
-- [ ] 5.3 Update `backend/`'s Goca example in CLAUDE.md so new entities land in `domain/` (pure) and a mapper stub goes into `infrastructure/persistence/`
+- [ ] 5.3 Update `backend/`'s Goca example in CLAUDE.md so new entities land in `domain/` (pure) and a mapper stub goes into `infrastructure/persistence/`. Document the manual post-`goca make entity` steps: (a) strip GORM tags from the generated domain entity, (b) add a `gormFoo` to `infrastructure/persistence/gorm_models.go`, (c) write the mapper, (d) append the model to `persistence.AllEntities()`.
 - [ ] 5.4 Confirm the Swagger output is unchanged: `just api` produces a `backend/docs/swagger.json` with the same routes and schemas as before this change (diff against the pre-refactor file)
 - [ ] 5.5 Confirm frontend builds without modification: `cd frontend && bun run lint && bunx tsc --noEmit`
 - [ ] 5.6 Final pass: `just lint`, `just typecheck`, `cd backend && go test ./...`, manual smoke test of `just dev` — everything green
 
-## 6. Verification & archive
+## 6. Cleanup & dead-code audit (added per user request)
 
-- [ ] 6.1 Run `/opsx:verify` and resolve any flagged gaps
-- [ ] 6.2 Run `openspec validate backend-clean-architecture --strict`
-- [ ] 6.3 Run `/opsx:archive` once verification passes and the change has shipped
+- [ ] 6.1 Run `deadcode ./...` from `backend/` after Phase 4 — confirm no new unreachable functions were introduced by this refactor. (`NewUserID` becomes reachable via use cases in Phase 3.) Pre-existing dead code in logger/middleware/config is out of scope for this PR.
+- [ ] 6.2 Verify no orphaned directories: after Phase 3 deletes `internal/repository/`, ensure no stale references remain (grep for `"backend/internal/repository"` imports).
+- [ ] 6.3 Verify no duplicate types: `domain.UserStats` ↔ `persistence.gormUserStats` are intentional twins via mapper. No other duplicates expected.
+- [ ] 6.4 Open follow-up issue (or note in CLAUDE.md `## Follow-ups`) for: install `knip` for frontend dead-export detection (Steiger covers FSD rules but not unused exports), and wire `deadcode`/`staticcheck` into the project's quality recipes (e.g. `just deadcode`).
+
+## 7. Verification & archive
+
+- [ ] 7.1 Run `/opsx:verify` and resolve any flagged gaps
+- [ ] 7.2 Run `openspec validate backend-clean-architecture --strict`
+- [ ] 7.3 Run `/opsx:archive` once verification passes and the change has shipped

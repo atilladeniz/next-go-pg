@@ -28,12 +28,12 @@ func NewUserStatsRepository(db *gorm.DB) *UserStatsRepository {
 
 // GetOrCreate returns the user's stats row, creating it with the seeded
 // defaults if it does not yet exist.
-func (r *UserStatsRepository) GetOrCreate(ctx context.Context, userID string) (*domain.UserStats, error) {
+func (r *UserStatsRepository) GetOrCreate(ctx context.Context, userID domain.UserID) (*domain.UserStats, error) {
 	var g gormUserStats
-	err := r.db.WithContext(ctx).Where("user_id = ?", userID).First(&g).Error
+	err := r.db.WithContext(ctx).Where("user_id = ?", string(userID)).First(&g).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		g = gormUserStats{
-			UserID:        userID,
+			UserID:        string(userID),
 			ProjectCount:  3,
 			ActivityToday: 10,
 			Notifications: 2,

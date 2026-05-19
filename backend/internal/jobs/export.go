@@ -10,7 +10,8 @@ import (
 
 	"github.com/riverqueue/river"
 
-	"github.com/atilladeniz/next-go-pg/backend/internal/repository"
+	"github.com/atilladeniz/next-go-pg/backend/internal/application"
+	"github.com/atilladeniz/next-go-pg/backend/internal/domain"
 	"github.com/atilladeniz/next-go-pg/backend/internal/sse"
 	"github.com/atilladeniz/next-go-pg/backend/pkg/logger"
 )
@@ -61,7 +62,7 @@ type DataExportWorker struct {
 	river.WorkerDefaults[DataExportArgs]
 	sseBroker   *sse.Broker
 	exportStore *ExportStore
-	statsRepo   *repository.UserStatsRepository
+	statsRepo   application.StatsRepository
 }
 
 // ExportStore holds completed exports in memory (in production, use object storage)
@@ -104,7 +105,7 @@ func (s *ExportStore) Delete(id string) {
 	delete(s.exports, id)
 }
 
-func NewDataExportWorker(sseBroker *sse.Broker, exportStore *ExportStore, statsRepo *repository.UserStatsRepository) *DataExportWorker {
+func NewDataExportWorker(sseBroker *sse.Broker, exportStore *ExportStore, statsRepo application.StatsRepository) *DataExportWorker {
 	return &DataExportWorker{
 		sseBroker:   sseBroker,
 		exportStore: exportStore,
@@ -140,7 +141,7 @@ func (w *DataExportWorker) Work(ctx context.Context, job *river.Job[DataExportAr
 	})
 
 	// Get real data from database
-	data := w.generateExportData(args.UserID, args.DataType)
+	data := w.generateExportData(ctx, args.UserID, args.DataType)
 
 	time.Sleep(500 * time.Millisecond)
 	w.sendProgress(ExportProgress{
@@ -227,17 +228,19 @@ func (w *DataExportWorker) sendProgress(progress ExportProgress) {
 	w.sseBroker.Broadcast("export-progress", string(data))
 }
 
-func (w *DataExportWorker) generateExportData(userID, dataType string) []map[string]interface{} {
+func (w *DataExportWorker) generateExportData(ctx context.Context, userID, dataType string) []map[string]interface{} {
 	now := time.Now()
 
 	// Try to get real stats from database
 	var projectCount, activityToday, notifications int
 	if w.statsRepo != nil {
-		stats, err := w.statsRepo.GetOrCreate(userID)
-		if err == nil {
-			projectCount = stats.ProjectCount
-			activityToday = stats.ActivityToday
-			notifications = stats.Notifications
+		if uid, err := domain.NewUserID(userID); err == nil {
+			stats, err := w.statsRepo.GetOrCreate(ctx, uid)
+			if err == nil {
+				projectCount = stats.ProjectCount
+				activityToday = stats.ActivityToday
+				notifications = stats.Notifications
+			}
 		}
 	}
 

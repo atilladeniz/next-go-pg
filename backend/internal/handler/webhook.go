@@ -13,17 +13,18 @@ import (
 	"strings"
 	"time"
 
+	"github.com/atilladeniz/next-go-pg/backend/internal/application"
+	"github.com/atilladeniz/next-go-pg/backend/internal/domain"
 	"github.com/atilladeniz/next-go-pg/backend/internal/jobs"
 	"github.com/atilladeniz/next-go-pg/backend/internal/templates"
 	"github.com/atilladeniz/next-go-pg/backend/pkg/logger"
 	"github.com/mileusna/useragent"
 	"gopkg.in/gomail.v2"
-	"gorm.io/gorm"
 )
 
 // WebhookHandler handles all webhook endpoints for email notifications
 type WebhookHandler struct {
-	db          *gorm.DB
+	users       application.UserDirectory
 	mailer      *gomail.Dialer
 	config      *webhookConfig
 	jobEnqueuer jobs.JobEnqueuer // Optional: if set, emails are sent via background jobs
@@ -35,8 +36,10 @@ type webhookConfig struct {
 	settingsURL string
 }
 
-// NewWebhookHandler creates a new webhook handler with mailer configuration
-func NewWebhookHandler(db *gorm.DB) *WebhookHandler {
+// NewWebhookHandler creates a new webhook handler with mailer configuration.
+// users may be nil — in that case device-detection and email lookups
+// degrade gracefully (treat every login as a new device, return empty user).
+func NewWebhookHandler(users application.UserDirectory) *WebhookHandler {
 	smtpHost := getEnvOrDefault("SMTP_HOST", "127.0.0.1")
 	smtpPort := getEnvAsIntOrDefault("SMTP_PORT", 1025)
 	appURL := getEnvOrDefault("NEXT_PUBLIC_APP_URL", "http://localhost:3000")
@@ -45,7 +48,7 @@ func NewWebhookHandler(db *gorm.DB) *WebhookHandler {
 	dialer.SSL = false
 
 	return &WebhookHandler{
-		db:     db,
+		users:  users,
 		mailer: dialer,
 		config: &webhookConfig{
 			smtpFrom:    getEnvOrDefault("SMTP_FROM", "noreply@localhost"),
@@ -126,13 +129,13 @@ func (h *WebhookHandler) SessionCreated(w http.ResponseWriter, r *http.Request) 
 	}
 
 	// Check if device is known (with locking to prevent race conditions)
-	if h.isKnownDevice(req) {
+	if h.isKnownDevice(r.Context(), req) {
 		respondJSON(w, MessageResponse{Message: "known device, notification skipped"})
 		return
 	}
 
 	// Get user info
-	user, err := h.getUserByID(req.UserID)
+	user, err := h.getUserByID(r.Context(), req.UserID)
 	if err != nil {
 		logger.Warn().Err(err).Str("user_id", req.UserID).Msg("User not found for session notification")
 		respondJSON(w, MessageResponse{Message: "user not found"})
@@ -450,39 +453,31 @@ func (h *WebhookHandler) sendEmail(to, subject, body string) error {
 	return h.mailer.DialAndSend(m)
 }
 
-func (h *WebhookHandler) isKnownDevice(req SessionCreatedRequest) bool {
-	if h.db == nil {
+func (h *WebhookHandler) isKnownDevice(ctx context.Context, req SessionCreatedRequest) bool {
+	if h.users == nil {
 		return false
 	}
-
-	var count int64
-	err := h.db.Table("session").
-		Where(`"userId" = ? AND "userAgent" = ? AND "ipAddress" = ? AND id != ?`,
-			req.UserID, req.UserAgent, req.IPAddress, req.SessionID).
-		Count(&count).Error
-
+	uid, err := domain.NewUserID(req.UserID)
+	if err != nil {
+		return false
+	}
+	known, err := h.users.HasKnownDevice(ctx, uid, req.UserAgent, req.IPAddress, req.SessionID)
 	if err != nil {
 		logger.Warn().Err(err).Msg("Failed to check for existing sessions")
 		return false
 	}
-	return count > 0
+	return known
 }
 
-type userInfo struct {
-	Email string `gorm:"column:email"`
-	Name  string `gorm:"column:name"`
-}
-
-func (h *WebhookHandler) getUserByID(userID string) (*userInfo, error) {
-	if h.db == nil {
-		return &userInfo{}, nil
+func (h *WebhookHandler) getUserByID(ctx context.Context, userID string) (*domain.User, error) {
+	if h.users == nil {
+		return &domain.User{}, nil
 	}
-
-	var user userInfo
-	if err := h.db.Table("user").Where("id = ?", userID).First(&user).Error; err != nil {
+	uid, err := domain.NewUserID(userID)
+	if err != nil {
 		return nil, err
 	}
-	return &user, nil
+	return h.users.UserByID(ctx, uid)
 }
 
 // --- Utility Functions ---

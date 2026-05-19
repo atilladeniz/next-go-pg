@@ -24,11 +24,11 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/riverqueue/river"
 
+	"github.com/atilladeniz/next-go-pg/backend/internal/application"
 	"github.com/atilladeniz/next-go-pg/backend/internal/handler"
 	"github.com/atilladeniz/next-go-pg/backend/internal/infrastructure/persistence"
 	"github.com/atilladeniz/next-go-pg/backend/internal/jobs"
 	"github.com/atilladeniz/next-go-pg/backend/internal/middleware"
-	"github.com/atilladeniz/next-go-pg/backend/internal/repository"
 	"github.com/atilladeniz/next-go-pg/backend/internal/sse"
 	"github.com/atilladeniz/next-go-pg/backend/pkg/config"
 	"github.com/atilladeniz/next-go-pg/backend/pkg/logger"
@@ -121,10 +121,16 @@ func main() {
 	sseBroker = sse.NewBroker()
 	logger.Info().Msg("SSE broker initialized")
 
-	// Setup repositories early (needed by workers)
-	var statsRepo *repository.UserStatsRepository
+	// Setup persistence + use cases.
+	var statsRepo application.StatsRepository
+	var userDirectory application.UserDirectory
+	var getStatsUC *application.GetUserStats
+	var incrementStatUC *application.IncrementStatField
 	if db != nil {
-		statsRepo = repository.NewUserStatsRepository(db)
+		statsRepo = persistence.NewUserStatsRepository(db)
+		userDirectory = persistence.NewUserDirectoryRepository(db)
+		getStatsUC = &application.GetUserStats{Repo: statsRepo}
+		incrementStatUC = &application.IncrementStatField{Repo: statsRepo, Events: sseBroker}
 	}
 
 	// Setup River job queue (if database is available)
@@ -226,7 +232,7 @@ func main() {
 	router.Handle("/metrics", promhttp.Handler()).Methods("GET")
 
 	// Setup API handlers
-	apiHandler := handler.NewAPIHandler(cfg.FrontendURL, sseBroker, statsRepo)
+	apiHandler := handler.NewAPIHandler(cfg.FrontendURL, sseBroker, getStatsUC, incrementStatUC)
 
 	// Setup combined auth middleware (JWT first, then Better Auth fallback)
 	// This allows Go to validate tokens directly without calling Next.js
@@ -234,7 +240,7 @@ func main() {
 
 	// Setup webhook handler
 	// Setup webhook handler with optional background job support
-	webhookHandler := handler.NewWebhookHandler(db)
+	webhookHandler := handler.NewWebhookHandler(userDirectory)
 	if riverJobQueue != nil {
 		webhookHandler = webhookHandler.WithJobEnqueuer(riverJobQueue.Client)
 	}

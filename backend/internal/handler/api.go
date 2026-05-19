@@ -4,22 +4,30 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/atilladeniz/next-go-pg/backend/internal/application"
+	"github.com/atilladeniz/next-go-pg/backend/internal/domain"
 	"github.com/atilladeniz/next-go-pg/backend/internal/middleware"
-	"github.com/atilladeniz/next-go-pg/backend/internal/repository"
 	"github.com/atilladeniz/next-go-pg/backend/internal/sse"
 )
 
 type APIHandler struct {
-	authMiddleware  *middleware.AuthMiddleware
-	sseBroker       *sse.Broker
-	statsRepository *repository.UserStatsRepository
+	authMiddleware *middleware.AuthMiddleware
+	sseBroker      *sse.Broker
+	getStats       *application.GetUserStats
+	incrementStat  *application.IncrementStatField
 }
 
-func NewAPIHandler(betterAuthURL string, broker *sse.Broker, statsRepo *repository.UserStatsRepository) *APIHandler {
+func NewAPIHandler(
+	betterAuthURL string,
+	broker *sse.Broker,
+	getStats *application.GetUserStats,
+	incrementStat *application.IncrementStatField,
+) *APIHandler {
 	return &APIHandler{
-		authMiddleware:  middleware.NewAuthMiddleware(betterAuthURL),
-		sseBroker:       broker,
-		statsRepository: statsRepo,
+		authMiddleware: middleware.NewAuthMiddleware(betterAuthURL),
+		sseBroker:      broker,
+		getStats:       getStats,
+		incrementStat:  incrementStat,
 	}
 }
 
@@ -131,8 +139,8 @@ func (h *APIHandler) GetUserStats(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Return default stats if database is not available
-	if h.statsRepository == nil {
+	// Return default stats if database / use case is not available.
+	if h.getStats == nil {
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(UserStatsResponse{
 			UserID:        user.ID,
@@ -145,24 +153,22 @@ func (h *APIHandler) GetUserStats(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	stats, err := h.statsRepository.GetOrCreate(user.ID)
+	userID, err := domain.NewUserID(user.ID)
+	if err != nil {
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(ErrorResponse{Error: "invalid user id"})
+		return
+	}
+
+	stats, err := h.getStats.Execute(r.Context(), userID)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(ErrorResponse{Error: "failed to get stats"})
 		return
 	}
 
-	response := UserStatsResponse{
-		UserID:        string(stats.UserID),
-		ProjectCount:  stats.ProjectCount,
-		ActivityToday: stats.ActivityToday,
-		Notifications: stats.Notifications,
-		LastLogin:     stats.LastLogin.Format("2006-01-02T15:04:05Z"),
-		MemberSince:   stats.MemberSince.Format("2006-01-02T15:04:05Z"),
-	}
-
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	json.NewEncoder(w).Encode(statsResponse(stats))
 }
 
 // UpdateStatRequest for modifying stats
@@ -198,39 +204,49 @@ func (h *APIHandler) UpdateUserStats(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Return error if database is not available
-	if h.statsRepository == nil {
+	if h.incrementStat == nil {
 		w.WriteHeader(http.StatusServiceUnavailable)
 		json.NewEncoder(w).Encode(ErrorResponse{Error: "database not available"})
 		return
 	}
 
-	stats, err := h.statsRepository.IncrementField(user.ID, req.Field, req.Delta)
+	userID, err := domain.NewUserID(user.ID)
+	if err != nil {
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(ErrorResponse{Error: "invalid user id"})
+		return
+	}
+
+	field, err := domain.NewStatField(req.Field)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	stats, err := h.incrementStat.Execute(r.Context(), userID, field, req.Delta)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(ErrorResponse{Error: "failed to update stats"})
 		return
 	}
 
-	// Broadcast update to all connected clients
-	if h.sseBroker != nil {
-		h.sseBroker.Broadcast("stats-updated", `{"field":"`+req.Field+`"}`)
-	}
-
-	response := UserStatsResponse{
-		UserID:        string(stats.UserID),
-		ProjectCount:  stats.ProjectCount,
-		ActivityToday: stats.ActivityToday,
-		Notifications: stats.Notifications,
-		LastLogin:     stats.LastLogin.Format("2006-01-02T15:04:05Z"),
-		MemberSince:   stats.MemberSince.Format("2006-01-02T15:04:05Z"),
-	}
-
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	json.NewEncoder(w).Encode(statsResponse(stats))
 }
 
 // GetAuthMiddleware returns the auth middleware for use in routes
 func (h *APIHandler) GetAuthMiddleware() *middleware.AuthMiddleware {
 	return h.authMiddleware
+}
+
+func statsResponse(s *domain.UserStats) UserStatsResponse {
+	return UserStatsResponse{
+		UserID:        string(s.UserID),
+		ProjectCount:  s.ProjectCount,
+		ActivityToday: s.ActivityToday,
+		Notifications: s.Notifications,
+		LastLogin:     s.LastLogin.Format("2006-01-02T15:04:05Z"),
+		MemberSince:   s.MemberSince.Format("2006-01-02T15:04:05Z"),
+	}
 }
