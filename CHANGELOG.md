@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.7.0](https://github.com/atilladeniz/next-go-pg/compare/v1.6.0...v1.7.0) (2026-05-19)
+
+
+### Features
+
+* add OpenSpec scaffolding for spec-driven workflow ([#48](https://github.com/atilladeniz/next-go-pg/issues/48)) ([09c65d4](https://github.com/atilladeniz/next-go-pg/commit/09c65d4ad6dc1c2377f36aae719ee08d6d18a2ea))
+
 ## [1.6.0](https://github.com/atilladeniz/next-go-pg/compare/v1.5.0...v1.6.0) (2026-05-18)
 
 
