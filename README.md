@@ -10,22 +10,22 @@ Full-Stack Monorepo with Next.js Frontend and Go Backend.
 
 ```
 .docs/
-├── nextjs.md           # Next.js 16 App Router
 ├── tanstack-query.md   # TanStack Query
 ├── better-auth.md      # Better Auth
-├── gorm.md             # GORM ORM
-├── goca.md             # Goca CLI
-├── orval.md            # Orval API Generator
+├── sazardev-goca.md    # Goca CLI (Go Clean Architecture)
 ├── river.md            # River Job Queue
 ├── background-jobs.md  # Background Job Integration
-├── shadcn.md           # shadcn/ui
-├── tailwind.md         # Tailwind CSS 4
 ├── kamal-deploy.md     # Kamal Deployment
 ├── logging.md          # Logging (zerolog + Pino)
-└── disaster-recovery.md # Database Backups & Recovery
+├── disaster-recovery.md # Database Backups & Recovery
+├── rustfs.md           # RustFS (S3-compatible storage)
+├── openspec.md         # OpenSpec spec-driven workflow
+└── fsd-liniting.xml    # FSD lint rules (Steiger)
 ```
 
 > **Always check `.docs/` first** before searching the internet!
+>
+> **Next.js** is the exception — read `frontend/node_modules/next/dist/docs/` instead. Version-matched, always current with the installed `next` package (rule enforced by [AGENTS.md](./AGENTS.md)).
 
 ## Tech Stack
 
@@ -76,14 +76,14 @@ npm install -g @fission-ai/openspec@latest
 git clone <repo-url>
 cd next-go-pg
 
-# Install dependencies
+# Install dependencies (also installs goca, gitleaks, sitefetch + sets up git hooks)
 just install
 
 # Start database
 just db-up
 
 # Create Better Auth tables
-cd frontend && DATABASE_URL="postgres://postgres:postgres@localhost:5432/nextgopg" bunx @better-auth/cli migrate -y
+just db-migrate
 
 # Start development
 just dev
@@ -115,22 +115,27 @@ See `.docs/openspec.md` for the full cheatsheet and `AGENTS.md` for the workflow
 ```
 next-go-pg/
 ├── backend/                 # Go Backend (Clean Architecture)
-│   ├── cmd/server/          # Entrypoint
+│   ├── cmd/
+│   │   ├── server/          # Main API server (boots AutoMigrate + River)
+│   │   ├── migrate/         # golang-migrate CLI (prod SQL migrations)
+│   │   └── river-migrate/   # River job-queue migration CLI
 │   ├── internal/
-│   │   ├── domain/          # Entities (goca make entity)
-│   │   ├── usecase/         # Business Logic (goca make usecase)
+│   │   ├── domain/          # Entities (goca make entity) + registry
 │   │   ├── repository/      # Data Access (goca make repository)
 │   │   ├── handler/         # HTTP Handler (goca make handler)
-│   │   ├── middleware/      # Auth (JWT + Better Auth), CORS, Logging
+│   │   ├── middleware/      # Auth (JWT + Better Auth), CORS, Logging, Rate limit
 │   │   ├── jobs/            # River Background Jobs
-│   │   └── sse/             # Server-Sent Events Broker
+│   │   ├── sse/             # Server-Sent Events Broker
+│   │   └── templates/       # Email templates (Magic Link, etc.)
+│   ├── migrations/          # SQL migrations (prod only — empty in dev)
 │   ├── pkg/logger/          # zerolog Logger
 │   └── docs/                # Swagger (generated)
 ├── frontend/                # Next.js Frontend (FSD Architecture)
 │   ├── src/
 │   │   ├── app/             # Next.js App Router
 │   │   ├── widgets/         # Composite UI (Header)
-│   │   ├── features/        # User Interactions (Auth, Stats, Data Export)
+│   │   ├── features/        # auth, user-settings, security-settings,
+│   │   │                    # data-export, stats
 │   │   ├── entities/        # Business Objects (User)
 │   │   └── shared/          # Reusable (UI, API, Lib, Logger)
 │   └── orval.config.ts      # API Generator Config
@@ -238,10 +243,19 @@ git commit --no-verify
 
 This project uses [just](https://github.com/casey/just) as command runner. Install with `brew install just`. Run `just` (no args) to see all grouped recipes.
 
+### Setup
+
+```bash
+just install          # Install all deps + CLI tools + git hooks
+just install-tools    # Goca, gitleaks, sitefetch (idempotent)
+just clean            # Remove build artifacts and node_modules
+```
+
 ### Development
 
 ```bash
 just dev              # Start DB + Frontend + Backend
+just dev-full         # Same + Grafana / Loki / Promtail
 just dev-frontend     # Frontend only (localhost:3000)
 just dev-backend      # Backend only (localhost:8080)
 ```
@@ -252,12 +266,32 @@ just dev-backend      # Backend only (localhost:8080)
 just db-up            # Start PostgreSQL
 just db-down          # Stop PostgreSQL
 just db-reset         # Reset database (prompts for confirmation)
+just db-migrate       # Run Better Auth migrations
 ```
+
+### Production Migrations (prod deploy hook — NOT used in dev)
+
+```bash
+just prod-migrate-up         # Apply pending SQL migrations
+just prod-migrate-down       # Roll back last migration
+just prod-migrate-version    # Show current version
+just prod-migrate-create <name>  # Scaffold new .up/.down files
+
+just prod-river-migrate-up         # Apply River job-queue migrations
+just prod-river-migrate-down       # Roll back last River migration
+just prod-river-migrate-version    # Show River migration version
+```
+
+> Dev path runs GORM AutoMigrate on `cmd/server` startup. Use these
+> `prod-*` recipes only when clustered deployments make AutoMigrate
+> racing unsafe. See `backend/migrations/README.md`.
 
 ### API
 
 ```bash
 just api              # Generate TypeScript client from OpenAPI
+just swagger          # Only regenerate Swagger JSON
+just goca-feature <Name> "<fields>"   # Scaffold a full Goca feature
 ```
 
 ### Quality
@@ -265,9 +299,13 @@ just api              # Generate TypeScript client from OpenAPI
 ```bash
 just lint             # Biome + Steiger (FSD) Linting
 just lint-fix         # Auto-fix
+just format           # Format with Biome
 just typecheck        # TypeScript Check
-just test             # Run tests
-just security-scan    # Scan for secrets
+just test             # Run all tests
+just test-frontend    # Frontend tests only
+just test-backend     # Backend tests only
+just security-scan    # Scan working tree for secrets
+just security-scan-history  # Scan entire git history
 ```
 
 ### Build
@@ -278,11 +316,39 @@ just build-frontend   # Next.js Production Build
 just build-backend    # Go Binary
 ```
 
+### Spec-driven Development (OpenSpec)
+
+```bash
+just spec-list        # List active changes
+just spec-specs       # List canonical specs
+just spec-validate    # Validate all changes + specs
+just spec-status <name>   # Status of a specific change
+just spec-view        # Interactive dashboard
+```
+
+### Deployment (Kamal)
+
+```bash
+just deploy-staging                 # Deploy to staging
+just deploy-production              # Deploy to production (confirms)
+just deploy-rollback <dest>         # Roll back staging|production
+just deploy-logs <dest>             # Follow remote app logs
+just deploy-console <dest>          # Open shell on remote
+just deploy-setup <dest>            # Initial Kamal setup
+```
+
+### Monitoring
+
+```bash
+just metrics          # Open Prometheus metrics (localhost:8080/metrics)
+```
+
 ### Documentation
 
 ```bash
 just search-docs "query"           # Search docs with semantic search
 just search-docs "query" 10        # Custom result count
+just search-docs-index             # Pre-build search index (one-time)
 just fetch-docs <url>              # Fetch LLM-friendly docs
 just fetch-docs <url> <name>       # With custom filename
 ```
