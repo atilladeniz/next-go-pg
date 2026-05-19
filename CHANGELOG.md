@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.8.0](https://github.com/atilladeniz/next-go-pg/compare/v1.7.0...v1.8.0) (2026-05-19)
+
+
+### Features
+
+* cut v1.8.0 release marker ([#54](https://github.com/atilladeniz/next-go-pg/issues/54)) ([7535925](https://github.com/atilladeniz/next-go-pg/commit/7535925507201f859486ce8f2f8030aed0dfbb91))
+
 ## [1.7.0](https://github.com/atilladeniz/next-go-pg/compare/v1.6.0...v1.7.0) (2026-05-19)
 
 
