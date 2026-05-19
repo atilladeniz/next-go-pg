@@ -48,9 +48,10 @@ Full-Stack Monorepo with Next.js Frontend and Go Backend.
 ## Prerequisites
 
 - [Bun](https://bun.sh/) (Frontend)
-- [Go 1.21+](https://go.dev/) (Backend)
+- [Go 1.26+](https://go.dev/) (Backend)
 - [Goca CLI](https://github.com/sazardev/goca) (Backend Code Generation)
 - [Docker](https://www.docker.com/) (Database)
+- [OpenSpec](https://github.com/Fission-AI/OpenSpec) (Spec-driven Workflow, optional)
 
 ### Install CLI Tools
 
@@ -63,6 +64,9 @@ brew install gitleaks
 
 # Sitefetch (Documentation Fetching)
 bun install -g sitefetch
+
+# OpenSpec (Spec-driven feature workflow, optional but recommended)
+npm install -g @fission-ai/openspec@latest
 ```
 
 ## Quick Start
@@ -88,6 +92,23 @@ just dev
 Open:
 - Frontend: [http://localhost:3000](http://localhost:3000)
 - Backend: [http://localhost:8080](http://localhost:8080)
+
+### Propose Your First Feature
+
+This template ships with [OpenSpec](https://github.com/Fission-AI/OpenSpec) — a spec-driven workflow for AI-agent development. Before implementing non-trivial features, write a proposal so Claude (or any other agent) executes against a contract instead of assumptions:
+
+```bash
+# In Claude Code:
+/opsx:propose "add billing portal"
+
+# Review the generated proposal/design/tasks under openspec/changes/
+# Then:
+/opsx:apply       # Implement
+/opsx:verify      # Sanity check
+/opsx:archive     # Mark complete
+```
+
+See `.docs/openspec.md` for the full cheatsheet and `AGENTS.md` for the workflow rules.
 
 ## Project Structure
 
@@ -121,6 +142,10 @@ next-go-pg/
 │   │   └── docker-compose.backup.yml   # Backup (postgres-backup-s3 + RustFS)
 │   ├── loki/                   # Loki & Promtail Config
 │   └── grafana/                # Grafana Provisioning
+├── openspec/                # Spec-driven change proposals (OpenSpec)
+│   ├── changes/             # Active and archived changes
+│   └── specs/               # Canonical capability specs
+├── AGENTS.md                # Agent rules (Next.js docs, OpenSpec workflow)
 ├── justfile                 # Build Commands (https://github.com/casey/just)
 └── README.md
 ```

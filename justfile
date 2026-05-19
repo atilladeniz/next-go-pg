@@ -196,6 +196,33 @@ goca-feature name fields:
     echo "2. Run: just dev-backend"
     echo ""
 
+# ─── Spec-driven Development (OpenSpec) ─────────────────────────
+
+# List active OpenSpec changes
+[group('spec')]
+spec-list:
+    openspec list
+
+# List canonical OpenSpec specs
+[group('spec')]
+spec-specs:
+    openspec list --specs
+
+# Validate all changes and specs
+[group('spec')]
+spec-validate:
+    openspec validate --all
+
+# Show status of a specific change
+[group('spec')]
+spec-status name:
+    openspec status --change "{{ name }}"
+
+# Open the interactive OpenSpec dashboard
+[group('spec')]
+spec-view:
+    openspec view
+
 # ─── Setup ──────────────────────────────────────────────────────
 
 # Install all dependencies
