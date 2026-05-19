@@ -263,15 +263,36 @@ jobs:
       - uses: dorny/paths-filter@v3
         id: filter
         with:
+          # Explicit allow-lists per area. We do not use `!` negation
+          # patterns: in dorny/paths-filter v3 they can cause false
+          # positives when no inclusion pattern matches (e.g. a root
+          # CHANGELOG.md was matching `backend` and `frontend`).
           filters: |
             backend:
-              - 'backend/**'
-              - '!backend/**/*.md'
+              - 'backend/**/*.go'
+              - 'backend/go.mod'
+              - 'backend/go.sum'
+              - 'backend/Dockerfile'
+              - 'backend/.dockerignore'
+              - 'backend/migrations/**'
+              - 'backend/scripts/**'
+              - 'backend/docs/**'
               - 'deploy/**'
               - '.github/workflows/ci.yml'
             frontend:
-              - 'frontend/**'
-              - '!frontend/**/*.md'
+              - 'frontend/src/**'
+              - 'frontend/public/**'
+              - 'frontend/package.json'
+              - 'frontend/bun.lock'
+              - 'frontend/bunfig.toml'
+              - 'frontend/Dockerfile'
+              - 'frontend/.dockerignore'
+              - 'frontend/next.config.ts'
+              - 'frontend/tsconfig.json'
+              - 'frontend/biome.json'
+              - 'frontend/orval.config.ts'
+              - 'frontend/postcss.config.mjs'
+              - 'frontend/components.json'
               - 'deploy/**'
               - '.github/workflows/ci.yml'
 
