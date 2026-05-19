@@ -1,0 +1,52 @@
+## 1. Phase 1 — Scaffold new layers (no behavior change)
+
+- [x] 1.1 Create empty packages: `backend/internal/application/`, `backend/internal/infrastructure/persistence/`, `backend/internal/composition/` (each with a single placeholder `.go` file so `go build ./...` succeeds)
+- [x] 1.2 Add `backend/internal/application/ports.go` with the `StatsRepository` and `EventBroadcaster` interfaces. _(Reshuffle: full method signatures landed in Phase 1 instead of Phase 3 — empty interfaces tripped gopls's `any`-suggestion. Phase 3 task 3.1 is now a confirm-only step.)_
+- [x] 1.3 `go build ./...` and `go vet ./...` green. (`just lint` is frontend-only — Biome/Steiger; backend uses `go vet`/gopls in this repo.)
+
+## 2. Phase 2 — Domain split for UserStats
+
+- [ ] 2.1 Add `backend/internal/domain/value_objects.go` with `UserID` (newtype with `NewUserID(string) (UserID, error)` rejecting empty) and `StatField` (enum with `NewStatField(string) (StatField, error)` over the current allowed fields)
+- [ ] 2.2 Rewrite `backend/internal/domain/user_stats.go`: remove GORM tags, replace raw `string` user ID with `UserID`, add domain method `UserStats.IncrementField(field StatField, delta int)` that clamps the resulting count at 0 (currently lives in repository)
+- [ ] 2.3 Create `backend/internal/infrastructure/persistence/gorm_models.go` with the GORM-tagged `gormUserStats` struct mirroring the previous schema (table name, indexes, primary key)
+- [ ] 2.4 Create `backend/internal/infrastructure/persistence/user_stats_mapper.go` with `toDomain` and `fromDomain` functions
+- [ ] 2.5 Move `AllEntities()` from `backend/internal/domain/registry.go` to `backend/internal/infrastructure/persistence/registry.go`; update it to return GORM models. Delete the old `domain/registry.go`.
+- [ ] 2.6 Confirm `backend/internal/domain` has no import of `gorm.io/...`, `database/sql`, `net/http`, or any other `backend/internal/...` package — run `go list -deps ./internal/domain` and inspect
+- [ ] 2.7 `cd backend && go build ./... && just lint` — green
+
+## 3. Phase 3 — Application layer & handler rewire
+
+- [ ] 3.1 Confirm `backend/internal/application/ports.go` signatures (already landed in Phase 1). Swap the `string` user-ID for `domain.UserID` from Phase 2.
+- [ ] 3.2 Implement `backend/internal/infrastructure/persistence/user_stats_repo.go` satisfying `application.StatsRepository`, using the mapper. Add compile-time assertion `var _ application.StatsRepository = (*UserStatsRepository)(nil)`.
+- [ ] 3.3 Create `backend/internal/application/stats_usecases.go` with use-case structs (`GetUserStats`, `IncrementStatField`) each exposing `Execute(ctx, …)` and holding `Repo`, `Events` as interface-typed fields
+- [ ] 3.4 Rewrite `backend/internal/handler/api.go`: constructor takes use cases (or the application interfaces) instead of `*repository.UserStatsRepository`. Replace direct repo calls with `usecase.Execute(...)`.
+- [ ] 3.5 Confirm `backend/internal/handler` no longer imports `gorm.io/...` or `backend/internal/infrastructure/...` (grep + `go list -deps`)
+- [ ] 3.6 Confirm `backend/internal/infrastructure/persistence/user_stats_repo.go` contains only persistence translation and CRUD — no clamping, no field-name switch (now in domain)
+- [ ] 3.7 Delete the now-obsolete `backend/internal/repository/user_stats.go` (kept until this point so earlier phases keep compiling). Remove the `internal/repository/` directory if empty.
+- [ ] 3.8 Add at least one happy-path unit test per use case using an in-memory fake satisfying `StatsRepository` — covers the new application boundary
+- [ ] 3.9 `cd backend && go build ./... && go test ./... && just lint` — all green
+
+## 4. Phase 4 — Composition root & River workers
+
+- [ ] 4.1 Create `backend/internal/composition/composition.go` exporting `Build(cfg Config) (*App, error)` (or similar) that constructs: DB connection, persistence registry, repositories, use cases, SSE broker, River client, handlers
+- [ ] 4.2 Move all repository / use-case / handler constructor calls out of `backend/cmd/server/main.go` into the composition root
+- [ ] 4.3 Confirm `backend/cmd/server/main.go` contains: env loading, calling `composition.Build`, registering routes (or letting composition return a `http.Handler`), `http.ListenAndServe`, and graceful shutdown — and nothing else. Target: <150 lines.
+- [ ] 4.4 Refactor River worker registration (`backend/internal/jobs/registry.go` and call sites in `cmd/server/main.go`) so workers receive application interfaces instead of `*gorm.DB`. Add a small `application.JobEnqueuer` port if any use case enqueues jobs.
+- [ ] 4.5 Confirm SSE broker is consumed via the `application.EventBroadcaster` interface, not as a concrete type, in every use case that broadcasts
+- [ ] 4.6 `cd backend && go build ./... && go test ./... && just lint` — green
+- [ ] 4.7 Manual smoke test: `just dev`, log in, exercise dashboard (stats), trigger SSE update (e.g. via webhook or repeated request), trigger one River job (e.g. magic-link request) — all behave as before
+
+## 5. Phase 5 — Tooling, docs, cleanup
+
+- [ ] 5.1 Update `backend/.goca.yaml`: ensure `architecture.layers` includes `usecase`/application alongside the existing layers, and confirm output paths match the new layout
+- [ ] 5.2 Update `CLAUDE.md`: replace the "internal/usecase/ doesn't exist yet" note with the new four-layer description (domain / application / infrastructure / composition), the inward-dependency rule, and the updated "add a new feature" workflow (Goca + manual mapper)
+- [ ] 5.3 Update `backend/`'s Goca example in CLAUDE.md so new entities land in `domain/` (pure) and a mapper stub goes into `infrastructure/persistence/`
+- [ ] 5.4 Confirm the Swagger output is unchanged: `just api` produces a `backend/docs/swagger.json` with the same routes and schemas as before this change (diff against the pre-refactor file)
+- [ ] 5.5 Confirm frontend builds without modification: `cd frontend && bun run lint && bunx tsc --noEmit`
+- [ ] 5.6 Final pass: `just lint`, `just typecheck`, `cd backend && go test ./...`, manual smoke test of `just dev` — everything green
+
+## 6. Verification & archive
+
+- [ ] 6.1 Run `/opsx:verify` and resolve any flagged gaps
+- [ ] 6.2 Run `openspec validate backend-clean-architecture --strict`
+- [ ] 6.3 Run `/opsx:archive` once verification passes and the change has shipped
