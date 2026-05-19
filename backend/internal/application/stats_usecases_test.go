@@ -45,18 +45,14 @@ func (r *fakeStatsRepo) Save(_ context.Context, stats *domain.UserStats) error {
 	return nil
 }
 
-// fakeBroadcaster records broadcasted events for assertion.
-type fakeBroadcaster struct {
-	events []event
+// fakePublisher records domain events for assertion.
+type fakePublisher struct {
+	events []domain.DomainEvent
 }
 
-type event struct {
-	name    string
-	payload string
-}
-
-func (b *fakeBroadcaster) Broadcast(eventName, payload string) {
-	b.events = append(b.events, event{name: eventName, payload: payload})
+func (p *fakePublisher) Publish(_ context.Context, events ...domain.DomainEvent) error {
+	p.events = append(p.events, events...)
+	return nil
 }
 
 func TestGetUserStats_returnsStoreEntry(t *testing.T) {
@@ -79,10 +75,10 @@ func TestGetUserStats_returnsStoreEntry(t *testing.T) {
 	}
 }
 
-func TestIncrementStatField_bumpsCounter_savesAndBroadcasts(t *testing.T) {
+func TestIncrementStatField_bumpsCounter_savesAndPublishesEvent(t *testing.T) {
 	repo := newFakeStatsRepo()
-	broker := &fakeBroadcaster{}
-	uc := application.IncrementStatField{Repo: repo, Events: broker}
+	pub := &fakePublisher{}
+	uc := application.IncrementStatField{Repo: repo, Events: pub}
 
 	uid, _ := domain.NewUserID("user-2")
 	got, err := uc.Execute(context.Background(), uid, domain.StatFieldProjects, 5)
@@ -95,20 +91,28 @@ func TestIncrementStatField_bumpsCounter_savesAndBroadcasts(t *testing.T) {
 	if repo.saveCalls != 1 {
 		t.Errorf("repo.Save called %d times, want 1", repo.saveCalls)
 	}
-	if len(broker.events) != 1 {
-		t.Fatalf("broadcast count = %d, want 1", len(broker.events))
+	if len(pub.events) != 1 {
+		t.Fatalf("published events = %d, want 1", len(pub.events))
 	}
-	if broker.events[0].name != "stats-updated" {
-		t.Errorf("event name = %q, want stats-updated", broker.events[0].name)
+	ev, ok := pub.events[0].(domain.StatIncremented)
+	if !ok {
+		t.Fatalf("event type = %T, want domain.StatIncremented", pub.events[0])
 	}
-	if broker.events[0].payload != `{"field":"projects"}` {
-		t.Errorf("payload = %q, unexpected", broker.events[0].payload)
+	if ev.Field != domain.StatFieldProjects {
+		t.Errorf("event.Field = %v, want StatFieldProjects", ev.Field)
+	}
+	if ev.NewValue != 8 {
+		t.Errorf("event.NewValue = %d, want 8", ev.NewValue)
+	}
+	if ev.Delta != 5 {
+		t.Errorf("event.Delta = %d, want 5", ev.Delta)
 	}
 }
 
-func TestIncrementStatField_negativeClampedAtZero(t *testing.T) {
+func TestIncrementStatField_negativeClampedAtZero_eventReflectsClamp(t *testing.T) {
 	repo := newFakeStatsRepo()
-	uc := application.IncrementStatField{Repo: repo, Events: &fakeBroadcaster{}}
+	pub := &fakePublisher{}
+	uc := application.IncrementStatField{Repo: repo, Events: pub}
 
 	uid, _ := domain.NewUserID("user-3")
 	got, err := uc.Execute(context.Background(), uid, domain.StatFieldNotifications, -100)
@@ -118,19 +122,27 @@ func TestIncrementStatField_negativeClampedAtZero(t *testing.T) {
 	if got.Notifications != 0 {
 		t.Errorf("Notifications = %d, want 0 (clamped)", got.Notifications)
 	}
+	// The event records the actual post-clamp delta (-2, not -100).
+	ev := pub.events[0].(domain.StatIncremented)
+	if ev.Delta != -2 {
+		t.Errorf("event.Delta = %d, want -2 (post-clamp from seed 2)", ev.Delta)
+	}
+	if ev.NewValue != 0 {
+		t.Errorf("event.NewValue = %d, want 0", ev.NewValue)
+	}
 }
 
-func TestIncrementStatField_repoSaveFailurePropagated_noBroadcast(t *testing.T) {
+func TestIncrementStatField_repoSaveFailurePropagated_noPublish(t *testing.T) {
 	repo := newFakeStatsRepo()
 	repo.failSave = true
-	broker := &fakeBroadcaster{}
-	uc := application.IncrementStatField{Repo: repo, Events: broker}
+	pub := &fakePublisher{}
+	uc := application.IncrementStatField{Repo: repo, Events: pub}
 
 	uid, _ := domain.NewUserID("user-4")
 	if _, err := uc.Execute(context.Background(), uid, domain.StatFieldActivity, 1); err == nil {
 		t.Fatal("expected error, got nil")
 	}
-	if len(broker.events) != 0 {
-		t.Errorf("broadcaster was called despite save failure: %+v", broker.events)
+	if len(pub.events) != 0 {
+		t.Errorf("publisher was called despite save failure: %+v", pub.events)
 	}
 }

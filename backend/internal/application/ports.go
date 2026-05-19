@@ -16,9 +16,19 @@ type StatsRepository interface {
 	Save(ctx context.Context, stats *domain.UserStats) error
 }
 
-// EventBroadcaster publishes server-sent events to connected clients.
+// EventBroadcaster publishes raw infrastructure events (string + payload)
+// to connected clients. Used by background workers for non-domain
+// progress updates (export-progress, ...) and by the DomainEventPublisher
+// adapter for translated domain events.
 type EventBroadcaster interface {
 	Broadcast(eventName, payload string)
+}
+
+// DomainEventPublisher dispatches typed domain events that aggregates
+// recorded during a use case. Adapters translate domain events into
+// whatever fan-out medium is appropriate (SSE, audit log, message bus).
+type DomainEventPublisher interface {
+	Publish(ctx context.Context, events ...domain.DomainEvent) error
 }
 
 // UserDirectory reads user records owned by an external auth provider

@@ -25,6 +25,7 @@ import (
 	"github.com/atilladeniz/next-go-pg/backend/internal/application"
 	"github.com/atilladeniz/next-go-pg/backend/internal/handler"
 	"github.com/atilladeniz/next-go-pg/backend/internal/infrastructure/email"
+	"github.com/atilladeniz/next-go-pg/backend/internal/infrastructure/events"
 	"github.com/atilladeniz/next-go-pg/backend/internal/infrastructure/persistence"
 	"github.com/atilladeniz/next-go-pg/backend/internal/infrastructure/sse"
 	"github.com/atilladeniz/next-go-pg/backend/internal/jobs"
@@ -82,6 +83,9 @@ func Build(ctx context.Context, in Inputs) (*App, error) {
 	// the email workers.
 	emailSender := email.NewSender(emailConfigFromEnv())
 
+	// Domain event publisher — translates aggregate events to SSE.
+	domainPublisher := events.NewPublisher(sseBroker)
+
 	// Persistence + use cases (only with DB).
 	var statsRepo application.StatsRepository
 	var userDirectory application.UserDirectory
@@ -91,7 +95,7 @@ func Build(ctx context.Context, in Inputs) (*App, error) {
 		statsRepo = persistence.NewUserStatsRepository(db)
 		userDirectory = persistence.NewUserDirectoryRepository(db)
 		getStatsUC = &application.GetUserStats{Repo: statsRepo}
-		incrementStatUC = &application.IncrementStatField{Repo: statsRepo, Events: sseBroker}
+		incrementStatUC = &application.IncrementStatField{Repo: statsRepo, Events: domainPublisher}
 	}
 
 	// River (background jobs) — only with DB and a healthy pgx pool.

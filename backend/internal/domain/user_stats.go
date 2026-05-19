@@ -44,10 +44,21 @@ func (f StatField) String() string {
 	}
 }
 
-// UserStats is the pure-domain representation of a user's statistics row.
-// It has no persistence concerns — GORM-tagged models live in
-// internal/infrastructure/persistence and are translated via a mapper.
+// Default seed values for a freshly created UserStats aggregate. Kept
+// here (in the domain) rather than in the repository so the invariant
+// "a new user starts with these counts" is owned by the model.
+const (
+	defaultProjectCount  = 3
+	defaultActivityToday = 10
+	defaultNotifications = 2
+)
+
+// UserStats is the aggregate root for a user's statistics. It carries
+// the counter invariants and records domain events on mutation. The
+// GORM-tagged twin lives in internal/infrastructure/persistence.
 type UserStats struct {
+	AggregateBase
+
 	ID            uint
 	UserID        UserID
 	ProjectCount  int
@@ -59,21 +70,45 @@ type UserStats struct {
 	UpdatedAt     time.Time
 }
 
+// Compile-time aggregate check.
+var _ AggregateRoot = (*UserStats)(nil)
+
+// NewUserStats is the aggregate factory for a freshly-seeded row.
+// Persistence adapters call this when GetOrCreate sees no existing row.
+func NewUserStats(userID UserID) *UserStats {
+	return &UserStats{
+		UserID:        userID,
+		ProjectCount:  defaultProjectCount,
+		ActivityToday: defaultActivityToday,
+		Notifications: defaultNotifications,
+	}
+}
+
 // IncrementField adjusts the counter selected by field. The result is
 // clamped at zero — the domain refuses to represent negative counts.
+// A StatIncremented event is recorded reflecting the post-clamp delta.
 func (s *UserStats) IncrementField(field StatField, delta int) {
-	bump := func(v *int) {
-		*v += delta
-		if *v < 0 {
-			*v = 0
-		}
-	}
+	var counter *int
 	switch field {
 	case StatFieldProjects:
-		bump(&s.ProjectCount)
+		counter = &s.ProjectCount
 	case StatFieldActivity:
-		bump(&s.ActivityToday)
+		counter = &s.ActivityToday
 	case StatFieldNotifications:
-		bump(&s.Notifications)
+		counter = &s.Notifications
+	default:
+		return // unknown field — no-op
 	}
+	before := *counter
+	*counter += delta
+	if *counter < 0 {
+		*counter = 0
+	}
+	after := *counter
+	s.Record(StatIncremented{
+		UserID:   s.UserID,
+		Field:    field,
+		Delta:    after - before,
+		NewValue: after,
+	})
 }
