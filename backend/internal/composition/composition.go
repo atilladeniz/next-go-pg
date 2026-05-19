@@ -125,8 +125,10 @@ func Build(ctx context.Context, in Inputs) (*App, error) {
 	// HTTP layer.
 	apiHandler := handler.NewAPIHandler(getStatsUC, incrementStatUC)
 	webhookHandler := handler.NewWebhookHandler(userDirectory)
+	var jobEnqueuer application.JobEnqueuer
 	if app.riverJobQueue != nil {
-		webhookHandler = webhookHandler.WithJobEnqueuer(app.riverJobQueue.Client)
+		jobEnqueuer = jobs.NewEnqueuer(app.riverJobQueue.Client)
+		webhookHandler = webhookHandler.WithJobEnqueuer(jobEnqueuer)
 	}
 
 	combinedAuth := middleware.NewCombinedAuthMiddleware(cfg.FrontendURL)
@@ -139,7 +141,7 @@ func Build(ctx context.Context, in Inputs) (*App, error) {
 		apiHandler:     apiHandler,
 		webhookHandler: webhookHandler,
 		combinedAuth:   combinedAuth,
-		river:          app.riverJobQueue,
+		jobEnqueuer:    jobEnqueuer,
 		exportStore:    exportStore,
 	})
 
@@ -183,7 +185,7 @@ type routerDeps struct {
 	apiHandler     *handler.APIHandler
 	webhookHandler *handler.WebhookHandler
 	combinedAuth   *middleware.CombinedAuthMiddleware
-	river          *riverPkg.Client
+	jobEnqueuer    application.JobEnqueuer
 	exportStore    *jobs.ExportStore
 }
 
@@ -236,8 +238,8 @@ func buildRouter(d routerDeps) http.Handler {
 	webhookRouter.HandleFunc("/send-2fa-enabled", d.webhookHandler.Send2FAEnabledNotification).Methods("POST")
 	webhookRouter.HandleFunc("/send-passkey-added", d.webhookHandler.SendPasskeyAddedNotification).Methods("POST")
 
-	if d.river != nil && d.exportStore != nil {
-		exportHandler := handler.NewExportHandler(d.river.Client, d.exportStore)
+	if d.jobEnqueuer != nil && d.exportStore != nil {
+		exportHandler := handler.NewExportHandler(d.jobEnqueuer, d.exportStore)
 		apiRouter.Handle("/export/start", d.combinedAuth.RequireAuth(http.HandlerFunc(exportHandler.StartExport))).Methods("POST", "OPTIONS")
 		apiRouter.HandleFunc("/export/download/{id}", exportHandler.DownloadExport).Methods("GET")
 	}

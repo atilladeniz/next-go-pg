@@ -15,7 +15,6 @@ import (
 
 	"github.com/atilladeniz/next-go-pg/backend/internal/application"
 	"github.com/atilladeniz/next-go-pg/backend/internal/domain"
-	"github.com/atilladeniz/next-go-pg/backend/internal/jobs"
 	"github.com/atilladeniz/next-go-pg/backend/internal/templates"
 	"github.com/atilladeniz/next-go-pg/backend/pkg/logger"
 	"github.com/mileusna/useragent"
@@ -27,7 +26,7 @@ type WebhookHandler struct {
 	users       application.UserDirectory
 	mailer      *gomail.Dialer
 	config      *webhookConfig
-	jobEnqueuer jobs.JobEnqueuer // Optional: if set, emails are sent via background jobs
+	jobEnqueuer application.JobEnqueuer // Optional: if set, emails are sent via background jobs
 }
 
 type webhookConfig struct {
@@ -59,7 +58,7 @@ func NewWebhookHandler(users application.UserDirectory) *WebhookHandler {
 }
 
 // WithJobEnqueuer sets the job enqueuer for background email processing
-func (h *WebhookHandler) WithJobEnqueuer(enqueuer jobs.JobEnqueuer) *WebhookHandler {
+func (h *WebhookHandler) WithJobEnqueuer(enqueuer application.JobEnqueuer) *WebhookHandler {
 	h.jobEnqueuer = enqueuer
 	return h
 }
@@ -194,7 +193,7 @@ func (h *WebhookHandler) SendMagicLink(w http.ResponseWriter, r *http.Request) {
 
 	// Use background job if available
 	if h.jobEnqueuer != nil {
-		if err := jobs.EnqueueMagicLink(context.Background(), h.jobEnqueuer, req.Email, req.URL); err != nil {
+		if err := h.jobEnqueuer.EnqueueMagicLink(context.Background(), req.Email, req.URL); err != nil {
 			logger.Error().Err(err).Str("email", req.Email).Msg("Failed to enqueue magic link job")
 			respondError(w, http.StatusInternalServerError, "failed to enqueue email job")
 			return
@@ -250,7 +249,7 @@ func (h *WebhookHandler) SendVerificationEmail(w http.ResponseWriter, r *http.Re
 
 	// Use background job if available
 	if h.jobEnqueuer != nil {
-		if err := jobs.EnqueueVerificationEmail(context.Background(), h.jobEnqueuer, req.Email, req.Name, req.URL); err != nil {
+		if err := h.jobEnqueuer.EnqueueVerificationEmail(context.Background(), req.Email, req.Name, req.URL); err != nil {
 			logger.Error().Err(err).Str("email", req.Email).Msg("Failed to enqueue verification email job")
 			respondError(w, http.StatusInternalServerError, "failed to enqueue email job")
 			return
@@ -306,7 +305,7 @@ func (h *WebhookHandler) Send2FAOTP(w http.ResponseWriter, r *http.Request) {
 
 	// Use background job if available
 	if h.jobEnqueuer != nil {
-		if err := jobs.Enqueue2FAOTP(context.Background(), h.jobEnqueuer, req.Email, req.Name, req.OTP); err != nil {
+		if err := h.jobEnqueuer.Enqueue2FAOTP(context.Background(), req.Email, req.Name, req.OTP); err != nil {
 			logger.Error().Err(err).Str("email", req.Email).Msg("Failed to enqueue 2FA OTP job")
 			respondError(w, http.StatusInternalServerError, "failed to enqueue email job")
 			return

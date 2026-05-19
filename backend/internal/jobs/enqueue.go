@@ -6,46 +6,47 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/riverqueue/river"
 	"github.com/riverqueue/river/rivertype"
+
+	"github.com/atilladeniz/next-go-pg/backend/internal/application"
 )
 
-// JobEnqueuer defines the interface for enqueueing jobs.
-type JobEnqueuer interface {
+// riverClient is the subset of *river.Client the enqueuer needs. It's
+// satisfied by River's real client; declaring it lets us swap the
+// dependency for tests without pulling in River's heavy types.
+type riverClient interface {
 	InsertTx(ctx context.Context, tx pgx.Tx, args river.JobArgs, opts *river.InsertOpts) (*rivertype.JobInsertResult, error)
 	Insert(ctx context.Context, args river.JobArgs, opts *river.InsertOpts) (*rivertype.JobInsertResult, error)
 }
 
-// EnqueueMagicLink enqueues a magic link email job.
-func EnqueueMagicLink(ctx context.Context, enqueuer JobEnqueuer, email, url string) error {
-	_, err := enqueuer.Insert(ctx, SendMagicLinkArgs{
-		Email: email,
-		URL:   url,
-	}, nil)
+// Enqueuer is the River-backed adapter for application.JobEnqueuer.
+type Enqueuer struct {
+	client riverClient
+}
+
+var _ application.JobEnqueuer = (*Enqueuer)(nil)
+
+// NewEnqueuer wraps a River client into the application port.
+func NewEnqueuer(client riverClient) *Enqueuer {
+	return &Enqueuer{client: client}
+}
+
+func (e *Enqueuer) EnqueueMagicLink(ctx context.Context, email, url string) error {
+	_, err := e.client.Insert(ctx, SendMagicLinkArgs{Email: email, URL: url}, nil)
 	return err
 }
 
-// EnqueueVerificationEmail enqueues a verification email job.
-func EnqueueVerificationEmail(ctx context.Context, enqueuer JobEnqueuer, email, name, url string) error {
-	_, err := enqueuer.Insert(ctx, SendVerificationEmailArgs{
-		Email: email,
-		Name:  name,
-		URL:   url,
-	}, nil)
+func (e *Enqueuer) EnqueueVerificationEmail(ctx context.Context, email, name, url string) error {
+	_, err := e.client.Insert(ctx, SendVerificationEmailArgs{Email: email, Name: name, URL: url}, nil)
 	return err
 }
 
-// Enqueue2FAOTP enqueues a 2FA OTP email job.
-func Enqueue2FAOTP(ctx context.Context, enqueuer JobEnqueuer, email, name, otp string) error {
-	_, err := enqueuer.Insert(ctx, Send2FAOTPArgs{
-		Email: email,
-		Name:  name,
-		OTP:   otp,
-	}, nil)
+func (e *Enqueuer) Enqueue2FAOTP(ctx context.Context, email, name, otp string) error {
+	_, err := e.client.Insert(ctx, Send2FAOTPArgs{Email: email, Name: name, OTP: otp}, nil)
 	return err
 }
 
-// EnqueueLoginNotification enqueues a login notification email job.
-func EnqueueLoginNotification(ctx context.Context, enqueuer JobEnqueuer, email, userName, device, ipAddress string) error {
-	_, err := enqueuer.Insert(ctx, SendLoginNotificationArgs{
+func (e *Enqueuer) EnqueueLoginNotification(ctx context.Context, email, userName, device, ipAddress string) error {
+	_, err := e.client.Insert(ctx, SendLoginNotificationArgs{
 		Email:     email,
 		UserName:  userName,
 		Device:    device,
@@ -54,12 +55,11 @@ func EnqueueLoginNotification(ctx context.Context, enqueuer JobEnqueuer, email, 
 	return err
 }
 
-// EnqueueDataExport enqueues a data export job.
-func EnqueueDataExport(ctx context.Context, enqueuer JobEnqueuer, jobID, userID string, format ExportFormat, dataType string) error {
-	_, err := enqueuer.Insert(ctx, DataExportArgs{
+func (e *Enqueuer) EnqueueDataExport(ctx context.Context, jobID, userID, format, dataType string) error {
+	_, err := e.client.Insert(ctx, DataExportArgs{
 		JobID:    jobID,
 		UserID:   userID,
-		Format:   format,
+		Format:   ExportFormat(format),
 		DataType: dataType,
 	}, nil)
 	return err

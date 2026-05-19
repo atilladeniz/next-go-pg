@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 
+	"github.com/atilladeniz/next-go-pg/backend/internal/application"
 	"github.com/atilladeniz/next-go-pg/backend/internal/jobs"
 	"github.com/atilladeniz/next-go-pg/backend/internal/middleware"
 	"github.com/atilladeniz/next-go-pg/backend/pkg/logger"
@@ -16,12 +17,12 @@ import (
 
 // ExportHandler handles data export endpoints
 type ExportHandler struct {
-	jobEnqueuer jobs.JobEnqueuer
+	jobEnqueuer application.JobEnqueuer
 	exportStore *jobs.ExportStore
 }
 
 // NewExportHandler creates a new export handler
-func NewExportHandler(enqueuer jobs.JobEnqueuer, store *jobs.ExportStore) *ExportHandler {
+func NewExportHandler(enqueuer application.JobEnqueuer, store *jobs.ExportStore) *ExportHandler {
 	return &ExportHandler{
 		jobEnqueuer: enqueuer,
 		exportStore: store,
@@ -68,12 +69,9 @@ func (h *ExportHandler) StartExport(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Validate format
-	var format jobs.ExportFormat
 	switch req.Format {
-	case "csv":
-		format = jobs.ExportFormatCSV
-	case "json":
-		format = jobs.ExportFormatJSON
+	case "csv", "json":
+		// valid
 	default:
 		respondError(w, http.StatusBadRequest, "invalid format: must be 'csv' or 'json'")
 		return
@@ -98,7 +96,7 @@ func (h *ExportHandler) StartExport(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Enqueue the export job
-	if err := jobs.EnqueueDataExport(context.Background(), h.jobEnqueuer, jobID, userID, format, req.DataType); err != nil {
+	if err := h.jobEnqueuer.EnqueueDataExport(context.Background(), jobID, userID, req.Format, req.DataType); err != nil {
 		logger.Error().Err(err).Str("job_id", jobID).Msg("Failed to enqueue export job")
 		respondError(w, http.StatusInternalServerError, "failed to start export")
 		return
