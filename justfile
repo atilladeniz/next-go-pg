@@ -185,7 +185,7 @@ test-backend:
 # Generate Swagger docs only
 [group('codegen')]
 swagger:
-    cd backend/cmd/server && ~/go/bin/swag init -g main.go -o ../../docs --parseDependency --dir .,../../internal/handler
+    cd backend/cmd/server && ~/go/bin/swag init -g main.go -o ../../docs --parseDependency --dir .,../../internal
 
 # Generate TypeScript API client from OpenAPI
 [group('codegen')]

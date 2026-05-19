@@ -1,8 +1,8 @@
 // Package composition is the application's composition root. It owns
-// the dependency graph — DB connections, persistence + SSE adapters,
-// use cases, handlers, the HTTP router, and background workers — and
-// returns a ready-to-run *App. cmd/server only loads config, calls
-// Build, runs the server, and shuts it down on signal.
+// the dependency graph across all bounded contexts (stats, auth,
+// notifications, exports) plus cross-cutting platform services (SSE
+// broker, HTTP middleware). cmd/server only loads config, calls Build,
+// runs the server, and shuts it down on signal.
 package composition
 
 import (
@@ -22,14 +22,36 @@ import (
 	"gorm.io/gorm"
 	gormlogger "gorm.io/gorm/logger"
 
-	"github.com/atilladeniz/next-go-pg/backend/internal/application"
-	"github.com/atilladeniz/next-go-pg/backend/internal/handler"
-	"github.com/atilladeniz/next-go-pg/backend/internal/infrastructure/email"
-	"github.com/atilladeniz/next-go-pg/backend/internal/infrastructure/events"
-	"github.com/atilladeniz/next-go-pg/backend/internal/infrastructure/persistence"
-	"github.com/atilladeniz/next-go-pg/backend/internal/infrastructure/sse"
-	"github.com/atilladeniz/next-go-pg/backend/internal/jobs"
-	"github.com/atilladeniz/next-go-pg/backend/internal/middleware"
+	// Bounded context: auth
+	authapp "github.com/atilladeniz/next-go-pg/backend/internal/auth/application"
+	"github.com/atilladeniz/next-go-pg/backend/internal/auth/infrastructure/betterauth"
+	authhttp "github.com/atilladeniz/next-go-pg/backend/internal/auth/interfaces/http"
+
+	// Bounded context: notifications
+	notifapp "github.com/atilladeniz/next-go-pg/backend/internal/notifications/application"
+	notifemail "github.com/atilladeniz/next-go-pg/backend/internal/notifications/infrastructure/email"
+	notifjobs "github.com/atilladeniz/next-go-pg/backend/internal/notifications/infrastructure/jobs"
+	notifhttp "github.com/atilladeniz/next-go-pg/backend/internal/notifications/interfaces/http"
+
+	// Bounded context: stats
+	statsapp "github.com/atilladeniz/next-go-pg/backend/internal/stats/application"
+	statsevents "github.com/atilladeniz/next-go-pg/backend/internal/stats/infrastructure/events"
+	statspersist "github.com/atilladeniz/next-go-pg/backend/internal/stats/infrastructure/persistence"
+	statshttp "github.com/atilladeniz/next-go-pg/backend/internal/stats/interfaces/http"
+
+	// Bounded context: exports
+	exportsapp "github.com/atilladeniz/next-go-pg/backend/internal/exports/application"
+	exportsinfra "github.com/atilladeniz/next-go-pg/backend/internal/exports/infrastructure"
+	exportsjobs "github.com/atilladeniz/next-go-pg/backend/internal/exports/infrastructure/jobs"
+	exportshttp "github.com/atilladeniz/next-go-pg/backend/internal/exports/interfaces/http"
+
+	// Shared kernel
+	shared "github.com/atilladeniz/next-go-pg/backend/internal/shared/domain"
+
+	// Platform (cross-cutting infrastructure)
+	"github.com/atilladeniz/next-go-pg/backend/internal/platform/middleware"
+	"github.com/atilladeniz/next-go-pg/backend/internal/platform/sse"
+
 	"github.com/atilladeniz/next-go-pg/backend/pkg/config"
 	"github.com/atilladeniz/next-go-pg/backend/pkg/logger"
 	riverPkg "github.com/atilladeniz/next-go-pg/backend/pkg/river"
@@ -51,16 +73,11 @@ type App struct {
 	riverJobQueue *riverPkg.Client
 }
 
-// Build assembles the dependency graph. It never returns a hard error
-// for missing DB or River — those degrade to a server that still
-// serves the public/static endpoints.
+// Build assembles the dependency graph.
 func Build(ctx context.Context, in Inputs) (*App, error) {
 	cfg := in.Config
-
 	app := &App{}
 
-	// Database (optional in dev). Failures degrade to nil; the app
-	// still boots so health endpoints can report the state.
 	db, err := connectToDatabase(cfg)
 	if err != nil {
 		logger.Warn().Err(err).Msg("Database connection failed - server will start in degraded mode")
@@ -74,32 +91,40 @@ func Build(ctx context.Context, in Inputs) (*App, error) {
 		app.db = db
 	}
 
-	// SSE broker is independent of the DB.
+	// Platform: SSE broker.
 	sseBroker := sse.NewBroker()
 	logger.Info().Msg("SSE broker initialized")
 
-	// Email sender — always constructed; configures SMTP transport
-	// from env. Used both by webhook handlers (sync fallback) and by
-	// the email workers.
-	emailSender := email.NewSender(emailConfigFromEnv())
+	// Notifications context — email sender is always constructed.
+	emailSender := notifemail.NewSender(emailConfigFromEnv())
 
-	// Domain event publisher — translates aggregate events to SSE.
-	domainPublisher := events.NewPublisher(sseBroker)
-
-	// Persistence + use cases (only with DB).
-	var statsRepo application.StatsRepository
-	var userDirectory application.UserDirectory
-	var getStatsUC *application.GetUserStats
-	var incrementStatUC *application.IncrementStatField
+	// Stats context.
+	var statsRepo statsapp.Repository
+	var getStatsUC *statsapp.GetUserStats
+	var incrementStatUC *statsapp.IncrementStatField
 	if db != nil {
-		statsRepo = persistence.NewUserStatsRepository(db)
-		userDirectory = persistence.NewUserDirectoryRepository(db)
-		getStatsUC = &application.GetUserStats{Repo: statsRepo}
-		incrementStatUC = &application.IncrementStatField{Repo: statsRepo, Events: domainPublisher}
+		statsRepo = statspersist.NewRepository(db)
+		statsPublisher := statsevents.NewPublisher(sseBroker)
+		getStatsUC = &statsapp.GetUserStats{Repo: statsRepo}
+		incrementStatUC = &statsapp.IncrementStatField{Repo: statsRepo, Events: statsPublisher}
 	}
 
-	// River (background jobs) — only with DB and a healthy pgx pool.
-	var exportStore *jobs.ExportStore
+	// Auth context.
+	var userDirectory authapp.UserDirectory
+	if db != nil {
+		userDirectory = betterauth.NewDirectory(db)
+	}
+
+	// Exports context — ACL over stats (composition-level adapter).
+	var statsReader exportsapp.StatsReader
+	if statsRepo != nil {
+		statsReader = &statsToExportsReader{repo: statsRepo}
+	}
+	exportStore := exportsinfra.NewMemoryStore()
+
+	// River queue — wires per-context workers.
+	var notifEnqueuer notifapp.JobEnqueuer
+	var exportsEnqueuer exportsapp.JobEnqueuer
 	if db != nil {
 		if pool, err := pgxpool.New(ctx, cfg.GetDatabaseURLForPgx()); err != nil {
 			logger.Warn().Err(err).Msg("Failed to create pgx pool for River - background jobs disabled")
@@ -108,15 +133,10 @@ func Build(ctx context.Context, in Inputs) (*App, error) {
 			if err := riverPkg.RunMigrations(ctx, pool); err != nil {
 				logger.Warn().Err(err).Msg("River migrations failed - background jobs may not work")
 			}
-			exportStore = jobs.NewExportStore()
 
 			workers := river.NewWorkers()
-			jobs.RegisterWorkers(workers, &jobs.WorkerDeps{
-				EmailSender: emailSender,
-				Events:      sseBroker,
-				ExportStore: exportStore,
-				StatsRepo:   statsRepo,
-			})
+			notifjobs.Register(workers, emailSender)
+			exportsjobs.Register(workers, sseBroker, exportStore, statsReader)
 
 			client, err := riverPkg.NewClient(ctx, pool, workers, riverPkg.DefaultConfig())
 			if err != nil {
@@ -127,19 +147,21 @@ func Build(ctx context.Context, in Inputs) (*App, error) {
 				} else {
 					logger.Info().Msg("River job queue initialized and started")
 					app.riverJobQueue = client
+					notifEnqueuer = notifjobs.NewEnqueuer(client.Client)
+					exportsEnqueuer = exportsjobs.NewEnqueuer(client.Client)
 				}
 			}
 		}
 	}
 
-	// HTTP layer.
-	apiHandler := handler.NewAPIHandler(getStatsUC, incrementStatUC)
-	webhookHandler := handler.NewWebhookHandler(userDirectory, emailSender)
-	var jobEnqueuer application.JobEnqueuer
-	if app.riverJobQueue != nil {
-		jobEnqueuer = jobs.NewEnqueuer(app.riverJobQueue.Client)
-		webhookHandler = webhookHandler.WithJobEnqueuer(jobEnqueuer)
+	// HTTP layer — per-context handlers.
+	authHandler := authhttp.NewHandler()
+	statsHandler := statshttp.NewHandler(getStatsUC, incrementStatUC)
+	webhookHandler := notifhttp.NewHandler(userDirectory, emailSender)
+	if notifEnqueuer != nil {
+		webhookHandler = webhookHandler.WithJobEnqueuer(notifEnqueuer)
 	}
+	exportHandler := exportshttp.NewHandler(exportsEnqueuer, exportStore)
 
 	combinedAuth := middleware.NewCombinedAuthMiddleware(cfg.FrontendURL)
 
@@ -148,11 +170,11 @@ func Build(ctx context.Context, in Inputs) (*App, error) {
 		version:        in.Version,
 		db:             db,
 		sseBroker:      sseBroker,
-		apiHandler:     apiHandler,
+		authHandler:    authHandler,
+		statsHandler:   statsHandler,
 		webhookHandler: webhookHandler,
+		exportHandler:  exportHandler,
 		combinedAuth:   combinedAuth,
-		jobEnqueuer:    jobEnqueuer,
-		exportStore:    exportStore,
 	})
 
 	app.HTTPServer = &http.Server{
@@ -166,8 +188,7 @@ func Build(ctx context.Context, in Inputs) (*App, error) {
 	return app, nil
 }
 
-// Shutdown stops River, closes the pgx pool, and shuts down the HTTP
-// server. Errors are logged but do not abort subsequent steps.
+// Shutdown stops River, closes the pgx pool, and shuts down the HTTP server.
 func (a *App) Shutdown(ctx context.Context) {
 	if a.riverJobQueue != nil {
 		logger.Info().Msg("Stopping River job queue...")
@@ -185,6 +206,29 @@ func (a *App) Shutdown(ctx context.Context) {
 	}
 }
 
+// statsToExportsReader is the anti-corruption layer between the stats
+// and exports bounded contexts. Exports declares the shape it needs
+// (StatsSnapshot); composition implements it against stats's port.
+type statsToExportsReader struct {
+	repo statsapp.Repository
+}
+
+func (r *statsToExportsReader) Read(ctx context.Context, userID string) (exportsapp.StatsSnapshot, error) {
+	uid, err := shared.NewUserID(userID)
+	if err != nil {
+		return exportsapp.StatsSnapshot{}, err
+	}
+	s, err := r.repo.GetOrCreate(ctx, uid)
+	if err != nil {
+		return exportsapp.StatsSnapshot{}, err
+	}
+	return exportsapp.StatsSnapshot{
+		Projects:      s.ProjectCount,
+		Activity:      s.ActivityToday,
+		Notifications: s.Notifications,
+	}, nil
+}
+
 // --- internals -----------------------------------------------------
 
 type routerDeps struct {
@@ -192,11 +236,11 @@ type routerDeps struct {
 	version        string
 	db             *gorm.DB
 	sseBroker      *sse.Broker
-	apiHandler     *handler.APIHandler
-	webhookHandler *handler.WebhookHandler
+	authHandler    *authhttp.Handler
+	statsHandler   *statshttp.Handler
+	webhookHandler *notifhttp.Handler
+	exportHandler  *exportshttp.Handler
 	combinedAuth   *middleware.CombinedAuthMiddleware
-	jobEnqueuer    application.JobEnqueuer
-	exportStore    *jobs.ExportStore
 }
 
 func buildRouter(d routerDeps) http.Handler {
@@ -223,18 +267,18 @@ func buildRouter(d routerDeps) http.Handler {
 	router.Handle("/metrics", promhttp.Handler()).Methods("GET")
 
 	apiRouter := router.PathPrefix("/api/v1").Subrouter()
-	apiRouter.HandleFunc("/hello", d.apiHandler.PublicHello).Methods("GET")
+	apiRouter.HandleFunc("/hello", d.authHandler.PublicHello).Methods("GET")
 
 	protectedRouter := apiRouter.PathPrefix("/protected").Subrouter()
 	protectedRouter.Use(d.combinedAuth.RequireAuth)
-	protectedRouter.HandleFunc("/hello", d.apiHandler.ProtectedHello).Methods("GET")
+	protectedRouter.HandleFunc("/hello", d.authHandler.ProtectedHello).Methods("GET")
 
-	apiRouter.Handle("/me", d.combinedAuth.RequireAuth(http.HandlerFunc(d.apiHandler.GetCurrentUser))).Methods("GET", "OPTIONS")
-	apiRouter.Handle("/stats", d.combinedAuth.RequireAuth(http.HandlerFunc(d.apiHandler.GetUserStats))).Methods("GET", "OPTIONS")
-	apiRouter.Handle("/stats", d.combinedAuth.RequireAuth(http.HandlerFunc(d.apiHandler.UpdateUserStats))).Methods("POST", "OPTIONS")
+	apiRouter.Handle("/me", d.combinedAuth.RequireAuth(http.HandlerFunc(d.authHandler.GetCurrentUser))).Methods("GET", "OPTIONS")
+	apiRouter.Handle("/stats", d.combinedAuth.RequireAuth(http.HandlerFunc(d.statsHandler.GetUserStats))).Methods("GET", "OPTIONS")
+	apiRouter.Handle("/stats", d.combinedAuth.RequireAuth(http.HandlerFunc(d.statsHandler.UpdateUserStats))).Methods("POST", "OPTIONS")
 
 	apiRouter.Handle("/events", d.sseBroker).Methods("GET")
-	apiRouter.HandleFunc("/trigger-update", func(w http.ResponseWriter, r *http.Request) {
+	apiRouter.HandleFunc("/trigger-update", func(w http.ResponseWriter, _ *http.Request) {
 		d.sseBroker.Broadcast("stats-updated", `{"trigger":"manual"}`)
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(map[string]string{"status": "broadcast sent"})
@@ -248,10 +292,9 @@ func buildRouter(d routerDeps) http.Handler {
 	webhookRouter.HandleFunc("/send-2fa-enabled", d.webhookHandler.Send2FAEnabledNotification).Methods("POST")
 	webhookRouter.HandleFunc("/send-passkey-added", d.webhookHandler.SendPasskeyAddedNotification).Methods("POST")
 
-	if d.jobEnqueuer != nil && d.exportStore != nil {
-		exportHandler := handler.NewExportHandler(d.jobEnqueuer, d.exportStore)
-		apiRouter.Handle("/export/start", d.combinedAuth.RequireAuth(http.HandlerFunc(exportHandler.StartExport))).Methods("POST", "OPTIONS")
-		apiRouter.HandleFunc("/export/download/{id}", exportHandler.DownloadExport).Methods("GET")
+	if d.exportHandler != nil {
+		apiRouter.Handle("/export/start", d.combinedAuth.RequireAuth(http.HandlerFunc(d.exportHandler.StartExport))).Methods("POST", "OPTIONS")
+		apiRouter.HandleFunc("/export/download/{id}", d.exportHandler.DownloadExport).Methods("GET")
 	}
 
 	return router
@@ -327,9 +370,7 @@ func connectToDatabase(cfg *config.Config) (*gorm.DB, error) {
 		return nil, fmt.Errorf("development mode: database not configured")
 	}
 
-	gormConfig := &gorm.Config{
-		Logger: gormlogger.Default.LogMode(gormlogger.Silent),
-	}
+	gormConfig := &gorm.Config{Logger: gormlogger.Default.LogMode(gormlogger.Silent)}
 	if cfg.Environment == "development" {
 		gormConfig.Logger = gormlogger.Default.LogMode(gormlogger.Error)
 	}
@@ -341,14 +382,12 @@ func connectToDatabase(cfg *config.Config) (*gorm.DB, error) {
 			time.Sleep(time.Duration(attempt+1) * time.Second)
 			continue
 		}
-
 		sqlDB, err := db.DB()
 		if err != nil {
 			logger.Warn().Int("attempt", attempt+1).Err(err).Msg("Failed to get underlying SQL DB")
 			time.Sleep(time.Duration(attempt+1) * time.Second)
 			continue
 		}
-
 		sqlDB.SetMaxOpenConns(cfg.Database.MaxOpenConns)
 		sqlDB.SetMaxIdleConns(cfg.Database.MaxIdleConns)
 		sqlDB.SetConnMaxLifetime(cfg.Database.MaxLifetime)
@@ -356,18 +395,15 @@ func connectToDatabase(cfg *config.Config) (*gorm.DB, error) {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		err = sqlDB.PingContext(ctx)
 		cancel()
-
 		if err == nil {
 			return db, nil
 		}
-
 		logger.Warn().Int("attempt", attempt+1).Err(err).Msg("Database ping failed")
 		if closer, _ := db.DB(); closer != nil {
 			_ = closer.Close()
 		}
 		time.Sleep(time.Duration(attempt+1) * time.Second)
 	}
-
 	return nil, fmt.Errorf("failed to connect to database after 5 attempts")
 }
 
@@ -377,7 +413,10 @@ func runAutoMigrations(database *gorm.DB) error {
 	}
 	logger.Info().Msg("Running GORM auto-migrations")
 
-	entities := persistence.AllEntities()
+	// Collect entities from every context that owns persistence.
+	entities := []any{}
+	entities = append(entities, statspersist.Entities()...)
+
 	for _, entity := range entities {
 		if err := database.AutoMigrate(entity); err != nil {
 			return fmt.Errorf("failed to auto-migrate entity %T: %w", entity, err)
@@ -391,12 +430,11 @@ func runAutoMigrations(database *gorm.DB) error {
 	if err := sqlDB.Ping(); err != nil {
 		return fmt.Errorf("database ping failed: %w", err)
 	}
-
 	logger.Info().Int("entity_count", len(entities)).Msg("GORM auto-migrations completed")
 	return nil
 }
 
-func emailConfigFromEnv() email.Config {
+func emailConfigFromEnv() notifemail.Config {
 	smtpHost := os.Getenv("SMTP_HOST")
 	if smtpHost == "" {
 		smtpHost = "127.0.0.1"
@@ -415,7 +453,7 @@ func emailConfigFromEnv() email.Config {
 	if appURL == "" {
 		appURL = "http://localhost:3000"
 	}
-	return email.Config{
+	return notifemail.Config{
 		SMTPHost: smtpHost,
 		SMTPPort: smtpPort,
 		SMTPFrom: smtpFrom,
