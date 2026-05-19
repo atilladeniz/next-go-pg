@@ -1,75 +1,45 @@
-# Database Migrations
+# Production Database Migrations
 
-SQL migrations managed with [golang-migrate](https://github.com/golang-migrate/migrate).
+This folder holds versioned SQL migrations driven by [golang-migrate](https://github.com/golang-migrate/migrate).
 
-## Structure
+**The dev path does not run these.** `just dev` boots `cmd/server`, which runs GORM `AutoMigrate` (entity registry at `internal/domain/registry.go`) and River migrations on startup. The folder is currently empty — add a numbered `*.up.sql` / `*.down.sql` pair only when a production deploy needs precise schema control that AutoMigrate can't provide.
+
+## When to use SQL migrations instead of AutoMigrate
+
+| Scenario | Recommended path |
+|----------|------------------|
+| Adding a new entity in dev | Add Go struct → register in `registry.go` → AutoMigrate picks it up |
+| Production with one replica (current Kamal setup) | AutoMigrate on boot is still fine |
+| Production with multiple replicas | Use these SQL migrations as a deploy hook — AutoMigrate racing across replicas is unsafe |
+| Schema change AutoMigrate can't do (drop column, rename, data backfill, complex index) | Add an SQL migration here |
+| Reversible rollouts | SQL migrations have `.down.sql` files; AutoMigrate has no rollback path |
+
+## Layout
 
 ```
-migrations/
-├── 001_initial.up.sql      # Create tables
-├── 001_initial.down.sql    # Drop tables
-├── 002_feature.up.sql      # Add feature
-├── 002_feature.down.sql    # Remove feature
-└── ...
+backend/migrations/
+├── 001_<name>.up.sql      # Apply
+├── 001_<name>.down.sql    # Rollback
+├── 002_<name>.up.sql
+├── 002_<name>.down.sql
+└── README.md
 ```
 
-## Commands
+## Commands (run from repo root)
 
 ```bash
-# Run all pending migrations
-make migrate-up
-
-# Rollback last migration
-make migrate-down
-
-# Show current version
-make migrate-version
-
-# Create new migration files
-make migrate-create name=add_users_table
+just prod-migrate-create <name>   # Scaffolds <NNN>_<name>.up.sql + .down.sql
+just prod-migrate-up              # Apply all pending
+just prod-migrate-down            # Rollback last
+just prod-migrate-version         # Show current version
 ```
 
-## Migration vs AutoMigrate
+These wrap `backend/cmd/migrate`, which uses golang-migrate against this folder. The companion River migrations live in `cmd/river-migrate` (`just prod-river-migrate-up`).
 
-This project uses **two migration strategies**:
+## Best practices
 
-1. **SQL Migrations (this folder)**: For schema changes that need precise control
-   - Table creation with specific constraints
-   - Index optimization
-   - Data migrations
-   - Production deployments
-
-2. **GORM AutoMigrate**: For development convenience
-   - Runs automatically on server start
-   - Only adds columns/tables, never removes
-   - Good for rapid iteration
-
-**Recommended workflow:**
-- Development: AutoMigrate handles schema sync
-- Production: Run `make migrate-up` before deployment
-
-## Creating Migrations
-
-```bash
-# 1. Create migration files
-make migrate-create name=add_products_table
-
-# 2. Edit the .up.sql file
-# backend/migrations/002_add_products_table.up.sql
-
-# 3. Edit the .down.sql file (reverse the changes)
-# backend/migrations/002_add_products_table.down.sql
-
-# 4. Test the migration
-make migrate-up
-make migrate-down
-make migrate-up
-```
-
-## Best Practices
-
-1. **Always write down migrations** - Every up migration needs a matching down
-2. **Test rollbacks** - Run `migrate-up` then `migrate-down` then `migrate-up`
-3. **Keep migrations small** - One logical change per migration
-4. **Never edit applied migrations** - Create a new migration instead
-5. **Use transactions** - Wrap DDL in BEGIN/COMMIT when possible
+1. **Write both halves.** Every `.up.sql` needs a matching `.down.sql`.
+2. **Round-trip locally.** `prod-migrate-up` → `prod-migrate-down` → `prod-migrate-up` before opening a PR.
+3. **Small, focused migrations.** One logical change per file.
+4. **Never edit a migration that already shipped.** Add a follow-up instead.
+5. **Avoid AutoMigrate drift.** If you add an SQL migration, also update the matching Go struct so AutoMigrate stays a no-op (or remove AutoMigrate from `cmd/server` entirely when you switch the project to SQL-only).

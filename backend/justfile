@@ -6,8 +6,6 @@ set shell := ["bash", "-cu"]
 
 app_name      := "backend"
 docker_image  := "backend:latest"
-migrate_path  := "./migrations"
-database_url  := "postgres://postgres:@localhost/backend?sslmode=disable"
 
 [private]
 default:
@@ -81,44 +79,10 @@ mod-upgrade:
     go get -u ./...
     go mod tidy
 
-# ─── SQL Migrations (golang-migrate) ────────────────────────────
-
-# Install golang-migrate CLI
-[group('migrate')]
-migrate-install:
-    go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest
-
-# Apply database migrations
-[group('migrate')]
-migrate-up:
-    migrate -path {{ migrate_path }} -database "{{ database_url }}" up
-
-# Rollback last migration
-[group('migrate')]
-migrate-down:
-    migrate -path {{ migrate_path }} -database "{{ database_url }}" down 1
-
-# Force migration version (usage: just migrate-force <version>)
-[group('migrate')]
-migrate-force version:
-    migrate -path {{ migrate_path }} -database "{{ database_url }}" force {{ version }}
-
-# ─── River Job Queue ────────────────────────────────────────────
-
-# Run River migrations
-[group('river')]
-river-migrate-up:
-    go run cmd/river-migrate/main.go -up
-
-# Rollback last River migration
-[group('river')]
-river-migrate-down:
-    go run cmd/river-migrate/main.go -down
-
-# Show River migration version
-[group('river')]
-river-migrate-version:
-    go run cmd/river-migrate/main.go -version
+# Migrations: see root justfile (`just prod-migrate-up`, `just
+# prod-river-migrate-up`, …). The backend has no separate migrate
+# recipes — keeping a single source of truth so dev and prod paths
+# don't drift.
 
 # ─── Docker ─────────────────────────────────────────────────────
 

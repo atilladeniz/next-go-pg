@@ -508,16 +508,24 @@ just logs-down        # Stop logging stack
 just logs-open        # Open Grafana (localhost:3001)
 just logs-query '...'    # Query logs via CLI
 
-# Background Jobs (River)
-cd backend
-just river-migrate-up      # Run River migrations
-just river-migrate-down    # Rollback River migration
-just river-migrate-version # Check migration status
+# Production migrations (not used in dev — see Migration Strategy section)
+just prod-migrate-up        # Apply pending SQL migrations
+just prod-river-migrate-up  # Apply River job-queue migrations
 
 # Spec-driven development (OpenSpec)
 just spec-list             # List active changes
 just spec-validate         # Validate all changes and specs
 ```
+
+---
+
+## Migration Strategy: Dev (AutoMigrate) vs Prod (SQL)
+
+**Dev path** (`just dev` → `cmd/server`): GORM `AutoMigrate` runs for every entity in `internal/domain/registry.go`. River's job-queue schema is migrated on startup via `riverPkg.RunMigrations`. **No CLI tool is invoked.**
+
+**Prod path** (`just prod-migrate-up` / `just prod-river-migrate-up`): For clustered deployments where multiple replicas can't safely race on AutoMigrate, use `backend/cmd/migrate` (golang-migrate against SQL files in `backend/migrations/`) and `backend/cmd/river-migrate` as pre-deploy hooks. Currently optional — the single-replica Kamal setup is fine with AutoMigrate. The `backend/migrations/` folder ships empty by default; add SQL files only when AutoMigrate stops being sufficient.
+
+**Don't mix.** If you add a SQL migration, also keep the Go entity in `registry.go` in sync — otherwise AutoMigrate and the SQL files describe two different schemas.
 
 ---
 

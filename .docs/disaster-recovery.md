@@ -56,7 +56,7 @@ docker compose -f deploy/compose/docker-compose.dev.yml exec db pg_dump -U postg
 just db-up
 
 # 2. Migrations ausführen (Schema erstellen)
-just migrate-up
+just prod-migrate-up
 
 # 3. Daten aus Backup wiederherstellen
 just backup-restore
@@ -76,7 +76,7 @@ just install
 just db-up
 
 # 4. Migrations ausführen
-just migrate-up
+just prod-migrate-up
 
 # 5. Backup-Stack starten
 just backup-up
@@ -164,7 +164,7 @@ just db-reset
 
 # 4. Recovery durchführen
 just db-up
-just migrate-up
+just prod-migrate-up
 just backup-up
 just backup-restore
 
