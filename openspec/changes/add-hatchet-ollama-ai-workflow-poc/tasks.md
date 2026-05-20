@@ -10,21 +10,21 @@
 
 ## 2. Phase B — Backend skeleton: domain layer
 
-- [ ] 2.1 Create directory `backend/internal/aiworkflows/{domain,application,infrastructure,interfaces}/` (mirror `internal/stats/` layout)
-- [ ] 2.2 `domain/repo_url.go`: `RepoURL` value object with `NewRepoURL(string)` constructor that validates URL shape (http/https only, ends with `.git` optional, no shell metachars)
-- [ ] 2.3 `domain/status.go`: `Status` value object with constants `StatusPending`, `StatusRunning`, `StatusCompleted`, `StatusFailed`, `StatusCancelled`; constructor rejects unknown values
-- [ ] 2.4 `domain/file_summary.go`: `FileSummary` value object with `NewFileSummary(filename, summary string)` constructor; rejects empty filename
-- [ ] 2.5 `domain/repo_summary.go`: `RepoSummary` aggregate embedding `shared.AggregateBase`; fields `ID`, `UserID`, `RepoURL`, `Status`, `Files []FileSummary`, `RepoSummary string`, `StartedAt`, `CompletedAt`; methods `MarkStarted`, `AppendFileSummary`, `MarkCompleted(summary string)`, `MarkFailed(reason string)`, `MarkCancelled`
-- [ ] 2.6 `domain/events.go`: `SummaryStarted`, `FileSummarized`, `SummaryCompleted`, `SummaryFailed`, `SummaryCancelled` domain events; all implement `EventName() string`
-- [ ] 2.7 Domain unit tests in `domain/repo_summary_test.go`: aggregate transitions raise correct events, value-object invariants hold, illegal state transitions return errors
-- [ ] 2.8 Verify: `go build ./internal/aiworkflows/domain/...` clean; `go test ./internal/aiworkflows/domain/...` green
+- [x] 2.1 Create directory `backend/internal/aiworkflows/{domain,application,infrastructure,interfaces}/` (mirror `internal/stats/` layout)
+- [x] 2.2 `domain/repo_url.go`: `RepoURL` value object with `NewRepoURL(string)` constructor that validates URL shape (http/https only, ends with `.git` optional, no shell metachars)
+- [x] 2.3 `domain/status.go`: `Status` value object with constants `StatusPending`, `StatusRunning`, `StatusCompleted`, `StatusFailed`, `StatusCancelled`; constructor rejects unknown values
+- [x] 2.4 `domain/file_summary.go`: `FileSummary` value object with `NewFileSummary(filename, summary string)` constructor; rejects empty filename
+- [x] 2.5 `domain/repo_summary.go`: `RepoSummary` aggregate embedding `shared.AggregateBase`; fields `ID`, `UserID`, `RepoURL`, `Status`, `Files []FileSummary`, `RepoSummary string`, `StartedAt`, `CompletedAt`; methods `MarkStarted`, `AppendFileSummary`, `MarkCompleted(summary string)`, `MarkFailed(reason string)`, `MarkCancelled`
+- [x] 2.6 `domain/events.go`: `SummaryStarted`, `FileSummarized`, `SummaryCompleted`, `SummaryFailed`, `SummaryCancelled` domain events; all implement `EventName() string`
+- [x] 2.7 Domain unit tests in `domain/repo_summary_test.go`: aggregate transitions raise correct events, value-object invariants hold, illegal state transitions return errors
+- [x] 2.8 Verify: `go build ./internal/aiworkflows/domain/...` clean; `go test ./internal/aiworkflows/domain/...` green
 
 ## 3. Phase B continued — Application layer
 
-- [ ] 3.1 `application/ports.go`: declare ports `HatchetEnqueuer`, `LLMClient`, `RepoCloner`, `Store`, `ProgressPublisher` (domain-event-driven SSE adapter)
-- [ ] 3.2 `application/usecases.go`: `SummarizeRepo` use case (validates input, enqueues workflow, returns run ID) and `GetRepoSummary` use case (loads aggregate, enforces ownership)
-- [ ] 3.3 `application/usecases_test.go`: table-driven tests with mocked ports — happy path, ownership violation returns not-found, invalid URL returns error
-- [ ] 3.4 Verify: `go test ./internal/aiworkflows/application/...` green
+- [x] 3.1 `application/ports.go`: declare ports `HatchetEnqueuer`, `LLMClient`, `RepoCloner`, `Store`, `ProgressPublisher` (domain-event-driven SSE adapter)
+- [x] 3.2 `application/usecases.go`: `SummarizeRepo` use case (validates input, enqueues workflow, returns run ID) and `GetRepoSummary` use case (loads aggregate, enforces ownership)
+- [x] 3.3 `application/usecases_test.go`: table-driven tests with mocked ports — happy path, ownership violation returns not-found, invalid URL returns error
+- [x] 3.4 Verify: `go test ./internal/aiworkflows/application/...` green
 
 ## 4. Phase C — Workflow definition
 
