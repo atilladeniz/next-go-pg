@@ -1,0 +1,13 @@
+
+<h1>Neuer Passkey hinzugefügt</h1>
+<p>Hallo {{.UserName}},</p>
+<p>Ein neuer Passkey wurde zu deinem Konto hinzugefügt:</p>
+<ul style="margin: 16px 0; padding: 16px; background-color: #f4f4f4; border-radius: 8px; list-style: none;">
+	<li><strong>Name:</strong> {{.PasskeyName}}</li>
+	<li><strong>Gerät:</strong> {{.Device}}</li>
+	<li><strong>Hinzugefügt:</strong> {{.Time}}</li>
+</ul>
+<p style="font-size: 14px; color: #666;">Falls du das nicht warst, entferne den Passkey sofort in deinen Einstellungen:</p>
+<p style="margin: 16px 0;">
+	<a href="{{.SettingsURL}}" style="display: inline-block; padding: 12px 24px; background-color: #dc2626; color: #fff; text-decoration: none; border-radius: 6px;">Passkey entfernen</a>
+</p>

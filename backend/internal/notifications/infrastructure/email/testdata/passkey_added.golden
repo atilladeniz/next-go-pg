@@ -1,0 +1,13 @@
+
+<h1>Neuer Passkey hinzugefügt</h1>
+<p>Hallo Atilla,</p>
+<p>Ein neuer Passkey wurde zu deinem Konto hinzugefügt:</p>
+<ul style="margin: 16px 0; padding: 16px; background-color: #f4f4f4; border-radius: 8px; list-style: none;">
+	<li><strong>Name:</strong> MacBook Touch ID</li>
+	<li><strong>Gerät:</strong> Chrome on macOS</li>
+	<li><strong>Hinzugefügt:</strong> 20.05.2026 16:30</li>
+</ul>
+<p style="font-size: 14px; color: #666;">Falls du das nicht warst, entferne den Passkey sofort in deinen Einstellungen:</p>
+<p style="margin: 16px 0;">
+	<a href="https://app.example.com/settings" style="display: inline-block; padding: 12px 24px; background-color: #dc2626; color: #fff; text-decoration: none; border-radius: 6px;">Passkey entfernen</a>
+</p>

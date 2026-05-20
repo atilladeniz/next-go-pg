@@ -1,0 +1,14 @@
+
+<h1>Neue Anmeldung in deinem Konto</h1>
+<p>Hallo {{.UserName}},</p>
+<p>Wir haben eine Anmeldung von einem neuen Gerät oder Standort festgestellt:</p>
+<ul>
+	<li><strong>Gerät:</strong> {{.Device}}</li>
+	<li><strong>IP-Adresse:</strong> {{.IPAddress}}</li>
+	<li><strong>Zeit:</strong> {{.Time}}</li>
+</ul>
+<p>Wenn du das nicht warst, überprüfe bitte sofort deine aktiven Sessions und beende verdächtige Sitzungen:</p>
+<p><a href="{{.SettingsURL}}" style="display: inline-block; padding: 12px 24px; background-color: #000; color: #fff; text-decoration: none; border-radius: 6px;">Sessions verwalten</a></p>
+<p style="margin-top: 16px; font-size: 14px; color: #666;">
+	Oder kopiere diesen Link: <a href="{{.SettingsURL}}">{{.SettingsURL}}</a>
+</p>

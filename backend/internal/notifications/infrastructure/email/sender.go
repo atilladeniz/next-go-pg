@@ -1,14 +1,13 @@
 // Package email is the concrete adapter for notifapp.EmailSender.
-// It owns the template rendering and the SMTP transport. Templates are
-// currently inline raw strings; issue #59 tracks moving them into
-// proper .html files via embed.FS.
+// It owns the template rendering and the SMTP transport. Templates
+// live as .html files under templates/ and are embedded via embed.FS
+// (see templates.go).
 package email
 
 import (
 	"bytes"
 	"context"
 	"fmt"
-	"html/template"
 
 	"gopkg.in/gomail.v2"
 
@@ -96,7 +95,7 @@ type loginNotificationData struct {
 }
 
 func (s *Sender) SendMagicLink(_ context.Context, to string, p notifapp.MagicLinkPayload) error {
-	body, err := render(magicLinkTmpl, magicLinkData{URL: p.URL, AppURL: s.appURL})
+	body, err := render("magic_link.html", magicLinkData{URL: p.URL, AppURL: s.appURL})
 	if err != nil {
 		return err
 	}
@@ -104,7 +103,7 @@ func (s *Sender) SendMagicLink(_ context.Context, to string, p notifapp.MagicLin
 }
 
 func (s *Sender) SendVerification(_ context.Context, to string, p notifapp.VerificationPayload) error {
-	body, err := render(verificationTmpl, verificationData{URL: p.URL, AppURL: s.appURL})
+	body, err := render("verification.html", verificationData{URL: p.URL, AppURL: s.appURL})
 	if err != nil {
 		return err
 	}
@@ -112,7 +111,7 @@ func (s *Sender) SendVerification(_ context.Context, to string, p notifapp.Verif
 }
 
 func (s *Sender) Send2FAOTP(_ context.Context, to string, p notifapp.TwoFactorOTPPayload) error {
-	body, err := render(twoFactorOTPTmpl, twoFactorOTPData{
+	body, err := render("2fa_otp.html", twoFactorOTPData{
 		UserName: p.UserName,
 		OTP:      p.OTP,
 		AppURL:   s.appURL,
@@ -124,7 +123,7 @@ func (s *Sender) Send2FAOTP(_ context.Context, to string, p notifapp.TwoFactorOT
 }
 
 func (s *Sender) SendTwoFactorEnabled(_ context.Context, to string, p notifapp.TwoFactorEnabledPayload) error {
-	body, err := render(twoFactorEnabledTmpl, twoFactorEnabledData{
+	body, err := render("2fa_enabled.html", twoFactorEnabledData{
 		UserName:    p.UserName,
 		MethodName:  p.MethodName,
 		AppURL:      s.appURL,
@@ -137,7 +136,7 @@ func (s *Sender) SendTwoFactorEnabled(_ context.Context, to string, p notifapp.T
 }
 
 func (s *Sender) SendPasskeyAdded(_ context.Context, to string, p notifapp.PasskeyAddedPayload) error {
-	body, err := render(passkeyAddedTmpl, passkeyAddedData{
+	body, err := render("passkey_added.html", passkeyAddedData{
 		UserName:    p.UserName,
 		PasskeyName: p.PasskeyName,
 		Device:      p.Device,
@@ -152,7 +151,7 @@ func (s *Sender) SendPasskeyAdded(_ context.Context, to string, p notifapp.Passk
 }
 
 func (s *Sender) SendLoginNotification(_ context.Context, to string, p notifapp.LoginNotificationPayload) error {
-	body, err := render(loginNotificationTmpl, loginNotificationData{
+	body, err := render("login_notification.html", loginNotificationData{
 		UserName:    p.UserName,
 		Device:      p.Device,
 		IPAddress:   p.IPAddress,
@@ -178,10 +177,10 @@ func (s *Sender) send(to, subject, body string) error {
 	return nil
 }
 
-func render(tmpl *template.Template, data any) (string, error) {
+func render(name string, data any) (string, error) {
 	var buf bytes.Buffer
-	if err := tmpl.Execute(&buf, data); err != nil {
-		return "", err
+	if err := emailTemplates.ExecuteTemplate(&buf, name, data); err != nil {
+		return "", fmt.Errorf("render %s: %w", name, err)
 	}
 	return buf.String(), nil
 }
