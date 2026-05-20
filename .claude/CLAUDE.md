@@ -16,10 +16,11 @@ For everything else: **check `.docs/` first** before searching the internet:
 ├── logging.md          # Logging (zerolog + Pino)
 ├── river.md            # River Job Queue
 ├── background-jobs.md  # Background Job Integration Guide
-├── disaster-recovery.md # Backups & restore (postgres-backup-s3 + RustFS)
-├── rustfs.md           # RustFS (S3-compatible storage)
-├── openspec.md         # OpenSpec slash-command cheatsheet
-└── fsd-liniting.xml    # FSD lint rules (Steiger)
+├── disaster-recovery.md      # Backups & restore (postgres-backup-s3 + RustFS)
+├── rustfs.md                 # RustFS (S3-compatible storage)
+├── orchestrator-decision.md  # Decision: stay on River; adopt Hatchet only when AI workflows arrive (issue #57)
+├── openspec.md               # OpenSpec slash-command cheatsheet
+└── fsd-liniting.xml          # FSD lint rules (Steiger)
 ```
 
 LLM-friendly documentation for the rest of the tech stack lives there.
