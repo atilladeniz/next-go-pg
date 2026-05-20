@@ -71,6 +71,7 @@ type App struct {
 	db            *gorm.DB
 	pgxPool       *pgxpool.Pool
 	riverJobQueue *riverPkg.Client
+	sseBroker     *sse.Broker
 }
 
 // Build assembles the dependency graph.
@@ -93,6 +94,7 @@ func Build(ctx context.Context, in Inputs) (*App, error) {
 
 	// Platform: SSE broker.
 	sseBroker := sse.NewBroker()
+	app.sseBroker = sseBroker
 	logger.Info().Msg("SSE broker initialized")
 
 	// Notifications context — email sender is always constructed.
@@ -196,8 +198,21 @@ func Build(ctx context.Context, in Inputs) (*App, error) {
 	return app, nil
 }
 
-// Shutdown stops River, closes the pgx pool, and shuts down the HTTP server.
+// Shutdown stops the HTTP server, River, the SSE broker and closes
+// the pgx pool. Order matters: HTTP first so no new SSE connections
+// arrive, then the broker (drains and closes existing clients), then
+// the rest.
 func (a *App) Shutdown(ctx context.Context) {
+	if a.HTTPServer != nil {
+		if err := a.HTTPServer.Shutdown(ctx); err != nil {
+			logger.Error().Err(err).Msg("Server forced to shutdown")
+		}
+	}
+	if a.sseBroker != nil {
+		if err := a.sseBroker.Shutdown(ctx); err != nil {
+			logger.Error().Err(err).Msg("SSE broker shutdown error")
+		}
+	}
 	if a.riverJobQueue != nil {
 		logger.Info().Msg("Stopping River job queue...")
 		if err := a.riverJobQueue.Stop(ctx); err != nil {
@@ -206,11 +221,6 @@ func (a *App) Shutdown(ctx context.Context) {
 	}
 	if a.pgxPool != nil {
 		a.pgxPool.Close()
-	}
-	if a.HTTPServer != nil {
-		if err := a.HTTPServer.Shutdown(ctx); err != nil {
-			logger.Error().Err(err).Msg("Server forced to shutdown")
-		}
 	}
 }
 

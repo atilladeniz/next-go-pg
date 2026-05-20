@@ -84,6 +84,15 @@ var (
 		},
 	)
 
+	// SSEEventsDropped counts events dropped because a client's
+	// buffer was full at broadcast time.
+	SSEEventsDropped = promauto.NewCounter(
+		prometheus.CounterOpts{
+			Name: "sse_events_dropped_total",
+			Help: "Total number of SSE events dropped due to slow clients",
+		},
+	)
+
 	// RateLimitHits counts rate limit hits
 	RateLimitHits = promauto.NewCounter(
 		prometheus.CounterOpts{
