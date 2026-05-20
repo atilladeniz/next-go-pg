@@ -811,7 +811,11 @@ next-go-pg/
 ├── openspec/
 │   ├── changes/             # Active proposals (archive/ holds shipped ones)
 │   └── specs/               # Canonical capability specs
-└── deploy/
+└── infra/
+    ├── docker/                         # Dockerfile + supervisord.conf
+    ├── kamal/                          # deploy.yml + hooks + secrets.example
+    ├── loki/                           # Loki + Promtail configs
+    ├── grafana/                        # Grafana provisioning
     └── compose/
         ├── docker-compose.yml          # Production
         ├── docker-compose.dev.yml      # Dev DB + Mailpit

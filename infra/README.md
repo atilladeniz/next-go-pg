@@ -1,6 +1,20 @@
-# Deployment with Kamal
+# Infrastructure
 
-Zero-downtime Docker deployments to any server.
+Everything that lives outside the application code: Docker build, Kamal
+deployment, observability (Loki + Grafana), and the docker-compose
+files used for dev and CI.
+
+```
+infra/
+├── docker/             # Dockerfile + supervisord.conf (production image)
+├── compose/            # docker-compose.{yml,dev,logging,backup}.yml
+├── kamal/              # deploy.yml + deploy.{staging,production}.yml
+│                       # + hooks/ + secrets.example
+├── loki/               # Loki + Promtail configs (dev + prod)
+└── grafana/            # Grafana provisioning (datasources + dashboards)
+```
+
+The rest of this document covers Kamal deployment specifically.
 
 ## Quick Reference
 
@@ -82,7 +96,7 @@ Both Backend and Frontend send logs directly to Loki via HTTP.
 
 3. **Add to secrets**:
    ```bash
-   # deploy/.kamal/secrets
+   # infra/kamal/secrets
    TAILSCALE_IP=100.x.x.x
    TAILSCALE_HOSTNAME=your-vps.your-tailnet.ts.net
    ```
@@ -118,17 +132,18 @@ docker run -it ghcr.io/basecamp/kamal:latest
 
 ```bash
 # Enter server IP in deploy.staging.yml or deploy.production.yml
-vim deploy/config/deploy.staging.yml
+vim infra/kamal/deploy.staging.yml
+# (or infra/kamal/deploy.production.yml)
 ```
 
 ### 3. Configure Secrets
 
 ```bash
 # Create secrets file
-cp deploy/.kamal/secrets.example deploy/.kamal/secrets
+cp infra/kamal/secrets.example infra/kamal/secrets
 
 # Fill in secrets
-vim deploy/.kamal/secrets
+vim infra/kamal/secrets
 ```
 
 ### 4. Create GitHub Container Registry Token
@@ -136,7 +151,7 @@ vim deploy/.kamal/secrets
 1. https://github.com/settings/tokens
 2. "Generate new token (classic)"
 3. Scope: `write:packages`, `read:packages`
-4. Enter token in `deploy/.kamal/secrets`
+4. Enter token in `infra/kamal/secrets`
 
 ### 5. First Deployment
 
@@ -146,24 +161,23 @@ make deploy-setup
 # → Choose "staging" or "production"
 ```
 
-## Directory Structure
+## Kamal Directory Structure
 
 ```
-deploy/
-├── config/
-│   ├── deploy.yml              # Base configuration
-│   ├── deploy.staging.yml      # Staging-specific
-│   └── deploy.production.yml   # Production-specific
-├── .kamal/
-│   ├── secrets                 # Secrets (DO NOT commit!)
-│   ├── secrets.example         # Secrets template
-│   └── hooks/
-│       ├── pre-build           # Before Docker build
-│       ├── pre-deploy          # Before deployment
-│       └── post-deploy         # After deployment
-├── Dockerfile                  # Multi-stage build
-├── supervisord.conf            # Process manager
-└── README.md                   # This file
+infra/kamal/
+├── deploy.yml              # Base configuration
+├── deploy.staging.yml      # Staging-specific overrides
+├── deploy.production.yml   # Production-specific overrides
+├── secrets                 # Secrets (gitignored — copy from secrets.example)
+├── secrets.example         # Secrets template
+└── hooks/
+    ├── pre-build           # Before Docker build
+    ├── pre-deploy          # Before deployment
+    └── post-deploy         # After deployment
+
+infra/docker/
+├── Dockerfile              # Multi-stage build
+└── supervisord.conf        # Process manager
 ```
 
 ## Environments
@@ -183,7 +197,7 @@ deploy/
 ### Horizontal (more servers)
 
 ```yaml
-# deploy/config/deploy.production.yml
+# infra/kamal/deploy.production.yml
 servers:
   web:
     hosts:
@@ -197,7 +211,7 @@ Then add load balancer in front (Hetzner LB, Cloudflare, etc.)
 ### Vertical (larger server)
 
 ```yaml
-# deploy/config/deploy.production.yml
+# infra/kamal/deploy.production.yml
 servers:
   web:
     hosts:
@@ -213,10 +227,10 @@ servers:
 
 ```bash
 # Show logs
-kamal app logs -c deploy/config/deploy.yml -d staging
+kamal app logs -c infra/kamal/deploy.yml -d staging
 
 # Container status
-kamal details -c deploy/config/deploy.yml -d staging
+kamal details -c infra/kamal/deploy.yml -d staging
 ```
 
 ### Rollback needed
@@ -229,7 +243,7 @@ make deploy-rollback
 ### Manually restart container
 
 ```bash
-kamal app boot -c deploy/config/deploy.yml -d staging
+kamal app boot -c infra/kamal/deploy.yml -d staging
 ```
 
 ### SSH to server

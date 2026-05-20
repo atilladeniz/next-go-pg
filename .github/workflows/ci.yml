@@ -276,7 +276,7 @@ jobs:
               - 'backend/.dockerignore'
               - 'backend/migrations/**'
               - 'backend/docs/**'
-              - 'deploy/**'
+              - 'infra/**'
               - '.github/workflows/ci.yml'
             frontend:
               - 'frontend/src/**'
@@ -292,7 +292,7 @@ jobs:
               - 'frontend/orval.config.ts'
               - 'frontend/postcss.config.mjs'
               - 'frontend/components.json'
-              - 'deploy/**'
+              - 'infra/**'
               - '.github/workflows/ci.yml'
 
   docker-build-backend:

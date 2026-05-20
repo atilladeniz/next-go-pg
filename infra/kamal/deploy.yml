@@ -22,10 +22,15 @@ registry:
 # Builder Configuration
 builder:
   arch: amd64
-  context: ..
-  dockerfile: deploy/Dockerfile
+  context: .
+  dockerfile: infra/docker/Dockerfile
   args:
     COMMIT_SHA: <%= `git rev-parse HEAD`.strip %>
+
+# Hook scripts live under infra/kamal/hooks/. Kamal's default is
+# .kamal/hooks/ relative to project root; this override points it
+# at our consolidated infra/ layout.
+hooks_path: infra/kamal/hooks
 
 # SSH Configuration
 ssh:
@@ -76,7 +81,7 @@ accessories:
     # Format: "tailscale-ip:3100:3100"
     port: "${TAILSCALE_IP}:3100:3100"
     files:
-      - deploy/loki/loki-config.prod.yml:/etc/loki/local-config.yaml
+      - infra/loki/loki-config.prod.yml:/etc/loki/local-config.yaml
     directories:
       - loki_data:/loki
     cmd: -config.file=/etc/loki/local-config.yaml
@@ -107,9 +112,9 @@ accessories:
       secret:
         - GF_SECURITY_ADMIN_PASSWORD
     files:
-      - deploy/grafana/provisioning/datasources/datasources.prod.yml:/etc/grafana/provisioning/datasources/datasources.yml
-      - deploy/grafana/provisioning/dashboards/dashboards.yml:/etc/grafana/provisioning/dashboards/dashboards.yml
-      - deploy/grafana/provisioning/dashboards/next-go-pg.json:/etc/grafana/provisioning/dashboards/next-go-pg.json
+      - infra/grafana/provisioning/datasources/datasources.prod.yml:/etc/grafana/provisioning/datasources/datasources.yml
+      - infra/grafana/provisioning/dashboards/dashboards.yml:/etc/grafana/provisioning/dashboards/dashboards.yml
+      - infra/grafana/provisioning/dashboards/next-go-pg.json:/etc/grafana/provisioning/dashboards/next-go-pg.json
     directories:
       - grafana_data:/var/lib/grafana
     options:

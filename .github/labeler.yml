@@ -27,7 +27,7 @@ docker:
       - any-glob-to-any-file:
           - "**/Dockerfile*"
           - "docker-compose*.yml"
-          - "deploy/**/*"
+          - "infra/**/*"
 
 api:
   - changed-files:
