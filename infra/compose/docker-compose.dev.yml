@@ -37,15 +37,17 @@ services:
     image: ghcr.io/hatchet-dev/hatchet/hatchet-lite:v0.46.0
     profiles: ["ai"]
     ports:
-      - "8888:8080"   # dashboard (host → container internal 8080)
-    expose:
-      - "7077"        # gRPC, docker-network only (backend worker uses this)
+      - "127.0.0.1:8888:8080"   # dashboard (host-bound)
+      - "127.0.0.1:7077:7077"   # gRPC (host-bound — dev backend on host dials this)
     environment:
       DATABASE_URL: postgres://postgres:postgres@db:5432/hatchet?sslmode=disable
       SERVER_PORT: "8080"
       SERVER_GRPC_PORT: "7077"
       SERVER_GRPC_BIND_ADDRESS: 0.0.0.0
-      SERVER_GRPC_BROADCAST_ADDRESS: hatchet-lite:7077
+      # Broadcast address is what Hatchet tells workers to dial. Dev backend
+      # runs on the host (not in docker), so 127.0.0.1:7077 is correct.
+      # Promoting to a containerised backend later requires re-pointing this.
+      SERVER_GRPC_BROADCAST_ADDRESS: 127.0.0.1:7077
       SERVER_GRPC_INSECURE: "true"
       SERVER_TLS_STRATEGY: none
       SERVER_AUTH_COOKIE_DOMAIN: localhost
@@ -59,8 +61,8 @@ services:
   ollama:
     image: ollama/ollama:0.5.1
     profiles: ["ai"]
-    expose:
-      - "11434"
+    ports:
+      - "127.0.0.1:11434:11434"   # host-bound — dev backend on host dials this
     volumes:
       - ollama_data:/root/.ollama
     environment:

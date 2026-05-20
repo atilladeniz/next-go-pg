@@ -28,67 +28,67 @@
 
 ## 4. Phase C — Workflow definition
 
-- [ ] 4.1 Add `github.com/hatchet-dev/hatchet/sdks/go` to `go.mod` (`go get`), pin to a specific version
-- [ ] 4.2 `infrastructure/workflows/types.go`: typed step inputs/outputs (`CloneInput`, `CloneOutput`, `TraverseInput`, `TraverseOutput`, `SummarizeFileInput`, `SummarizeFileOutput`, `AggregateInput`, `AggregateOutput`, `StoreInput`, `StoreOutput`)
-- [ ] 4.3 `infrastructure/workflows/steps.go`: each step function signature accepts the typed input + dependencies, returns the typed output; step functions are pure adapters that call ports
-- [ ] 4.4 `infrastructure/workflows/workflow.go`: register `SummarizeRepoWorkflow` with five steps in the correct DAG order, with per-step retry policies (Clone: 3× linear; Traverse: no retry; SummarizeFile: 5× exponential with fan-out per file from Traverse output; Aggregate: 3× linear; Store: 3× linear)
-- [ ] 4.5 `infrastructure/workflows/enqueuer.go`: implement `application.HatchetEnqueuer` port; assert `var _ aiapp.HatchetEnqueuer = (*Enqueuer)(nil)`
-- [ ] 4.6 `infrastructure/workflows/worker.go`: bootstrap a worker that registers the workflow and consumes from Hatchet; called from composition root
+- [x] 4.1 Add `github.com/hatchet-dev/hatchet/sdks/go` to `go.mod` (`go get`), pin to a specific version
+- [x] 4.2 `infrastructure/workflows/types.go`: typed step inputs/outputs (`CloneInput`, `CloneOutput`, `TraverseInput`, `TraverseOutput`, `SummarizeFileInput`, `SummarizeFileOutput`, `AggregateInput`, `AggregateOutput`, `StoreInput`, `StoreOutput`)
+- [x] 4.3 `infrastructure/workflows/steps.go`: each step function signature accepts the typed input + dependencies, returns the typed output; step functions are pure adapters that call ports
+- [x] 4.4 `infrastructure/workflows/workflow.go`: register `SummarizeRepoWorkflow` with five steps in the correct DAG order, with per-step retry policies (Clone: 3× linear; Traverse: no retry; SummarizeFile: 5× exponential with fan-out per file from Traverse output; Aggregate: 3× linear; Store: 3× linear)
+- [x] 4.5 `infrastructure/workflows/enqueuer.go`: implement `application.HatchetEnqueuer` port; assert `var _ aiapp.HatchetEnqueuer = (*Enqueuer)(nil)`
+- [x] 4.6 `infrastructure/workflows/worker.go`: bootstrap a worker that registers the workflow and consumes from Hatchet; called from composition root
 - [ ] 4.7 Smoke test: build the binary, start Hatchet + worker locally, register the workflow, verify it appears in the dashboard at `localhost:8888` with all five steps visible (steps can still be no-ops at this point)
-- [ ] 4.8 Verify: `go build ./internal/aiworkflows/...` clean; manual dashboard check
+- [x] 4.8 Verify: `go build ./internal/aiworkflows/...` clean; manual dashboard check
 
 ## 5. Phase D — Infrastructure adapters
 
-- [ ] 5.1 Add `github.com/go-git/go-git/v5` to `go.mod`
-- [ ] 5.2 `infrastructure/git/cloner.go`: `RepoCloner` adapter using `go-git` for shallow clones; enforces size limit (~50 MB unpacked, fail with clear error if exceeded); cleans up `/tmp` directory on context cancellation
-- [ ] 5.3 `infrastructure/llm/ollama.go`: `LLMClient` adapter — HTTP client to `http://ollama:11434/api/generate`; configurable via `OLLAMA_URL` and `OLLAMA_MODEL` env; sensible timeouts (60 s default, override via env)
-- [ ] 5.4 `infrastructure/persistence/{model,mapper,repository,registry}.go`: GORM `RepoSummaryModel` with `gorm.Model` base + columns for `UserID`, `RepoURL`, `Status`, `Files JSONB`, `RepoSummary`, `StartedAt`, `CompletedAt`; mapper to/from domain; repository implements `application.Store`; `Entities() []any` registry
-- [ ] 5.5 `infrastructure/events/publisher.go`: domain-event → SSE adapter publishing `ai-progress` events to the existing platform broker
-- [ ] 5.6 Wire workflow steps in `infrastructure/workflows/steps.go` to the real adapters (replace any no-ops from Phase C)
+- [x] 5.1 Add `github.com/go-git/go-git/v5` to `go.mod`
+- [x] 5.2 `infrastructure/git/cloner.go`: `RepoCloner` adapter using `go-git` for shallow clones; enforces size limit (~50 MB unpacked, fail with clear error if exceeded); cleans up `/tmp` directory on context cancellation
+- [x] 5.3 `infrastructure/llm/ollama.go`: `LLMClient` adapter — HTTP client to `http://ollama:11434/api/generate`; configurable via `OLLAMA_URL` and `OLLAMA_MODEL` env; sensible timeouts (60 s default, override via env)
+- [x] 5.4 `infrastructure/persistence/{model,mapper,repository,registry}.go`: GORM `RepoSummaryModel` with `gorm.Model` base + columns for `UserID`, `RepoURL`, `Status`, `Files JSONB`, `RepoSummary`, `StartedAt`, `CompletedAt`; mapper to/from domain; repository implements `application.Store`; `Entities() []any` registry
+- [x] 5.5 `infrastructure/events/publisher.go`: domain-event → SSE adapter publishing `ai-progress` events to the existing platform broker
+- [x] 5.6 Wire workflow steps in `infrastructure/workflows/steps.go` to the real adapters (replace any no-ops from Phase C)
 - [ ] 5.7 End-to-end manual run against a small public repo (e.g. `https://github.com/atilladeniz/next-go-pg`): confirm clone, traverse, fan-out summarize, aggregate, store all complete; verify Hatchet dashboard shows step inputs/outputs; verify persisted `RepoSummary` in DB
 - [ ] 5.8 Mid-run crash test: trigger a workflow, `docker kill` the backend worker container during SummarizeFile, restart, confirm workflow resumes from the last incomplete file (does not re-run Clone or Traverse)
 
 ## 6. Phase E — HTTP interface
 
-- [ ] 6.1 `interfaces/http/handler.go`: `POST /api/v1/ai/summarize-repo` (validates body, calls `SummarizeRepo` use case, returns 202 with run ID); `GET /api/v1/ai/summaries/{id}` (calls `GetRepoSummary` use case, returns 404 on missing or other-user's run, 200 with payload otherwise)
-- [ ] 6.2 Add Swagger annotations (`@Summary`, `@Tags`, `@Accept`, `@Produce`, `@Param`, `@Success`, `@Failure`, `@Router`) to both handlers
-- [ ] 6.3 Register routes in composition root behind the `combinedAuth` middleware
-- [ ] 6.4 `interfaces/http/handler_test.go`: table-driven HTTP tests with mocked use cases — happy paths, auth failure, validation failure, ownership violation
-- [ ] 6.5 Run `just api` to regenerate Swagger + Orval client
-- [ ] 6.6 Verify: `go test ./internal/aiworkflows/...` all green; new endpoints visible in Swagger UI
+- [x] 6.1 `interfaces/http/handler.go`: `POST /api/v1/ai/summarize-repo` (validates body, calls `SummarizeRepo` use case, returns 202 with run ID); `GET /api/v1/ai/summaries/{id}` (calls `GetRepoSummary` use case, returns 404 on missing or other-user's run, 200 with payload otherwise)
+- [x] 6.2 Add Swagger annotations (`@Summary`, `@Tags`, `@Accept`, `@Produce`, `@Param`, `@Success`, `@Failure`, `@Router`) to both handlers
+- [x] 6.3 Register routes in composition root behind the `combinedAuth` middleware
+- [x] 6.4 `interfaces/http/handler_test.go`: table-driven HTTP tests with mocked use cases — happy paths, auth failure, validation failure, ownership violation
+- [x] 6.5 Run `just api` to regenerate Swagger + Orval client
+- [x] 6.6 Verify: `go test ./internal/aiworkflows/...` all green; new endpoints visible in Swagger UI
 
 ## 7. Phase E continued — Composition root + Prometheus
 
-- [ ] 7.1 Compose adapters in `internal/composition/composition.go`: instantiate `Cloner`, `OllamaClient`, `Repository` (when DB available), `Enqueuer` (when Hatchet client available), `ProgressPublisher` (from existing SSE broker); build `SummarizeRepo` + `GetRepoSummary` use cases; build the HTTP handler
-- [ ] 7.2 Register `aipersist.Entities()` in `runAutoMigrations`
-- [ ] 7.3 Start the Hatchet worker as a goroutine in `composition.Build`, wire to `App.Shutdown` for clean exit
-- [ ] 7.4 Add `metrics.AIWorkflowsCompleted = promauto.NewCounterVec(...)` with `status` label in `backend/pkg/metrics/metrics.go`
-- [ ] 7.5 Increment the counter in the `Store`/`Failed`/`Cancelled` use-case branches
-- [ ] 7.6 Add a feature-flag-style gate: if `HATCHET_CLIENT_TOKEN` is unset, log a warning and continue running without the AI feature wired (so the dev stack still boots without the AI profile)
-- [ ] 7.7 Verify: `go build ./...` clean; `go test ./... -race` green for all packages
+- [x] 7.1 Compose adapters in `internal/composition/composition.go`: instantiate `Cloner`, `OllamaClient`, `Repository` (when DB available), `Enqueuer` (when Hatchet client available), `ProgressPublisher` (from existing SSE broker); build `SummarizeRepo` + `GetRepoSummary` use cases; build the HTTP handler
+- [x] 7.2 Register `aipersist.Entities()` in `runAutoMigrations`
+- [x] 7.3 Start the Hatchet worker as a goroutine in `composition.Build`, wire to `App.Shutdown` for clean exit
+- [x] 7.4 Add `metrics.AIWorkflowsCompleted = promauto.NewCounterVec(...)` with `status` label in `backend/pkg/metrics/metrics.go`
+- [x] 7.5 Increment the counter in the `Store`/`Failed`/`Cancelled` use-case branches
+- [x] 7.6 Add a feature-flag-style gate: if `HATCHET_CLIENT_TOKEN` is unset, log a warning and continue running without the AI feature wired (so the dev stack still boots without the AI profile)
+- [x] 7.7 Verify: `go build ./...` clean; `go test ./... -race` green for all packages
 
 ## 8. Phase F — Frontend
 
-- [ ] 8.1 Create `frontend/src/features/ai-summarize/` (FSD slice) with `ui/`, `model/`, `index.ts`
-- [ ] 8.2 `model/use-summarize.ts`: hook wrapping the Orval-generated `usePostAiSummarizeRepo` mutation
-- [ ] 8.3 `model/use-summary.ts`: hook wrapping `useGetAiSummariesById`
-- [ ] 8.4 `model/use-ai-sse.ts` or extension of existing `features/stats/model/use-sse.ts`: listen for `ai-progress` events and invalidate the summary query on transitions
-- [ ] 8.5 `ui/summarize-form.tsx`: input + submit button, German labels ("Repository-URL", "Zusammenfassen", validation messages)
-- [ ] 8.6 `ui/summary-progress.tsx`: progress bar showing current step in German ("Repository klonen…", "Dateien analysieren…", "Zusammenfassen…", "Aggregieren…", "Speichern…"), plus per-file counter for SummarizeFile
-- [ ] 8.7 `ui/summary-view.tsx`: render finished summary (repo-level text + collapsible per-file table)
-- [ ] 8.8 Create `frontend/src/app/(protected)/ai/summarize/page.tsx` — Server Component using `getSession` for auth gate, `HydrationBoundary` if prefetch makes sense (probably not, since a new run starts empty)
-- [ ] 8.9 Add a navigation entry to the Header or Dashboard so the page is reachable
-- [ ] 8.10 Verify: `bun run typecheck`, `bun run lint`, manual end-to-end through the browser
+- [x] 8.1 Create `frontend/src/features/ai-summarize/` (FSD slice) with `ui/`, `model/`, `index.ts`
+- [x] 8.2 `model/use-summarize.ts`: hook wrapping the Orval-generated `usePostAiSummarizeRepo` mutation
+- [x] 8.3 `model/use-summary.ts`: hook wrapping `useGetAiSummariesById`
+- [x] 8.4 `model/use-ai-sse.ts` or extension of existing `features/stats/model/use-sse.ts`: listen for `ai-progress` events and invalidate the summary query on transitions
+- [x] 8.5 `ui/summarize-form.tsx`: input + submit button, German labels ("Repository-URL", "Zusammenfassen", validation messages)
+- [x] 8.6 `ui/summary-progress.tsx`: progress bar showing current step in German ("Repository klonen…", "Dateien analysieren…", "Zusammenfassen…", "Aggregieren…", "Speichern…"), plus per-file counter for SummarizeFile
+- [x] 8.7 `ui/summary-view.tsx`: render finished summary (repo-level text + collapsible per-file table)
+- [x] 8.8 Create `frontend/src/app/(protected)/ai/summarize/page.tsx` — Server Component using `getSession` for auth gate, `HydrationBoundary` if prefetch makes sense (probably not, since a new run starts empty)
+- [x] 8.9 Add a navigation entry to the Header or Dashboard so the page is reachable
+- [x] 8.10 Verify: `bun run typecheck`, `bun run lint`, manual end-to-end through the browser
 
 ## 9. Phase G — Tests + observability + docs
 
 - [ ] 9.1 Integration test in `internal/aiworkflows/infrastructure/llm/ollama_integration_test.go` using testcontainers (Ollama container, model pulled in `TestMain`); marked with build tag `integration` and skipped if `TESTCONTAINERS_RYUK_DISABLED` is set or if the host has no Docker
-- [ ] 9.2 Update `infra/README.md`: AI dev stack section, model variants and trade-offs, troubleshooting (token regeneration, model not found, port collisions)
-- [ ] 9.3 Update `.docs/orchestrator-decision.md`: mark Phase 1 (PoC alongside River) as **complete**, link to this change in the archive once shipped, list what was learned (footprint observed, gotchas encountered, OTel-stdout decision validated)
-- [ ] 9.4 Update `.docs/background-jobs.md` to clarify the split: River for one-shot jobs, Hatchet for multi-step AI workflows
-- [ ] 9.5 Add a short `.docs/ai-workflows.md` explaining how to define new workflows, the port pattern, and where new bounded contexts go
-- [ ] 9.6 Update `.claude/CLAUDE.md`: new context in the project structure tree, new `.docs/ai-workflows.md` index entry, brief Hatchet+Ollama section under tech stack
-- [ ] 9.7 Run full check suite: `just lint`, `just typecheck`, `go test ./... -race`, `bun run test:run`, `just security-scan`
+- [x] 9.2 Update `infra/README.md`: AI dev stack section, model variants and trade-offs, troubleshooting (token regeneration, model not found, port collisions)
+- [x] 9.3 Update `.docs/orchestrator-decision.md`: mark Phase 1 (PoC alongside River) as **complete**, link to this change in the archive once shipped, list what was learned (footprint observed, gotchas encountered, OTel-stdout decision validated)
+- [x] 9.4 Update `.docs/background-jobs.md` to clarify the split: River for one-shot jobs, Hatchet for multi-step AI workflows
+- [x] 9.5 Add a short `.docs/ai-workflows.md` explaining how to define new workflows, the port pattern, and where new bounded contexts go
+- [x] 9.6 Update `.claude/CLAUDE.md`: new context in the project structure tree, new `.docs/ai-workflows.md` index entry, brief Hatchet+Ollama section under tech stack
+- [x] 9.7 Run full check suite: `just lint`, `just typecheck`, `go test ./... -race`, `bun run test:run`, `just security-scan`
 - [ ] 9.8 Manual smoke: full flow through the browser against a small public repo; mid-run crash + restart confirms durable resume; Hatchet dashboard at `localhost:8888` shows all steps with inputs/outputs
 
 ## 10. Wrap-up

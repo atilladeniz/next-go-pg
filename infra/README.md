@@ -41,11 +41,13 @@ just ai-pull-model gemma4:26b-a4b
 
 ### Endpoints
 
-| Service        | URL                                  | Notes                                  |
-|----------------|--------------------------------------|----------------------------------------|
-| Hatchet gRPC   | `hatchet-lite:7077` (docker net)     | Backend worker dials this              |
-| Hatchet UI     | `http://localhost:8888`              | Browser dashboard                      |
-| Ollama HTTP    | `http://ollama:11434` (docker net)   | Backend HTTP client target             |
+| Service        | URL                              | Notes                                          |
+|----------------|----------------------------------|------------------------------------------------|
+| Hatchet gRPC   | `127.0.0.1:7077`                 | Backend (running on host) dials this           |
+| Hatchet UI     | `http://localhost:8888`          | Browser dashboard — generate token here        |
+| Ollama HTTP    | `http://127.0.0.1:11434`         | Backend HTTP client target                     |
+
+All three are bound to `127.0.0.1` only — never exposed to your LAN.
 
 ### What gets created
 

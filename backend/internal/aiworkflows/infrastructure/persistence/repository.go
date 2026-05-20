@@ -1,0 +1,61 @@
+package persistence
+
+import (
+	"context"
+	"errors"
+
+	"gorm.io/gorm"
+
+	aiapp "github.com/atilladeniz/next-go-pg/backend/internal/aiworkflows/application"
+	ai "github.com/atilladeniz/next-go-pg/backend/internal/aiworkflows/domain"
+)
+
+// Repository is the GORM-backed implementation of the aiworkflows
+// context's application.Store port.
+type Repository struct {
+	db *gorm.DB
+}
+
+var _ aiapp.Store = (*Repository)(nil)
+
+func NewRepository(db *gorm.DB) *Repository {
+	return &Repository{db: db}
+}
+
+// Create inserts a fresh RepoSummary and writes the assigned ID back
+// onto the aggregate. The domain's pending events are NOT pulled here;
+// the caller (use case) owns event lifecycle.
+func (r *Repository) Create(ctx context.Context, agg *ai.RepoSummary) error {
+	m := fromDomain(agg)
+	if err := r.db.WithContext(ctx).Create(&m).Error; err != nil {
+		return err
+	}
+	agg.ID = m.ID
+	agg.CreatedAt = m.CreatedAt
+	agg.UpdatedAt = m.UpdatedAt
+	return nil
+}
+
+// Save persists changes. Mutates fields back onto the aggregate without
+// replacing *agg, so AggregateBase.pendingEvents survives.
+func (r *Repository) Save(ctx context.Context, agg *ai.RepoSummary) error {
+	m := fromDomain(agg)
+	if err := r.db.WithContext(ctx).Save(&m).Error; err != nil {
+		return err
+	}
+	agg.UpdatedAt = m.UpdatedAt
+	return nil
+}
+
+// GetByID returns ErrNotFound when the row is missing.
+func (r *Repository) GetByID(ctx context.Context, id uint) (*ai.RepoSummary, error) {
+	var m gormRepoSummary
+	err := r.db.WithContext(ctx).First(&m, id).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, aiapp.ErrNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	return toDomain(m)
+}
