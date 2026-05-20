@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.9.0](https://github.com/atilladeniz/next-go-pg/compare/v1.8.0...v1.9.0) (2026-05-20)
+
+
+### Features
+
+* **sse:** harden broker — metrics, heartbeat, shutdown, tests ([#65](https://github.com/atilladeniz/next-go-pg/issues/65)) ([a0fd492](https://github.com/atilladeniz/next-go-pg/commit/a0fd492b241959250391bb992d77f2f8731f8626))
+
+
+### Bug Fixes
+
+* **infra:** restore content updates dropped during [#66](https://github.com/atilladeniz/next-go-pg/issues/66) rebase ([#68](https://github.com/atilladeniz/next-go-pg/issues/68)) ([5b719ec](https://github.com/atilladeniz/next-go-pg/commit/5b719ec1e578bf669bac6fd9f6a5f63e2de0bfc7))
+
 ## [1.8.0](https://github.com/atilladeniz/next-go-pg/compare/v1.7.0...v1.8.0) (2026-05-19)
 
 
