@@ -12,7 +12,6 @@ Full-Stack Monorepo with Next.js Frontend and Go Backend.
 .docs/
 ├── tanstack-query.md   # TanStack Query
 ├── better-auth.md      # Better Auth
-├── sazardev-goca.md    # Goca CLI (Go Clean Architecture)
 ├── river.md            # River Job Queue
 ├── background-jobs.md  # Background Job Integration
 ├── kamal-deploy.md     # Kamal Deployment
@@ -33,8 +32,7 @@ Full-Stack Monorepo with Next.js Frontend and Go Backend.
 |-----------|------------|
 | Frontend | Next.js 16, TypeScript, Tailwind CSS, shadcn/ui |
 | Frontend Architecture | **Feature-Sliced Design (FSD)** |
-| Backend | Go, Gorilla Mux, Clean Architecture, GORM |
-| Code Generator | **Goca CLI** (Go Clean Architecture) |
+| Backend | Go, Gorilla Mux, **Bounded Contexts + Clean Architecture (DDD)**, GORM |
 | Database | PostgreSQL 16 |
 | Auth | Better Auth (Magic Link, JWT) |
 | Background Jobs | **River** (PostgreSQL-native, ~66k jobs/sec) |
@@ -49,16 +47,12 @@ Full-Stack Monorepo with Next.js Frontend and Go Backend.
 
 - [Bun](https://bun.sh/) (Frontend)
 - [Go 1.26+](https://go.dev/) (Backend)
-- [Goca CLI](https://github.com/sazardev/goca) (Backend Code Generation)
 - [Docker](https://www.docker.com/) (Database)
 - [OpenSpec](https://github.com/Fission-AI/OpenSpec) (Spec-driven Workflow, optional)
 
 ### Install CLI Tools
 
 ```bash
-# Goca (Backend Code Generation)
-go install github.com/sazardev/goca@latest
-
 # Gitleaks (Security Scanning)
 brew install gitleaks
 
@@ -76,7 +70,7 @@ npm install -g @fission-ai/openspec@latest
 git clone <repo-url>
 cd next-go-pg
 
-# Install dependencies (also installs goca, gitleaks, sitefetch + sets up git hooks)
+# Install dependencies (also installs gitleaks, sitefetch + sets up git hooks)
 just install
 
 # Start database
@@ -114,19 +108,19 @@ See `.docs/openspec.md` for the full cheatsheet and `AGENTS.md` for the workflow
 
 ```
 next-go-pg/
-├── backend/                 # Go Backend (Clean Architecture)
+├── backend/                 # Go Backend (Bounded Contexts + Clean Architecture)
 │   ├── cmd/
-│   │   ├── server/          # Main API server (boots AutoMigrate + River)
+│   │   ├── server/          # Main API server (loads config → composition.Build)
 │   │   ├── migrate/         # golang-migrate CLI (prod SQL migrations)
 │   │   └── river-migrate/   # River job-queue migration CLI
 │   ├── internal/
-│   │   ├── domain/          # Entities (goca make entity) + registry
-│   │   ├── repository/      # Data Access (goca make repository)
-│   │   ├── handler/         # HTTP Handler (goca make handler)
-│   │   ├── middleware/      # Auth (JWT + Better Auth), CORS, Logging, Rate limit
-│   │   ├── jobs/            # River Background Jobs
-│   │   ├── sse/             # Server-Sent Events Broker
-│   │   └── templates/       # Email templates (Magic Link, etc.)
+│   │   ├── shared/domain/   # Shared Kernel (UserID, AggregateBase, DomainEvent)
+│   │   ├── stats/           # BC: per-user counters (domain, application, infra, http)
+│   │   ├── auth/            # BC: identity (Better Auth read-only adapter)
+│   │   ├── notifications/   # BC: transactional email (webhooks + River workers)
+│   │   ├── exports/         # BC: CSV/JSON data export with SSE progress
+│   │   ├── platform/        # Cross-cutting: middleware (Auth/CORS/Log) + SSE broker
+│   │   └── composition/     # Composition root + Anti-Corruption Layers
 │   ├── migrations/          # SQL migrations (prod only — empty in dev)
 │   ├── pkg/logger/          # zerolog Logger
 │   └── docs/                # Swagger (generated)
@@ -247,7 +241,7 @@ This project uses [just](https://github.com/casey/just) as command runner. Insta
 
 ```bash
 just install          # Install all deps + CLI tools + git hooks
-just install-tools    # Goca, gitleaks, sitefetch (idempotent)
+just install-tools    # gitleaks, sitefetch (idempotent)
 just clean            # Remove build artifacts and node_modules
 ```
 
@@ -291,7 +285,6 @@ just prod-river-migrate-version    # Show River migration version
 ```bash
 just api              # Generate TypeScript client from OpenAPI
 just swagger          # Only regenerate Swagger JSON
-just goca-feature <Name> "<fields>"   # Scaffold a full Goca feature
 ```
 
 ### Quality
@@ -527,24 +520,17 @@ just docker-up      # Start containers
 just docker-down    # Stop containers
 ```
 
-## Generate Backend Features (Goca)
+## Adding a Backend Feature
 
-```bash
-cd backend
+The backend follows **bounded contexts + Clean Architecture (DDD)**. Each new aggregate lives inside a context under `backend/internal/<ctx>/`. The easiest template is to copy the `stats/` context — it's small, complete, and uses every DDD pattern (aggregate root with `AggregateBase`, value-object constructors, domain events, repository port, ACL friendliness).
 
-# New feature with all layers
-goca feature Product --fields "name:string,price:float64,stock:int"
-
-# Entity only
-goca make entity Product
-
-# Repository only
-goca make repository Product
-
-# Swagger + Orval (one command from root!)
-cd ..
-just api
-```
+1. Create `backend/internal/<ctx>/` with four sub-folders: `domain/`, `application/`, `infrastructure/persistence/`, `interfaces/http/`. See [`backend/README.md`](./backend/README.md#architecture) for the full layer guide.
+2. Domain: pure types only — no GORM, no I/O. Use value-object constructors for invariants and embed `shared.AggregateBase` if the aggregate raises events.
+3. Application: declare ports (`Repository`, `JobEnqueuer`, ...) and use-case structs with `Execute(ctx, ...)`. Use-cases pull domain events with `agg.PullEvents()` **before** `repo.Save(...)` so a repository round-trip can't drop them.
+4. Infrastructure: GORM-tagged unexported twin types + mappers + repo impl. Assert the port with `var _ <ctx>app.Repository = (*Repository)(nil)`. Expose `Entities() []any` for AutoMigrate.
+5. HTTP: handler imports only this context's `application/` package. Swagger annotations on every endpoint.
+6. Wire in `backend/internal/composition/composition.go`. If cross-context data is needed, add an Anti-Corruption Layer right there (mirror `statsToExportsReader` / `authToNotificationsDirectory`).
+7. Run `just api` to regenerate Swagger + the Orval TypeScript client.
 
 ### API Workflow
 
@@ -557,4 +543,3 @@ just api
 - [Technical Docs (.docs)](./.docs/README.md) - LLM-friendly Tech Stack Docs
 - [Frontend README](./frontend/README.md)
 - [Backend README](./backend/README.md)
-- [Goca Documentation](https://github.com/sazardev/goca)

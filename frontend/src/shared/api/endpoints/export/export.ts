@@ -25,9 +25,9 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
-  HandlerErrorResponse,
-  HandlerStartExportRequest,
-  HandlerStartExportResponse
+  ExportsInterfacesHttpErrorResponse,
+  ExportsInterfacesHttpStartExportRequest,
+  ExportsInterfacesHttpStartExportResponse
 } from '../../models';
 
 import { customFetch } from '../../custom-fetch';
@@ -47,7 +47,7 @@ export type getExportDownloadIdResponse200 = {
 }
 
 export type getExportDownloadIdResponse404 = {
-  data: HandlerErrorResponse
+  data: ExportsInterfacesHttpErrorResponse
   status: 404
 }
     
@@ -90,7 +90,7 @@ export const getGetExportDownloadIdQueryKey = (id?: string,) => {
     }
 
     
-export const getGetExportDownloadIdQueryOptions = <TData = Awaited<ReturnType<typeof getExportDownloadId>>, TError = HandlerErrorResponse>(id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getExportDownloadId>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+export const getGetExportDownloadIdQueryOptions = <TData = Awaited<ReturnType<typeof getExportDownloadId>>, TError = ExportsInterfacesHttpErrorResponse>(id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getExportDownloadId>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
@@ -109,10 +109,10 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 }
 
 export type GetExportDownloadIdQueryResult = NonNullable<Awaited<ReturnType<typeof getExportDownloadId>>>
-export type GetExportDownloadIdQueryError = HandlerErrorResponse
+export type GetExportDownloadIdQueryError = ExportsInterfacesHttpErrorResponse
 
 
-export function useGetExportDownloadId<TData = Awaited<ReturnType<typeof getExportDownloadId>>, TError = HandlerErrorResponse>(
+export function useGetExportDownloadId<TData = Awaited<ReturnType<typeof getExportDownloadId>>, TError = ExportsInterfacesHttpErrorResponse>(
  id: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getExportDownloadId>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof getExportDownloadId>>,
@@ -122,7 +122,7 @@ export function useGetExportDownloadId<TData = Awaited<ReturnType<typeof getExpo
       >, request?: SecondParameter<typeof customFetch>}
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useGetExportDownloadId<TData = Awaited<ReturnType<typeof getExportDownloadId>>, TError = HandlerErrorResponse>(
+export function useGetExportDownloadId<TData = Awaited<ReturnType<typeof getExportDownloadId>>, TError = ExportsInterfacesHttpErrorResponse>(
  id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getExportDownloadId>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof getExportDownloadId>>,
@@ -132,7 +132,7 @@ export function useGetExportDownloadId<TData = Awaited<ReturnType<typeof getExpo
       >, request?: SecondParameter<typeof customFetch>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useGetExportDownloadId<TData = Awaited<ReturnType<typeof getExportDownloadId>>, TError = HandlerErrorResponse>(
+export function useGetExportDownloadId<TData = Awaited<ReturnType<typeof getExportDownloadId>>, TError = ExportsInterfacesHttpErrorResponse>(
  id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getExportDownloadId>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
@@ -140,7 +140,7 @@ export function useGetExportDownloadId<TData = Awaited<ReturnType<typeof getExpo
  * @summary Download a completed export
  */
 
-export function useGetExportDownloadId<TData = Awaited<ReturnType<typeof getExportDownloadId>>, TError = HandlerErrorResponse>(
+export function useGetExportDownloadId<TData = Awaited<ReturnType<typeof getExportDownloadId>>, TError = ExportsInterfacesHttpErrorResponse>(
  id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getExportDownloadId>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
  , queryClient?: QueryClient 
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
@@ -162,17 +162,17 @@ export function useGetExportDownloadId<TData = Awaited<ReturnType<typeof getExpo
  * @summary Start a data export job
  */
 export type postExportStartResponse200 = {
-  data: HandlerStartExportResponse
+  data: ExportsInterfacesHttpStartExportResponse
   status: 200
 }
 
 export type postExportStartResponse400 = {
-  data: HandlerErrorResponse
+  data: ExportsInterfacesHttpErrorResponse
   status: 400
 }
 
 export type postExportStartResponse500 = {
-  data: HandlerErrorResponse
+  data: ExportsInterfacesHttpErrorResponse
   status: 500
 }
     
@@ -193,7 +193,7 @@ export const getPostExportStartUrl = () => {
   return `http://localhost:8080/api/v1/export/start`
 }
 
-export const postExportStart = async (handlerStartExportRequest: HandlerStartExportRequest, options?: RequestInit): Promise<postExportStartResponse> => {
+export const postExportStart = async (exportsInterfacesHttpStartExportRequest: ExportsInterfacesHttpStartExportRequest, options?: RequestInit): Promise<postExportStartResponse> => {
   
   return customFetch<postExportStartResponse>(getPostExportStartUrl(),
   {      
@@ -201,16 +201,16 @@ export const postExportStart = async (handlerStartExportRequest: HandlerStartExp
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
     body: JSON.stringify(
-      handlerStartExportRequest,)
+      exportsInterfacesHttpStartExportRequest,)
   }
 );}
 
 
 
 
-export const getPostExportStartMutationOptions = <TError = HandlerErrorResponse,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postExportStart>>, TError,{data: HandlerStartExportRequest}, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof postExportStart>>, TError,{data: HandlerStartExportRequest}, TContext> => {
+export const getPostExportStartMutationOptions = <TError = ExportsInterfacesHttpErrorResponse,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postExportStart>>, TError,{data: ExportsInterfacesHttpStartExportRequest}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof postExportStart>>, TError,{data: ExportsInterfacesHttpStartExportRequest}, TContext> => {
 
 const mutationKey = ['postExportStart'];
 const {mutation: mutationOptions, request: requestOptions} = options ?
@@ -222,7 +222,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       
 
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof postExportStart>>, {data: HandlerStartExportRequest}> = (props) => {
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof postExportStart>>, {data: ExportsInterfacesHttpStartExportRequest}> = (props) => {
           const {data} = props ?? {};
 
           return  postExportStart(data,requestOptions)
@@ -234,18 +234,18 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
   return  { mutationFn, ...mutationOptions }}
 
     export type PostExportStartMutationResult = NonNullable<Awaited<ReturnType<typeof postExportStart>>>
-    export type PostExportStartMutationBody = HandlerStartExportRequest
-    export type PostExportStartMutationError = HandlerErrorResponse
+    export type PostExportStartMutationBody = ExportsInterfacesHttpStartExportRequest
+    export type PostExportStartMutationError = ExportsInterfacesHttpErrorResponse
 
     /**
  * @summary Start a data export job
  */
-export const usePostExportStart = <TError = HandlerErrorResponse,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postExportStart>>, TError,{data: HandlerStartExportRequest}, TContext>, request?: SecondParameter<typeof customFetch>}
+export const usePostExportStart = <TError = ExportsInterfacesHttpErrorResponse,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postExportStart>>, TError,{data: ExportsInterfacesHttpStartExportRequest}, TContext>, request?: SecondParameter<typeof customFetch>}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof postExportStart>>,
         TError,
-        {data: HandlerStartExportRequest},
+        {data: ExportsInterfacesHttpStartExportRequest},
         TContext
       > => {
 

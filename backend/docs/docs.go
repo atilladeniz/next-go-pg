@@ -44,7 +44,7 @@ const docTemplate = `{
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/handler.ErrorResponse"
+                            "$ref": "#/definitions/exports_interfaces_http.ErrorResponse"
                         }
                     }
                 }
@@ -70,7 +70,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/handler.StartExportRequest"
+                            "$ref": "#/definitions/exports_interfaces_http.StartExportRequest"
                         }
                     }
                 ],
@@ -78,19 +78,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/handler.StartExportResponse"
+                            "$ref": "#/definitions/exports_interfaces_http.StartExportResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handler.ErrorResponse"
+                            "$ref": "#/definitions/exports_interfaces_http.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handler.ErrorResponse"
+                            "$ref": "#/definitions/exports_interfaces_http.ErrorResponse"
                         }
                     }
                 }
@@ -113,7 +113,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/handler.MessageResponse"
+                            "$ref": "#/definitions/auth_interfaces_http.MessageResponse"
                         }
                     }
                 }
@@ -141,13 +141,13 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/handler.UserResponse"
+                            "$ref": "#/definitions/auth_interfaces_http.UserResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/handler.ErrorResponse"
+                            "$ref": "#/definitions/auth_interfaces_http.ErrorResponse"
                         }
                     }
                 }
@@ -175,13 +175,13 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/handler.MessageResponse"
+                            "$ref": "#/definitions/auth_interfaces_http.MessageResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/handler.ErrorResponse"
+                            "$ref": "#/definitions/auth_interfaces_http.ErrorResponse"
                         }
                     }
                 }
@@ -209,13 +209,13 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/handler.UserStatsResponse"
+                            "$ref": "#/definitions/stats_interfaces_http.UserStatsResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/handler.ErrorResponse"
+                            "$ref": "#/definitions/stats_interfaces_http.ErrorResponse"
                         }
                     }
                 }
@@ -244,7 +244,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/handler.UpdateStatRequest"
+                            "$ref": "#/definitions/stats_interfaces_http.UpdateStatRequest"
                         }
                     }
                 ],
@@ -252,19 +252,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/handler.UserStatsResponse"
+                            "$ref": "#/definitions/stats_interfaces_http.UserStatsResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handler.ErrorResponse"
+                            "$ref": "#/definitions/stats_interfaces_http.ErrorResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/handler.ErrorResponse"
+                            "$ref": "#/definitions/stats_interfaces_http.ErrorResponse"
                         }
                     }
                 }
@@ -297,7 +297,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/handler.Send2FAEnabledNotificationRequest"
+                            "$ref": "#/definitions/notifications_interfaces_http.Send2FAEnabledNotificationRequest"
                         }
                     }
                 ],
@@ -305,19 +305,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/handler.MessageResponse"
+                            "$ref": "#/definitions/notifications_interfaces_http.MessageResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/handler.ErrorResponse"
+                            "$ref": "#/definitions/notifications_interfaces_http.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handler.ErrorResponse"
+                            "$ref": "#/definitions/notifications_interfaces_http.ErrorResponse"
                         }
                     }
                 }
@@ -350,7 +350,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/handler.Send2FAOTPRequest"
+                            "$ref": "#/definitions/notifications_interfaces_http.Send2FAOTPRequest"
                         }
                     }
                 ],
@@ -358,19 +358,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/handler.MessageResponse"
+                            "$ref": "#/definitions/notifications_interfaces_http.MessageResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/handler.ErrorResponse"
+                            "$ref": "#/definitions/notifications_interfaces_http.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handler.ErrorResponse"
+                            "$ref": "#/definitions/notifications_interfaces_http.ErrorResponse"
                         }
                     }
                 }
@@ -403,7 +403,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/handler.SendMagicLinkRequest"
+                            "$ref": "#/definitions/notifications_interfaces_http.SendMagicLinkRequest"
                         }
                     }
                 ],
@@ -411,19 +411,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/handler.MessageResponse"
+                            "$ref": "#/definitions/notifications_interfaces_http.MessageResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/handler.ErrorResponse"
+                            "$ref": "#/definitions/notifications_interfaces_http.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handler.ErrorResponse"
+                            "$ref": "#/definitions/notifications_interfaces_http.ErrorResponse"
                         }
                     }
                 }
@@ -456,7 +456,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/handler.SendPasskeyAddedNotificationRequest"
+                            "$ref": "#/definitions/notifications_interfaces_http.SendPasskeyAddedNotificationRequest"
                         }
                     }
                 ],
@@ -464,19 +464,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/handler.MessageResponse"
+                            "$ref": "#/definitions/notifications_interfaces_http.MessageResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/handler.ErrorResponse"
+                            "$ref": "#/definitions/notifications_interfaces_http.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handler.ErrorResponse"
+                            "$ref": "#/definitions/notifications_interfaces_http.ErrorResponse"
                         }
                     }
                 }
@@ -509,7 +509,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/handler.SendVerificationEmailRequest"
+                            "$ref": "#/definitions/notifications_interfaces_http.SendVerificationEmailRequest"
                         }
                     }
                 ],
@@ -517,19 +517,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/handler.MessageResponse"
+                            "$ref": "#/definitions/notifications_interfaces_http.MessageResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/handler.ErrorResponse"
+                            "$ref": "#/definitions/notifications_interfaces_http.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handler.ErrorResponse"
+                            "$ref": "#/definitions/notifications_interfaces_http.ErrorResponse"
                         }
                     }
                 }
@@ -562,7 +562,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/handler.SessionCreatedRequest"
+                            "$ref": "#/definitions/notifications_interfaces_http.SessionCreatedRequest"
                         }
                     }
                 ],
@@ -570,19 +570,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/handler.MessageResponse"
+                            "$ref": "#/definitions/notifications_interfaces_http.MessageResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/handler.ErrorResponse"
+                            "$ref": "#/definitions/notifications_interfaces_http.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handler.ErrorResponse"
+                            "$ref": "#/definitions/notifications_interfaces_http.ErrorResponse"
                         }
                     }
                 }
@@ -590,7 +590,7 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "handler.ErrorResponse": {
+        "auth_interfaces_http.ErrorResponse": {
             "type": "object",
             "properties": {
                 "error": {
@@ -599,7 +599,7 @@ const docTemplate = `{
                 }
             }
         },
-        "handler.MessageResponse": {
+        "auth_interfaces_http.MessageResponse": {
             "type": "object",
             "properties": {
                 "message": {
@@ -608,133 +608,7 @@ const docTemplate = `{
                 }
             }
         },
-        "handler.Send2FAEnabledNotificationRequest": {
-            "type": "object",
-            "properties": {
-                "email": {
-                    "type": "string"
-                },
-                "method": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                }
-            }
-        },
-        "handler.Send2FAOTPRequest": {
-            "type": "object",
-            "properties": {
-                "email": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "otp": {
-                    "type": "string"
-                }
-            }
-        },
-        "handler.SendMagicLinkRequest": {
-            "type": "object",
-            "properties": {
-                "email": {
-                    "type": "string"
-                },
-                "url": {
-                    "type": "string"
-                }
-            }
-        },
-        "handler.SendPasskeyAddedNotificationRequest": {
-            "type": "object",
-            "properties": {
-                "device": {
-                    "type": "string"
-                },
-                "email": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "passkeyName": {
-                    "type": "string"
-                }
-            }
-        },
-        "handler.SendVerificationEmailRequest": {
-            "type": "object",
-            "properties": {
-                "email": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "url": {
-                    "type": "string"
-                }
-            }
-        },
-        "handler.SessionCreatedRequest": {
-            "type": "object",
-            "properties": {
-                "ipAddress": {
-                    "type": "string"
-                },
-                "sessionId": {
-                    "type": "string"
-                },
-                "userAgent": {
-                    "type": "string"
-                },
-                "userId": {
-                    "type": "string"
-                }
-            }
-        },
-        "handler.StartExportRequest": {
-            "type": "object",
-            "properties": {
-                "dataType": {
-                    "description": "\"stats\", \"activity\", or \"all\"",
-                    "type": "string"
-                },
-                "format": {
-                    "description": "\"csv\" or \"json\"",
-                    "type": "string"
-                }
-            }
-        },
-        "handler.StartExportResponse": {
-            "type": "object",
-            "properties": {
-                "jobId": {
-                    "type": "string"
-                },
-                "message": {
-                    "type": "string"
-                }
-            }
-        },
-        "handler.UpdateStatRequest": {
-            "type": "object",
-            "properties": {
-                "delta": {
-                    "description": "+1 or -1",
-                    "type": "integer",
-                    "example": 1
-                },
-                "field": {
-                    "description": "\"projects\", \"activity\", \"notifications\"",
-                    "type": "string",
-                    "example": "projects"
-                }
-            }
-        },
-        "handler.UserResponse": {
+        "auth_interfaces_http.UserResponse": {
             "type": "object",
             "properties": {
                 "email": {
@@ -751,7 +625,165 @@ const docTemplate = `{
                 }
             }
         },
-        "handler.UserStatsResponse": {
+        "exports_interfaces_http.ErrorResponse": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "string",
+                    "example": "unauthorized"
+                }
+            }
+        },
+        "exports_interfaces_http.StartExportRequest": {
+            "type": "object",
+            "properties": {
+                "dataType": {
+                    "type": "string"
+                },
+                "format": {
+                    "type": "string"
+                }
+            }
+        },
+        "exports_interfaces_http.StartExportResponse": {
+            "type": "object",
+            "properties": {
+                "jobId": {
+                    "type": "string"
+                },
+                "message": {
+                    "type": "string"
+                }
+            }
+        },
+        "notifications_interfaces_http.ErrorResponse": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "string",
+                    "example": "unauthorized"
+                }
+            }
+        },
+        "notifications_interfaces_http.MessageResponse": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "type": "string",
+                    "example": "Hello World"
+                }
+            }
+        },
+        "notifications_interfaces_http.Send2FAEnabledNotificationRequest": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "method": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "notifications_interfaces_http.Send2FAOTPRequest": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "otp": {
+                    "type": "string"
+                }
+            }
+        },
+        "notifications_interfaces_http.SendMagicLinkRequest": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "url": {
+                    "type": "string"
+                }
+            }
+        },
+        "notifications_interfaces_http.SendPasskeyAddedNotificationRequest": {
+            "type": "object",
+            "properties": {
+                "device": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "passkeyName": {
+                    "type": "string"
+                }
+            }
+        },
+        "notifications_interfaces_http.SendVerificationEmailRequest": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "url": {
+                    "type": "string"
+                }
+            }
+        },
+        "notifications_interfaces_http.SessionCreatedRequest": {
+            "type": "object",
+            "properties": {
+                "ipAddress": {
+                    "type": "string"
+                },
+                "sessionId": {
+                    "type": "string"
+                },
+                "userAgent": {
+                    "type": "string"
+                },
+                "userId": {
+                    "type": "string"
+                }
+            }
+        },
+        "stats_interfaces_http.ErrorResponse": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "string",
+                    "example": "unauthorized"
+                }
+            }
+        },
+        "stats_interfaces_http.UpdateStatRequest": {
+            "type": "object",
+            "properties": {
+                "delta": {
+                    "type": "integer",
+                    "example": 1
+                },
+                "field": {
+                    "type": "string",
+                    "example": "projects"
+                }
+            }
+        },
+        "stats_interfaces_http.UserStatsResponse": {
             "type": "object",
             "properties": {
                 "activityToday": {

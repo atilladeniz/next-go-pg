@@ -18,7 +18,6 @@ allowed-tools: Read, Glob, Grep, Bash
 ├── better-auth.md      # Better Auth
 ├── gorm.md             # GORM ORM
 ├── gorilla-mux.md      # Gorilla Mux Router
-├── goca.md             # Goca CLI
 ├── orval.md            # Orval API Client Generator
 ├── shadcn.md           # shadcn/ui Components
 ├── tailwind.md         # Tailwind CSS 4

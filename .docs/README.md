@@ -14,7 +14,6 @@ LLM-friendly technical documentation for this project's tech stack.
 ├── better-auth.md      # Better Auth
 ├── gorm.md             # GORM ORM
 ├── gorilla-mux.md      # Gorilla Mux Router
-├── goca.md             # Goca CLI
 ├── orval.md            # Orval API Client Generator
 ├── shadcn.md           # shadcn/ui Components
 ├── tailwind.md         # Tailwind CSS 4
@@ -103,7 +102,6 @@ bun install -g sitefetch
 | Go | 1.23 | `.docs/go.md` |
 | GORM | 2 | `.docs/gorm.md` |
 | Gorilla Mux | latest | `.docs/gorilla-mux.md` |
-| Goca CLI | latest | `.docs/goca.md` |
 | Orval | latest | `.docs/orval.md` |
 | shadcn/ui | latest | `.docs/shadcn.md` |
 | Tailwind CSS | 4 | `.docs/tailwind.md` |

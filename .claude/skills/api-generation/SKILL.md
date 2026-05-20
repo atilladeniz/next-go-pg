@@ -29,7 +29,8 @@ This executes:
 ### Step 1: Go Handler with Swagger Comments
 
 ```go
-// internal/handler/product.go
+// internal/<ctx>/interfaces/http/handler.go
+// (handlers live inside each bounded context — see CLAUDE.md)
 
 // GetProducts godoc
 // @Summary List all products

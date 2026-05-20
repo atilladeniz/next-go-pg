@@ -1,101 +1,18 @@
 basePath: /api/v1
 definitions:
-  handler.ErrorResponse:
+  auth_interfaces_http.ErrorResponse:
     properties:
       error:
         example: unauthorized
         type: string
     type: object
-  handler.MessageResponse:
+  auth_interfaces_http.MessageResponse:
     properties:
       message:
         example: Hello World
         type: string
     type: object
-  handler.Send2FAEnabledNotificationRequest:
-    properties:
-      email:
-        type: string
-      method:
-        type: string
-      name:
-        type: string
-    type: object
-  handler.Send2FAOTPRequest:
-    properties:
-      email:
-        type: string
-      name:
-        type: string
-      otp:
-        type: string
-    type: object
-  handler.SendMagicLinkRequest:
-    properties:
-      email:
-        type: string
-      url:
-        type: string
-    type: object
-  handler.SendPasskeyAddedNotificationRequest:
-    properties:
-      device:
-        type: string
-      email:
-        type: string
-      name:
-        type: string
-      passkeyName:
-        type: string
-    type: object
-  handler.SendVerificationEmailRequest:
-    properties:
-      email:
-        type: string
-      name:
-        type: string
-      url:
-        type: string
-    type: object
-  handler.SessionCreatedRequest:
-    properties:
-      ipAddress:
-        type: string
-      sessionId:
-        type: string
-      userAgent:
-        type: string
-      userId:
-        type: string
-    type: object
-  handler.StartExportRequest:
-    properties:
-      dataType:
-        description: '"stats", "activity", or "all"'
-        type: string
-      format:
-        description: '"csv" or "json"'
-        type: string
-    type: object
-  handler.StartExportResponse:
-    properties:
-      jobId:
-        type: string
-      message:
-        type: string
-    type: object
-  handler.UpdateStatRequest:
-    properties:
-      delta:
-        description: +1 or -1
-        example: 1
-        type: integer
-      field:
-        description: '"projects", "activity", "notifications"'
-        example: projects
-        type: string
-    type: object
-  handler.UserResponse:
+  auth_interfaces_http.UserResponse:
     properties:
       email:
         example: john@example.com
@@ -107,7 +24,110 @@ definitions:
         example: John Doe
         type: string
     type: object
-  handler.UserStatsResponse:
+  exports_interfaces_http.ErrorResponse:
+    properties:
+      error:
+        example: unauthorized
+        type: string
+    type: object
+  exports_interfaces_http.StartExportRequest:
+    properties:
+      dataType:
+        type: string
+      format:
+        type: string
+    type: object
+  exports_interfaces_http.StartExportResponse:
+    properties:
+      jobId:
+        type: string
+      message:
+        type: string
+    type: object
+  notifications_interfaces_http.ErrorResponse:
+    properties:
+      error:
+        example: unauthorized
+        type: string
+    type: object
+  notifications_interfaces_http.MessageResponse:
+    properties:
+      message:
+        example: Hello World
+        type: string
+    type: object
+  notifications_interfaces_http.Send2FAEnabledNotificationRequest:
+    properties:
+      email:
+        type: string
+      method:
+        type: string
+      name:
+        type: string
+    type: object
+  notifications_interfaces_http.Send2FAOTPRequest:
+    properties:
+      email:
+        type: string
+      name:
+        type: string
+      otp:
+        type: string
+    type: object
+  notifications_interfaces_http.SendMagicLinkRequest:
+    properties:
+      email:
+        type: string
+      url:
+        type: string
+    type: object
+  notifications_interfaces_http.SendPasskeyAddedNotificationRequest:
+    properties:
+      device:
+        type: string
+      email:
+        type: string
+      name:
+        type: string
+      passkeyName:
+        type: string
+    type: object
+  notifications_interfaces_http.SendVerificationEmailRequest:
+    properties:
+      email:
+        type: string
+      name:
+        type: string
+      url:
+        type: string
+    type: object
+  notifications_interfaces_http.SessionCreatedRequest:
+    properties:
+      ipAddress:
+        type: string
+      sessionId:
+        type: string
+      userAgent:
+        type: string
+      userId:
+        type: string
+    type: object
+  stats_interfaces_http.ErrorResponse:
+    properties:
+      error:
+        example: unauthorized
+        type: string
+    type: object
+  stats_interfaces_http.UpdateStatRequest:
+    properties:
+      delta:
+        example: 1
+        type: integer
+      field:
+        example: projects
+        type: string
+    type: object
+  stats_interfaces_http.UserStatsResponse:
     properties:
       activityToday:
         type: integer
@@ -148,7 +168,7 @@ paths:
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/handler.ErrorResponse'
+            $ref: '#/definitions/exports_interfaces_http.ErrorResponse'
       summary: Download a completed export
       tags:
       - export
@@ -163,22 +183,22 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/handler.StartExportRequest'
+          $ref: '#/definitions/exports_interfaces_http.StartExportRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/handler.StartExportResponse'
+            $ref: '#/definitions/exports_interfaces_http.StartExportResponse'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/handler.ErrorResponse'
+            $ref: '#/definitions/exports_interfaces_http.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/handler.ErrorResponse'
+            $ref: '#/definitions/exports_interfaces_http.ErrorResponse'
       summary: Start a data export job
       tags:
       - export
@@ -193,7 +213,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/handler.MessageResponse'
+            $ref: '#/definitions/auth_interfaces_http.MessageResponse'
       summary: Public hello endpoint
       tags:
       - public
@@ -208,11 +228,11 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/handler.UserResponse'
+            $ref: '#/definitions/auth_interfaces_http.UserResponse'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/handler.ErrorResponse'
+            $ref: '#/definitions/auth_interfaces_http.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Get current user
@@ -229,11 +249,11 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/handler.MessageResponse'
+            $ref: '#/definitions/auth_interfaces_http.MessageResponse'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/handler.ErrorResponse'
+            $ref: '#/definitions/auth_interfaces_http.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Protected hello endpoint
@@ -250,11 +270,11 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/handler.UserStatsResponse'
+            $ref: '#/definitions/stats_interfaces_http.UserStatsResponse'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/handler.ErrorResponse'
+            $ref: '#/definitions/stats_interfaces_http.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Get user statistics
@@ -270,22 +290,22 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/handler.UpdateStatRequest'
+          $ref: '#/definitions/stats_interfaces_http.UpdateStatRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/handler.UserStatsResponse'
+            $ref: '#/definitions/stats_interfaces_http.UserStatsResponse'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/handler.ErrorResponse'
+            $ref: '#/definitions/stats_interfaces_http.ErrorResponse'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/handler.ErrorResponse'
+            $ref: '#/definitions/stats_interfaces_http.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Update user statistics
@@ -307,22 +327,22 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/handler.Send2FAEnabledNotificationRequest'
+          $ref: '#/definitions/notifications_interfaces_http.Send2FAEnabledNotificationRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/handler.MessageResponse'
+            $ref: '#/definitions/notifications_interfaces_http.MessageResponse'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/handler.ErrorResponse'
+            $ref: '#/definitions/notifications_interfaces_http.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/handler.ErrorResponse'
+            $ref: '#/definitions/notifications_interfaces_http.ErrorResponse'
       summary: Send 2FA enabled notification
       tags:
       - webhooks
@@ -342,22 +362,22 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/handler.Send2FAOTPRequest'
+          $ref: '#/definitions/notifications_interfaces_http.Send2FAOTPRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/handler.MessageResponse'
+            $ref: '#/definitions/notifications_interfaces_http.MessageResponse'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/handler.ErrorResponse'
+            $ref: '#/definitions/notifications_interfaces_http.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/handler.ErrorResponse'
+            $ref: '#/definitions/notifications_interfaces_http.ErrorResponse'
       summary: Send 2FA OTP email
       tags:
       - webhooks
@@ -377,22 +397,22 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/handler.SendMagicLinkRequest'
+          $ref: '#/definitions/notifications_interfaces_http.SendMagicLinkRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/handler.MessageResponse'
+            $ref: '#/definitions/notifications_interfaces_http.MessageResponse'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/handler.ErrorResponse'
+            $ref: '#/definitions/notifications_interfaces_http.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/handler.ErrorResponse'
+            $ref: '#/definitions/notifications_interfaces_http.ErrorResponse'
       summary: Send magic link email
       tags:
       - webhooks
@@ -412,22 +432,22 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/handler.SendPasskeyAddedNotificationRequest'
+          $ref: '#/definitions/notifications_interfaces_http.SendPasskeyAddedNotificationRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/handler.MessageResponse'
+            $ref: '#/definitions/notifications_interfaces_http.MessageResponse'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/handler.ErrorResponse'
+            $ref: '#/definitions/notifications_interfaces_http.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/handler.ErrorResponse'
+            $ref: '#/definitions/notifications_interfaces_http.ErrorResponse'
       summary: Send passkey added notification
       tags:
       - webhooks
@@ -447,22 +467,22 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/handler.SendVerificationEmailRequest'
+          $ref: '#/definitions/notifications_interfaces_http.SendVerificationEmailRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/handler.MessageResponse'
+            $ref: '#/definitions/notifications_interfaces_http.MessageResponse'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/handler.ErrorResponse'
+            $ref: '#/definitions/notifications_interfaces_http.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/handler.ErrorResponse'
+            $ref: '#/definitions/notifications_interfaces_http.ErrorResponse'
       summary: Send verification email
       tags:
       - webhooks
@@ -483,22 +503,22 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/handler.SessionCreatedRequest'
+          $ref: '#/definitions/notifications_interfaces_http.SessionCreatedRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/handler.MessageResponse'
+            $ref: '#/definitions/notifications_interfaces_http.MessageResponse'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/handler.ErrorResponse'
+            $ref: '#/definitions/notifications_interfaces_http.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/handler.ErrorResponse'
+            $ref: '#/definitions/notifications_interfaces_http.ErrorResponse'
       summary: Handle new session webhook
       tags:
       - webhooks

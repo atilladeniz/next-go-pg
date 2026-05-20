@@ -19,9 +19,8 @@ This runs:
 
 ## When to run
 
-- After adding/modifying Handler endpoints
+- After adding/modifying handler endpoints (e.g. in `backend/internal/<ctx>/interfaces/http/`)
 - After changing Swagger comments (`@Summary`, `@Router`, etc.)
-- After running `goca feature` or `goca make handler`
 
 ## Generated Files
 

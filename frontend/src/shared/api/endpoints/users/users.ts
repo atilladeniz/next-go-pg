@@ -25,10 +25,11 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
-  HandlerErrorResponse,
-  HandlerUpdateStatRequest,
-  HandlerUserResponse,
-  HandlerUserStatsResponse
+  AuthInterfacesHttpErrorResponse,
+  AuthInterfacesHttpUserResponse,
+  StatsInterfacesHttpErrorResponse,
+  StatsInterfacesHttpUpdateStatRequest,
+  StatsInterfacesHttpUserStatsResponse
 } from '../../models';
 
 import { customFetch } from '../../custom-fetch';
@@ -43,12 +44,12 @@ type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
  * @summary Get current user
  */
 export type getMeResponse200 = {
-  data: HandlerUserResponse
+  data: AuthInterfacesHttpUserResponse
   status: 200
 }
 
 export type getMeResponse401 = {
-  data: HandlerErrorResponse
+  data: AuthInterfacesHttpErrorResponse
   status: 401
 }
     
@@ -91,7 +92,7 @@ export const getGetMeQueryKey = () => {
     }
 
     
-export const getGetMeQueryOptions = <TData = Awaited<ReturnType<typeof getMe>>, TError = HandlerErrorResponse>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMe>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+export const getGetMeQueryOptions = <TData = Awaited<ReturnType<typeof getMe>>, TError = AuthInterfacesHttpErrorResponse>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMe>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
@@ -110,10 +111,10 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 }
 
 export type GetMeQueryResult = NonNullable<Awaited<ReturnType<typeof getMe>>>
-export type GetMeQueryError = HandlerErrorResponse
+export type GetMeQueryError = AuthInterfacesHttpErrorResponse
 
 
-export function useGetMe<TData = Awaited<ReturnType<typeof getMe>>, TError = HandlerErrorResponse>(
+export function useGetMe<TData = Awaited<ReturnType<typeof getMe>>, TError = AuthInterfacesHttpErrorResponse>(
   options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMe>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof getMe>>,
@@ -123,7 +124,7 @@ export function useGetMe<TData = Awaited<ReturnType<typeof getMe>>, TError = Han
       >, request?: SecondParameter<typeof customFetch>}
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useGetMe<TData = Awaited<ReturnType<typeof getMe>>, TError = HandlerErrorResponse>(
+export function useGetMe<TData = Awaited<ReturnType<typeof getMe>>, TError = AuthInterfacesHttpErrorResponse>(
   options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMe>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof getMe>>,
@@ -133,7 +134,7 @@ export function useGetMe<TData = Awaited<ReturnType<typeof getMe>>, TError = Han
       >, request?: SecondParameter<typeof customFetch>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useGetMe<TData = Awaited<ReturnType<typeof getMe>>, TError = HandlerErrorResponse>(
+export function useGetMe<TData = Awaited<ReturnType<typeof getMe>>, TError = AuthInterfacesHttpErrorResponse>(
   options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMe>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
@@ -141,7 +142,7 @@ export function useGetMe<TData = Awaited<ReturnType<typeof getMe>>, TError = Han
  * @summary Get current user
  */
 
-export function useGetMe<TData = Awaited<ReturnType<typeof getMe>>, TError = HandlerErrorResponse>(
+export function useGetMe<TData = Awaited<ReturnType<typeof getMe>>, TError = AuthInterfacesHttpErrorResponse>(
   options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMe>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
  , queryClient?: QueryClient 
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
@@ -163,12 +164,12 @@ export function useGetMe<TData = Awaited<ReturnType<typeof getMe>>, TError = Han
  * @summary Get user statistics
  */
 export type getStatsResponse200 = {
-  data: HandlerUserStatsResponse
+  data: StatsInterfacesHttpUserStatsResponse
   status: 200
 }
 
 export type getStatsResponse401 = {
-  data: HandlerErrorResponse
+  data: StatsInterfacesHttpErrorResponse
   status: 401
 }
     
@@ -211,7 +212,7 @@ export const getGetStatsQueryKey = () => {
     }
 
     
-export const getGetStatsQueryOptions = <TData = Awaited<ReturnType<typeof getStats>>, TError = HandlerErrorResponse>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getStats>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+export const getGetStatsQueryOptions = <TData = Awaited<ReturnType<typeof getStats>>, TError = StatsInterfacesHttpErrorResponse>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getStats>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
@@ -230,10 +231,10 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 }
 
 export type GetStatsQueryResult = NonNullable<Awaited<ReturnType<typeof getStats>>>
-export type GetStatsQueryError = HandlerErrorResponse
+export type GetStatsQueryError = StatsInterfacesHttpErrorResponse
 
 
-export function useGetStats<TData = Awaited<ReturnType<typeof getStats>>, TError = HandlerErrorResponse>(
+export function useGetStats<TData = Awaited<ReturnType<typeof getStats>>, TError = StatsInterfacesHttpErrorResponse>(
   options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getStats>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof getStats>>,
@@ -243,7 +244,7 @@ export function useGetStats<TData = Awaited<ReturnType<typeof getStats>>, TError
       >, request?: SecondParameter<typeof customFetch>}
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useGetStats<TData = Awaited<ReturnType<typeof getStats>>, TError = HandlerErrorResponse>(
+export function useGetStats<TData = Awaited<ReturnType<typeof getStats>>, TError = StatsInterfacesHttpErrorResponse>(
   options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getStats>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof getStats>>,
@@ -253,7 +254,7 @@ export function useGetStats<TData = Awaited<ReturnType<typeof getStats>>, TError
       >, request?: SecondParameter<typeof customFetch>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useGetStats<TData = Awaited<ReturnType<typeof getStats>>, TError = HandlerErrorResponse>(
+export function useGetStats<TData = Awaited<ReturnType<typeof getStats>>, TError = StatsInterfacesHttpErrorResponse>(
   options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getStats>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
@@ -261,7 +262,7 @@ export function useGetStats<TData = Awaited<ReturnType<typeof getStats>>, TError
  * @summary Get user statistics
  */
 
-export function useGetStats<TData = Awaited<ReturnType<typeof getStats>>, TError = HandlerErrorResponse>(
+export function useGetStats<TData = Awaited<ReturnType<typeof getStats>>, TError = StatsInterfacesHttpErrorResponse>(
   options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getStats>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
  , queryClient?: QueryClient 
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
@@ -283,17 +284,17 @@ export function useGetStats<TData = Awaited<ReturnType<typeof getStats>>, TError
  * @summary Update user statistics
  */
 export type postStatsResponse200 = {
-  data: HandlerUserStatsResponse
+  data: StatsInterfacesHttpUserStatsResponse
   status: 200
 }
 
 export type postStatsResponse400 = {
-  data: HandlerErrorResponse
+  data: StatsInterfacesHttpErrorResponse
   status: 400
 }
 
 export type postStatsResponse401 = {
-  data: HandlerErrorResponse
+  data: StatsInterfacesHttpErrorResponse
   status: 401
 }
     
@@ -314,7 +315,7 @@ export const getPostStatsUrl = () => {
   return `http://localhost:8080/api/v1/stats`
 }
 
-export const postStats = async (handlerUpdateStatRequest: HandlerUpdateStatRequest, options?: RequestInit): Promise<postStatsResponse> => {
+export const postStats = async (statsInterfacesHttpUpdateStatRequest: StatsInterfacesHttpUpdateStatRequest, options?: RequestInit): Promise<postStatsResponse> => {
   
   return customFetch<postStatsResponse>(getPostStatsUrl(),
   {      
@@ -322,16 +323,16 @@ export const postStats = async (handlerUpdateStatRequest: HandlerUpdateStatReque
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
     body: JSON.stringify(
-      handlerUpdateStatRequest,)
+      statsInterfacesHttpUpdateStatRequest,)
   }
 );}
 
 
 
 
-export const getPostStatsMutationOptions = <TError = HandlerErrorResponse,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postStats>>, TError,{data: HandlerUpdateStatRequest}, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof postStats>>, TError,{data: HandlerUpdateStatRequest}, TContext> => {
+export const getPostStatsMutationOptions = <TError = StatsInterfacesHttpErrorResponse,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postStats>>, TError,{data: StatsInterfacesHttpUpdateStatRequest}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof postStats>>, TError,{data: StatsInterfacesHttpUpdateStatRequest}, TContext> => {
 
 const mutationKey = ['postStats'];
 const {mutation: mutationOptions, request: requestOptions} = options ?
@@ -343,7 +344,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       
 
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof postStats>>, {data: HandlerUpdateStatRequest}> = (props) => {
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof postStats>>, {data: StatsInterfacesHttpUpdateStatRequest}> = (props) => {
           const {data} = props ?? {};
 
           return  postStats(data,requestOptions)
@@ -355,18 +356,18 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
   return  { mutationFn, ...mutationOptions }}
 
     export type PostStatsMutationResult = NonNullable<Awaited<ReturnType<typeof postStats>>>
-    export type PostStatsMutationBody = HandlerUpdateStatRequest
-    export type PostStatsMutationError = HandlerErrorResponse
+    export type PostStatsMutationBody = StatsInterfacesHttpUpdateStatRequest
+    export type PostStatsMutationError = StatsInterfacesHttpErrorResponse
 
     /**
  * @summary Update user statistics
  */
-export const usePostStats = <TError = HandlerErrorResponse,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postStats>>, TError,{data: HandlerUpdateStatRequest}, TContext>, request?: SecondParameter<typeof customFetch>}
+export const usePostStats = <TError = StatsInterfacesHttpErrorResponse,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postStats>>, TError,{data: StatsInterfacesHttpUpdateStatRequest}, TContext>, request?: SecondParameter<typeof customFetch>}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof postStats>>,
         TError,
-        {data: HandlerUpdateStatRequest},
+        {data: StatsInterfacesHttpUpdateStatRequest},
         TContext
       > => {
 
