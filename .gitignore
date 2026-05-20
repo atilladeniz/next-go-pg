@@ -47,6 +47,6 @@ coverage/
 backend/server
 
 # Kamal Deployment Secrets
-deploy/.kamal/secrets
-!deploy/.kamal/secrets.example
+infra/kamal/secrets
+!infra/kamal/secrets.example
 .embeddings-cache.json
