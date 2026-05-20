@@ -3,16 +3,22 @@
 **Date:** 2026-05-20
 **Status:** Decision recorded — implementation gated on the first
 concrete AI workflow proposal.
-**Decision:** **Adopt Hatchet** as the workflow engine for AI agent
-features. Keep River for the existing stateless email + export jobs
-*during the transition*; migrate them after the first AI workflow
-proves the stack on Kamal. **Do not start two systems in parallel as
-a permanent state.**
+**Decision:** **Adopt Hatchet (via `hatchet-lite`)** as the workflow
+engine for AI agent features. **Keep River for one-shot stateless work
+(emails, exports) — permanently, not transitionally.** Two queues,
+one Postgres, separate concerns by workload shape. Do **not** adopt
+DBOS Transact in production yet — re-evaluate Nov 2026.
 
 This document is the deliverable of issue #57. It is a *decision-support
 artifact* — the implementation will land in follow-up issues, gated on
 the first concrete AI workflow proposal (e.g. a DeepWiki-style code
 indexer, an agentic researcher, a multi-step LLM pipeline).
+
+**Reference research (May 18 2026):** A deep dive on production-state of
+DBOS Transact Go, Hatchet operational reality on small infra, and
+head-to-head migration from River informed this version. Cited
+empirical claims below come from that research; vendor-marketing
+claims are explicitly excluded.
 
 ---
 
@@ -95,14 +101,49 @@ own codebase.
   already know how to back it up
   ([`.docs/disaster-recovery.md`](./disaster-recovery.md)), monitor
   it, restore it. No Redis, no Cassandra, no separate state store.
-- **Self-host story is single-binary + Postgres.** Drops cleanly into
-  `infra/kamal/deploy.yml` as an accessory, like Loki and Grafana
-  already are.
-- **Bundled observability** (log ingestor + OTel collector) can pipe
-  into our existing Loki / Grafana stack (`infra/loki/`,
-  `infra/grafana/`).
+- **Self-host story is single-binary + Postgres.** The `hatchet-lite`
+  image bundles engine + API + dashboard + migrator into one Docker
+  image. Drops cleanly into `infra/kamal/deploy.yml` as an accessory,
+  like Loki and Grafana already are. Ports: 7077 (gRPC, internal
+  only), 8888 (dashboard).
+- **Replay UI is built in.** Dashboard on `:8888` shows every step's
+  input/output, retry counts, durations, with re-run-from-UI. This
+  is the killer feature for debugging multi-step LLM pipelines that
+  River fundamentally cannot provide.
 - **No per-workflow spawn limit** (Temporal caps at 51,200 spawned
   tasks per workflow — fine for now, but a known ceiling).
+- **Postgres-only mode is supported.** For sub-100 events/sec
+  (well above our scale), Hatchet can skip RabbitMQ entirely and use
+  Postgres as the message queue — one less moving part.
+
+### Caveats (operational reality, not marketing)
+
+These are real findings from production reports, not vendor pages:
+
+- **Write amplification.** Per Hatchet's founder on HN, every task is
+  *at minimum 5 Postgres transactions*. At DeepWiki-pipeline scale
+  with 500 fan-out embed-file steps, that's ~2,500 transactions just
+  for the embedding stage. Fine on our scale; verify Postgres
+  `max_connections` accommodates Hatchet's default
+  `DATABASE_MAX_CONNS=50` plus our app's pool.
+- **OTel for Go is not yet shipped.** Per Hatchet docs (May 2026):
+  "OpenTelemetry support is currently only available for the Python
+  SDK." For Go workers, log shipping is **stdout → Promtail → Loki**,
+  same path we already use for the app. No auto-instrumented trace
+  export. Worker spans are missing; engine logs and the dashboard
+  cover the observability gap in practice.
+- **`hatchet-lite` is officially "for development and low-volume
+  use-cases".** That's our scale exactly, but it means the moment
+  we go horizontal we'd switch to the full distributed deployment
+  (separate engine / API / queue containers, RabbitMQ back in the
+  loop). Not today's problem.
+- **GRPC broadcast address is sticky.** Per docs: "modifying the GRPC
+  broadcast address or server URL will require re-issuing an API
+  token." Pin the address in Kamal config from day one.
+- **Idle footprint is not published.** No vendor-published "MB RAM
+  idle" figure exists for `hatchet-lite` [unverified]. Validation
+  step: run a 24-hour measurement on the smallest VPS before
+  committing to a server SKU.
 
 ### Why not Temporal
 
@@ -135,6 +176,46 @@ Modern durable-promise model, Rust core, interesting design. Too new
 (small ecosystem, fewer production deployments) to bet on for core
 infrastructure right now. Watch for the future.
 
+### Why not DBOS Transact (Go) — yet
+
+DBOS Transact's library-only model is genuinely elegant: import a Go
+library, point at Postgres, annotate workflow functions. Zero new
+infrastructure containers, single binary, same datastore as the app.
+For a Postgres-first stack like ours that is structurally attractive.
+On the technical primitives it covers what we need — per-step retry
+policies (`WithStepMaxRetries`, `WithBaseInterval`,
+`WithBackoffFactor`, `WithMaxInterval`), durable fan-out via
+`dbos.Go(...)` and `dbos.Select(...)`, queues for stateless work,
+cron schedules, and workflow patching for breaking changes.
+
+What rules it out for May 2026 adoption:
+
+1. **Workflow UI is paywalled.** Per `docs.dbos.dev`: self-hosted
+   Conductor is "released under a proprietary license. Commercial or
+   production use requires a paid license key." The free tier is
+   capped at one executor. The OSS escape hatch is "build a Grafana
+   dashboard on the `dbos.*` Postgres tables" — workable, but tax we
+   did not plan for. Hatchet ships its dashboard for free.
+2. **Maturity gap.** `dbos-inc/dbos-transact-golang` was at v0.11.0
+   (Feb 10 2026) at research time — still pre-1.0 with ~3 months
+   between tags. 682 stars, 58 forks, 6 importers on `pkg.go.dev`,
+   no publicly named Go production users. Go-launch Show HN drew
+   5 points and 1 comment (from the DBOS CEO). The Python and TS
+   SDKs are older and have real adopters; the Go SDK is on its own.
+3. **Workflow versioning is operationally heavy for single-replica
+   deploys.** DBOS recommends blue-green (keep old-version processes
+   alive until in-flight workflows drain). That contradicts our
+   single-replica Kamal posture. The escape hatch — `Patch` /
+   `DeprecatePatch` conditionals at breakage points — adds permanent
+   `if dbos.Patch(...)` noise to workflow code.
+
+**Revisit date: November 2026.** Flip to DBOS for new workflows if
+*all four* are true: (a) DBOS Go is ≥ v1.0, (b) an OSS workflow UI
+ships or Conductor's free tier expands beyond one executor, (c) at
+least two named Go production case studies exist, (d) Hatchet's
+operational overhead (token rotation, dashboard auth resets,
+broadcast-address fragility) costs more than ~1 hour/month sustained.
+
 ---
 
 ## Migration plan
@@ -148,16 +229,32 @@ unexpected.
 Trigger: an AI feature lands in the roadmap (e.g. issue
 *"Add code-indexer workflow"*).
 
-- Deploy Hatchet engine + one worker as a Kamal accessory in
-  `infra/kamal/deploy.yml`. Use a dedicated Postgres database to
-  avoid sharing the app DB on a brand-new system. Revisit DB-sharing
-  in Phase 4.
-- Wire Hatchet's OTel collector into the existing Loki / Grafana
-  stack. If that fails, the migration pauses for an observability
-  decision before we ship the first workflow.
+- Add **`hatchet-lite`** as a Kamal accessory in
+  `infra/kamal/deploy.yml`. Pin to a specific image SHA, not a
+  floating tag. Expose ports 7077 (gRPC, *internal network only* —
+  Tailscale or Docker network) and 8888 (dashboard, behind auth).
+- Provision a **dedicated `hatchet` Postgres database** on the
+  existing instance (separate database, same cluster). Keeps
+  `pg_dump` boundaries clean and isolates Hatchet's table
+  partitioning + autovacuum behaviour from the app schema. The
+  research recommends *against* sharing the app DB until we have
+  Hatchet operational experience.
+- Use **Postgres-only mode** (skip RabbitMQ). Supported up to
+  ~100 events/sec, well above our scale.
+- Generate API token via `hatchet-admin token create --tenant-id …`
+  and store `HATCHET_CLIENT_TOKEN` in Kamal secrets. Pin the GRPC
+  broadcast address — changing it later invalidates the token.
+- **Log shipping: stdout → Promtail → Loki.** Hatchet Go SDK does
+  not have OTel auto-instrumentation in May 2026 (that's Python
+  only). Container logs flow through the same Promtail config we
+  already use for the app; the dashboard at `:8888` covers per-step
+  observability that OTel traces would otherwise provide.
 - Build *one* trivial 3-step workflow as a smoke test
   (`Clone → ListFiles → Done`). Confirm engine starts, worker
-  registers, workflow durably resumes if killed mid-step.
+  registers, workflow durably resumes if killed mid-step. Bonus
+  validation: 24-hour idle measurement to characterize the actual
+  RAM/CPU footprint of `hatchet-lite` (no vendor-published figure
+  exists [unverified]).
 - Confirm Kamal deploy story works end-to-end (build, deploy,
   rollback, accessory boot).
 
@@ -168,34 +265,58 @@ Trigger: Phase 1 PoC is green.
 - Build the actual feature (e.g. DeepWiki-style indexer) as a
   Hatchet workflow with proper step boundaries (Clone, Embed,
   RagIndex, GenerateDocs).
-- Each step has its own retry policy + timeout. Embedding step
-  fans out per file.
+- Each step has its own retry policy + timeout. Set
+  `Retries: 5` with exponential backoff on the embed step so paid
+  embedding tokens are never re-spent after a successful
+  per-file completion. Cheaper, idempotent steps (clone, index)
+  use `Retries: 2-3` linear.
+- Embedding step fans out per file. Watch for Postgres write
+  amplification: ~5 transactions per task × N parallel embed
+  steps. At our scale, fine; verify autovacuum on the `hatchet`
+  database stays healthy.
 - River keeps running for the existing email + export jobs —
-  unchanged. **No two-system-as-target state**, this is an
-  *explicit transition state*.
+  unchanged. **The two-system arrangement is the target state**,
+  not a transition. See Phase 3 for the rationale.
 - Production-bake the workflow for one cycle (1–2 weeks of real
   use) before moving on.
 
-### Phase 3 — Validate Hatchet ergonomics for trivial 1-step jobs (kill criterion)
+### Phase 3 — Confirm the two-system target state is right
 
 Trigger: Phase 2 is stable in production.
 
+The expected outcome here is **not consolidation onto Hatchet**.
+Research and Hatchet's own founder on HN both confirm what we'd
+suspect from looking at the code: a one-shot job is structurally a
+River job, not a workflow. The 30-line River worker stays lighter
+than the equivalent Hatchet code plus container + token + ports.
+This phase exists to *verify* that hypothesis on our specific stack,
+not to consolidate.
+
 - Rewrite **one** River job — recommend `send_magic_link` because
-  it is the smallest — as a 1-step Hatchet workflow.
+  it is the smallest — as a 1-step Hatchet workflow. Keep the River
+  version running on a feature flag; do not delete it.
 - Compare side-by-side: lines of code, deploy story, monitoring
-  surface, latency P99. Be honest in the comparison; do not
-  rationalize.
-- **Decision gate:**
-  - If 1-step DX is fine → proceed to Phase 4.
-  - If 1-step Hatchet feels visibly heavier than the current
-    ~30-line River worker → **stop**. Scope Hatchet to AI
-    workflows only, keep River for stateless jobs, accept
-    the two-system debt with eyes open.
+  surface, latency P99 (Hatchet's 5-Postgres-tx-per-task floor
+  matters here). Be honest in the comparison; do not rationalize.
+- **Expected outcome:** Hatchet feels heavier for the simple case.
+  Confirmed empirically, keep River for one-shot stateless work,
+  remove the experimental Hatchet send-magic-link, document the
+  comparison in this file.
+- **Only-if-surprised path:** If Hatchet 1-step DX is genuinely
+  competitive with River (lines of code, deploy ergonomics, idle
+  cost) — *and* the operational overhead of running both systems
+  exceeds the savings of keeping River — reopen the consolidation
+  question as Phase 4.
 
-### Phase 4 — Migrate remaining River jobs (only if Phase 3 passes)
+### Phase 4 — Consolidation (unlikely, conditional)
 
-Trigger: Phase 3 confirms Hatchet ergonomics are acceptable for the
-simple case.
+Trigger: Phase 3 surprises us by showing 1-step Hatchet is competitive
+with River *and* two-system operational cost is real.
+
+Default assumption: this phase never runs. Two queues, one Postgres,
+separate concerns is the target state.
+
+If it does run:
 
 - Migrate in order of risk: `verification_email` → `2fa_otp` →
   `login_notification` → `data_export`.
@@ -203,8 +324,8 @@ simple case.
   export job still works (this is the most complex existing job).
 - Once all River jobs are migrated and stable for one production
   cycle, remove River from `composition.Build`, `infra/kamal/`,
-  and `.docs/`. Update `.docs/orchestrator-decision.md` to reflect
-  consolidation complete.
+  and `.docs/`. Update this document to reflect consolidation
+  complete.
 
 ---
 
@@ -213,17 +334,31 @@ simple case.
 Stop the migration and revisit if any of these fire during the
 relevant phase:
 
-- **Phase 1:** Hatchet engine cannot deploy cleanly on Kamal *or*
-  its OTel collector cannot be wired into our Loki stack.
+- **Phase 1:** `hatchet-lite` cannot deploy cleanly on Kamal *or*
+  the stdout-log shipping path to Loki via Promtail breaks *or* idle
+  RAM/CPU footprint exceeds what fits on the current VPS SKU.
 - **Phase 2:** The first real AI workflow has more orchestration
   pain than expected — e.g. fan-out cancellation does not propagate,
   durable replay loses inputs, the SDK forces structural changes we
   do not want.
-- **Phase 3:** 1-step workflow ergonomics are visibly worse than
-  River — see kill clause in the phase description.
-- **Any phase:** Postgres load on the shared cluster (if we share) or
-  on the dedicated Hatchet DB exceeds what our single-replica Kamal
-  can handle.
+- **Phase 3:** Already the expected outcome — Hatchet 1-step is
+  heavier than River. No migration triggered. *Surprise* in this
+  phase (Hatchet 1-step truly competitive) flips us toward Phase 4.
+- **Any phase, Postgres health:**
+  - Steady CPU on the cluster exceeds 30% during normal AI-workflow
+    load. Hatchet's 5-transactions-per-task floor multiplied by
+    fan-out can move this number fast.
+  - Connection count exceeds budget. Hatchet defaults to
+    `DATABASE_MAX_CONNS=50`; verify Postgres `max_connections`
+    accommodates that plus the app pool plus headroom.
+  - Autovacuum on the `hatchet` database falls behind. Tune per
+    Hatchet's docs if we cross ~500 GB of run data (we won't, for
+    a long time).
+
+If the AI workflow drives sustained throughput past ~500 events/sec,
+the whole question gets reopened — Hatchet's own benchmarks show DB
+CPU climbing fast past 1000–2000 runs/sec, and at that point we'd
+also be re-evaluating Temporal.
 
 ---
 
@@ -256,9 +391,33 @@ relevant phase:
 - [`.docs/river.md`](./river.md) — current job-queue stack
 - [`.docs/background-jobs.md`](./background-jobs.md) — current job
   patterns
+
+### Engine source / docs
+
 - [Hatchet GitHub](https://github.com/hatchet-dev/hatchet) — engine
   + Go SDK source
+- [`hatchet-lite` image docs](https://docs.hatchet.run/self-hosting/hatchet-lite) —
+  single-container deployment, ports 7077 + 8888
 - [Hatchet: Why Go for agents](https://hatchet.run/blog/go-agents) —
   Go-specific case for the engine
+- [DBOS Transact Go SDK](https://github.com/dbos-inc/dbos-transact-golang) —
+  the library-only alternative on the Nov 2026 revisit list
+
+### Operational reality / production reports
+
+- [Cynco — self-hosting Hatchet on AWS EC2](https://medium.com/@hazqeelafyq/self-host-hatchet-full-stack-app-on-aws) —
+  one of the few public production reports for `hatchet-lite`,
+  Postgres-only mode, sub-100 req/sec workload
+- [HN: Absurd Workflows — Durable Execution with Just Postgres](https://news.ycombinator.com/item?id=45797228) —
+  community discussion of DBOS Conductor paywall and Postgres
+  write-amplification concerns
+- [DBOS Conductor licensing](https://docs.dbos.dev/production/hosting-conductor) —
+  the workflow UI paywall that rules out DBOS for OSS adoption today
+
+### Use-case context
+
 - [Cognition DeepWiki](https://docs.devin.ai/work-with-devin/deepwiki) —
   the kind of AI workflow this decision is sized for
+- [deepwiki-open pipeline](https://deepwiki.com/AsyncFuncAI/deepwiki-open) —
+  five-stage repository-processing pipeline as the canonical example
+  of a multi-step LLM workflow with expensive intermediate state
