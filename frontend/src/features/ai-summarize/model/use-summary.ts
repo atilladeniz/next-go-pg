@@ -12,13 +12,12 @@ export function useRepoSummary(summaryId: number | null) {
 			// missed (tab backgrounded, connection blip). Backstop only;
 			// the primary update path is SSE invalidation.
 			refetchInterval: (q) => {
-				const data = q.state.data as { status?: string } | undefined
-				if (!data) return false
-				if (
-					data.status === "completed" ||
-					data.status === "failed" ||
-					data.status === "cancelled"
-				) {
+				// customFetch wraps the response as { data, status, headers };
+				// the persisted `status` field lives at q.state.data.data.status.
+				const envelope = q.state.data as { data?: { status?: string } } | undefined
+				const status = envelope?.data?.status
+				if (!status) return false
+				if (status === "completed" || status === "failed" || status === "cancelled") {
 					return false
 				}
 				return 5000

@@ -26,8 +26,12 @@ export function SummarizeCard() {
 	const progress = useAIProgress(summaryId)
 	const query = useRepoSummary(summaryId)
 
-	const result =
-		(query.data as AiworkflowsInterfacesHttpRepoSummaryResponse | undefined) ?? undefined
+	// customFetch wraps the response as { data, status, headers }; the real
+	// payload lives at query.data.data.
+	const queryEnvelope = query.data as
+		| { data?: AiworkflowsInterfacesHttpRepoSummaryResponse }
+		| undefined
+	const result = queryEnvelope?.data
 	const isTerminal =
 		result?.status === "completed" || result?.status === "failed" || result?.status === "cancelled"
 
@@ -50,8 +54,13 @@ export function SummarizeCard() {
 		e.preventDefault()
 		setSummaryId(null)
 		try {
-			const response = await mutation.mutateAsync({ data: { repoUrl } })
-			const id = (response as { summaryId?: number }).summaryId
+			// customFetch wraps the body as { data, status, headers } so the
+			// 202 payload's `summaryId` lives at `response.data.summaryId`.
+			const response = (await mutation.mutateAsync({ data: { repoUrl } })) as {
+				data?: { summaryId?: number }
+				status?: number
+			}
+			const id = response?.data?.summaryId
 			if (typeof id === "number") {
 				setSummaryId(id)
 			}
