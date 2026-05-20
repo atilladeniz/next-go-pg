@@ -111,8 +111,7 @@ func (h *Handler) SummarizeRepo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.WriteHeader(http.StatusAccepted)
-	writeJSON(w, SummarizeRepoResponse{
+	writeJSONStatus(w, http.StatusAccepted, SummarizeRepoResponse{
 		SummaryID: out.SummaryID,
 		RunID:     out.RunID,
 		Status:    string(ai.StatusPending),
@@ -195,11 +194,21 @@ func toResponse(s *ai.RepoSummary) RepoSummaryResponse {
 }
 
 func writeJSON(w http.ResponseWriter, payload any) {
+	writeJSONStatus(w, http.StatusOK, payload)
+}
+
+// writeJSONStatus sets Content-Type BEFORE WriteHeader. Reversing the
+// order silently strips the Content-Type header (Go's http.ResponseWriter
+// freezes headers at WriteHeader time), which then makes the frontend
+// `customFetch` fall through to the text branch and return `{message: …}`
+// instead of the parsed JSON body. Symptom: 202 succeeds but the
+// returned `data` object has no `summaryId` field.
+func writeJSONStatus(w http.ResponseWriter, status int, payload any) {
 	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(payload)
 }
 
 func writeError(w http.ResponseWriter, status int, message string) {
-	w.WriteHeader(status)
-	writeJSON(w, ErrorResponse{Error: message})
+	writeJSONStatus(w, status, ErrorResponse{Error: message})
 }

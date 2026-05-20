@@ -53,6 +53,7 @@ export function SummarizeCard() {
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault()
 		setSummaryId(null)
+		console.log("[ai-summarize] submitting", repoUrl)
 		try {
 			// customFetch wraps the body as { data, status, headers } so the
 			// 202 payload's `summaryId` lives at `response.data.summaryId`.
@@ -60,12 +61,16 @@ export function SummarizeCard() {
 				data?: { summaryId?: number }
 				status?: number
 			}
+			console.log("[ai-summarize] response", response)
 			const id = response?.data?.summaryId
 			if (typeof id === "number") {
+				console.log("[ai-summarize] setSummaryId", id)
 				setSummaryId(id)
+			} else {
+				console.warn("[ai-summarize] no summaryId in response.data", response?.data)
 			}
-		} catch {
-			// mutation error surfaces via mutation.error below
+		} catch (err) {
+			console.error("[ai-summarize] mutate failed", err)
 		}
 	}
 
