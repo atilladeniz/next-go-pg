@@ -275,7 +275,6 @@ jobs:
               - 'backend/Dockerfile'
               - 'backend/.dockerignore'
               - 'backend/migrations/**'
-              - 'backend/scripts/**'
               - 'backend/docs/**'
               - 'deploy/**'
               - '.github/workflows/ci.yml'
