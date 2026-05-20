@@ -117,13 +117,13 @@ flowchart TB
     end
 ```
 
-| Layer | Responsibility | Goca Command |
-|-------|----------------|--------------|
-| Handler | HTTP Endpoints, Swagger | `goca make handler` |
-| UseCase | Business Logic | `goca make usecase` |
-| Repository | Data Access | `goca make repository` |
-| Domain | Entities, Rules | `goca make entity` |
-| River Worker | Background Jobs | (custom) |
+| Layer | Responsibility | Source location (per bounded context) |
+|-------|----------------|---------------------------------------|
+| Interfaces (HTTP) | HTTP endpoints + Swagger annotations | `internal/<ctx>/interfaces/http/` |
+| Application (use cases) | Business orchestration via `Execute(ctx, ...)` | `internal/<ctx>/application/` |
+| Infrastructure (repository) | GORM-backed data access, port adapters | `internal/<ctx>/infrastructure/persistence/` |
+| Domain | Aggregates, value objects, domain events | `internal/<ctx>/domain/` |
+| River worker | Background jobs (per context) | `internal/<ctx>/infrastructure/jobs/` |
 
 ### Database Schema
 

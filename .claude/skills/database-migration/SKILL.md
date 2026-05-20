@@ -10,20 +10,21 @@ Manage PostgreSQL database, Better Auth schema, and GORM AutoMigrate.
 
 ## GORM AutoMigrate (Backend)
 
-Nach `goca feature` muss die neue Entity in `backend/internal/domain/registry.go` registriert werden:
+Jeder Bounded Context unter `backend/internal/<ctx>/` hat seine eigene `infrastructure/persistence/registry.go` mit einer `Entities() []any` Funktion. Der Composition Root sammelt die Listen ein:
 
 ```go
-// internal/domain/registry.go
-func AllEntities() []interface{} {
-    return []interface{}{
-        &UserStats{},
-        &NewEntity{},  // Neue Entity hier hinzufuegen
-    }
+// backend/internal/<ctx>/infrastructure/persistence/registry.go
+func Entities() []any {
+    return []any{&gormNewEntity{}}  // GORM-tagged twin der pure-domain Entity
 }
+
+// backend/internal/composition/composition.go (runAutoMigrations)
+entities := []any{}
+entities = append(entities, statspersist.Entities()...)
+entities = append(entities, <newctx>persist.Entities()...)  // ← neu
 ```
 
-Das ist die **EINZIGE** Stelle - `main.go` bleibt unveraendert!
-GORM erstellt die Tabelle automatisch beim Backend-Start.
+Es gibt **keine zentrale Registry** mehr. `cmd/server/main.go` ruft nur `composition.Build` auf — die Migrationen laufen automatisch beim Backend-Start.
 
 ## Database Commands
 

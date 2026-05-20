@@ -71,8 +71,9 @@ db-migrate:
 # ─── Production Migrations (golang-migrate + River) ─────────────
 # These recipes drive `backend/cmd/migrate` and `backend/cmd/river-migrate`
 # directly against the SQL files in `backend/migrations/`. They are NOT
-# part of the dev path — `just dev` boots `cmd/server`, which runs GORM
-# AutoMigrate (from `internal/domain/registry.go`) and River migrations
+# part of the dev path — `just dev` boots `cmd/server`, which calls
+# `composition.Build`, runs GORM AutoMigrate over every context's
+# `infrastructure/persistence/Entities()`, and applies River migrations
 # on startup. Use these `prod-*` recipes for clustered deployments where
 # AutoMigrate is unsafe (multiple replicas racing) and you want a
 # deploy-hook step that owns schema changes.
@@ -192,28 +193,6 @@ swagger:
 api: swagger
     cd frontend && bunx orval
 
-# Generate a new feature with Goca (usage: just goca-feature <Name> "<fields>")
-[group('codegen')]
-goca-feature name fields:
-    #!/usr/bin/env bash
-    set -eu
-    cd backend && ~/go/bin/goca feature "{{ name }}" --fields "{{ fields }}"
-    REGISTRY="{{ justfile_directory() }}/backend/internal/domain/registry.go"
-    if grep -q "&{{ name }}{}" "$REGISTRY" 2>/dev/null; then
-        echo "Entity already in registry"
-    elif [ -f "$REGISTRY" ]; then
-        sed -i '' "s|\(	// AUTO-GENERATED: New entities will be added above this line\)|	\&{{ name }}{},\n\1|" "$REGISTRY"
-        echo "✓ Added &{{ name }}{} to registry.go"
-    else
-        echo "⚠ registry.go not found - add &{{ name }}{} manually"
-    fi
-    echo ""
-    echo "━━━ Next Steps ━━━"
-    echo ""
-    echo "1. Run: just api"
-    echo "2. Run: just dev-backend"
-    echo ""
-
 # ─── Spec-driven Development (OpenSpec) ─────────────────────────
 
 # List active OpenSpec changes
@@ -250,12 +229,11 @@ install: setup-hooks install-tools
     cd frontend && bun install
     cd backend && go mod tidy
 
-# Install required CLI tools (goca, gitleaks, sitefetch)
+# Install required CLI tools (gitleaks, sitefetch)
 [group('setup')]
 install-tools:
     #!/usr/bin/env bash
     echo "📦 Checking CLI tools..."
-    command -v goca >/dev/null 2>&1 || { echo "Installing goca..." && go install github.com/sazardev/goca@latest; }
     command -v gitleaks >/dev/null 2>&1 || { echo "Installing gitleaks..." && brew install gitleaks 2>/dev/null || echo "  Skip: brew not available"; }
     command -v sitefetch >/dev/null 2>&1 || { echo "Installing sitefetch..." && bun install -g sitefetch 2>/dev/null || npm install -g sitefetch; }
     echo "✓ CLI tools ready"

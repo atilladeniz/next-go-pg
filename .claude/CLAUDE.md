@@ -12,7 +12,6 @@ For everything else: **check `.docs/` first** before searching the internet:
 .docs/
 ├── tanstack-query.md   # TanStack Query / React Query
 ├── better-auth.md      # Better Auth
-├── sazardev-goca.md    # Goca CLI (Go Clean Architecture)
 ├── kamal-deploy.md     # Kamal Deployment (Docker)
 ├── logging.md          # Logging (zerolog + Pino)
 ├── river.md            # River Job Queue
@@ -50,8 +49,7 @@ Full-Stack Monorepo with Next.js 16 Frontend and Go Backend, PostgreSQL database
 
 - **Language**: Go
 - **Framework**: Gorilla Mux Router
-- **Architecture**: Clean Architecture (Handler → Usecase → Repository → Domain)
-- **Code Generator**: **Goca CLI** (Go Clean Architecture)
+- **Architecture**: Bounded Contexts + Clean Architecture (DDD) — see "Backend Architecture" below
 - **ORM**: GORM
 - **Auth**: Better Auth Session Validation
 - **API Docs**: Swagger/swag
@@ -67,63 +65,13 @@ Full-Stack Monorepo with Next.js 16 Frontend and Go Backend, PostgreSQL database
 
 ---
 
-## IMPORTANT: Goca for Backend Development
+## IMPORTANT: Backend Architecture (DDD)
 
-### What is Goca?
+The backend used to be scaffolded with Goca. That tool's flat-layer output (`internal/{domain,usecase,repository,handler}`) is structurally incompatible with the bounded-context layout below — `path:` is ignored by the CLI, there is no flag to override output, and porting the generated files takes longer than writing them by hand. **Goca was removed from the toolchain on `refactor/backend-clean-architecture`. Do not reintroduce it. Do not run `goca` against this repo.**
 
-Goca is a CLI tool for Go Clean Architecture code generation. It generates consistent, type-safe code structures with correct import paths.
+### Adding a new aggregate — the only workflow
 
-### When to use Goca?
-
-**ALWAYS** when creating new structures in the backend:
-
-| Task | Goca Command |
-|------|--------------|
-| New Entity/Model | `goca make entity <Name>` |
-| New Repository | `goca make repository <Name>` |
-| New UseCase | `goca make usecase <Name>` |
-| New Handler | `goca make handler <Name>` |
-| Complete Feature | `goca feature <Name> --fields "..."` |
-
-### Goca Commands
-
-```bash
-# Run in backend/ directory!
-cd backend
-
-# Create Entity (Domain Layer)
-goca make entity UserStats
-
-# Create Repository (Data Layer)
-goca make repository UserStats
-
-# Create UseCase (Business Logic Layer)
-goca make usecase UserStats
-
-# Create Handler (HTTP Layer)
-goca make handler UserStats
-
-# Complete Feature with all Layers
-goca feature Product --fields "name:string,price:float64,stock:int"
-
-# Feature with Validation
-goca feature Order --fields "userId:string,total:float64" --validation
-
-# Integrate all Features
-goca integrate --all
-
-# Check Goca Version
-goca version
-```
-
-### Goca Configuration
-
-Configuration is in `backend/.goca.yaml`:
-
-- `module`: Go module path (github.com/atilladeniz/next-go-pg/backend)
-- `architecture.layers`: Enabled layers (domain, usecase, repository, handler)
-- `database.type`: postgres
-- `generation.swagger.enabled`: true
+The fastest starting point is to **copy `internal/stats/`** — it is the canonical small example and ships every DDD pattern (aggregate root with `shared.AggregateBase`, value-object constructor `NewStatField`, domain event `StatIncremented`, repository port, GORM twin + mapper, ACL-friendly use case, regression test against the events-survive-Save invariant). Rename, strip what you do not need, and follow the checklist in "Bounded Contexts + Clean Architecture Layers".
 
 ### Bounded Contexts + Clean Architecture Layers
 
@@ -178,67 +126,76 @@ composition → <ctx>/infrastructure  → <ctx>/application → <ctx>/domain
 - Contexts never import each other. Cross-context wiring goes through an **Anti-Corruption Layer** in `composition/composition.go` (e.g. `statsToExportsReader`, `authToNotificationsDirectory`).
 - `composition/` is the only package that knows about every context, the database, and River.
 
-### Why Goca instead of manual?
+### Step-by-step: adding a new aggregate
 
-1. **Correct Imports**: Reads module path from .goca.yaml
-2. **Consistency**: Same structure for all features
-3. **Clean Architecture**: Enforces layer separation
-4. **Swagger**: Generates API documentation automatically
-5. **Tests**: Can generate test stubs
+Walk through this using a hypothetical `Invoice` aggregate. The whole thing is hand-written — no code generator. Five small files plus a wiring step in composition.
 
-### Example: Adding a New Feature
+```text
+# 0. Pick a bounded context.
+#    A new aggregate joins an existing context if it shares vocabulary
+#    AND consistency rules; otherwise create a new top-level folder
+#    under internal/ (e.g. internal/billing/).
 
-A new aggregate (`Invoice`) lives **inside a bounded context**. If it doesn't fit any existing context, create a new one — every new aggregate also creates a new top-level folder under `internal/`.
+# 1. Domain (pure): internal/billing/domain/invoice.go
+#    - No gorm.io/gorm import. No I/O. No HTTP.
+#    - Embed shared.AggregateBase if the aggregate raises events.
+#    - Define value objects with constructor invariants
+#      (e.g. NewMoney(amount, currency) (Money, error)).
+#    - Define domain events (e.g. InvoicePaid) with EventName() string.
 
-```bash
-# 1. Generate feature (Goca scaffolds the four layers; you then relocate
-#    them into the target bounded context).
-cd backend
-goca feature Invoice --fields "userId:string,amount:float64,status:string"
+# 2. Application port + use case: internal/billing/application/
+#    - ports.go declares the interface:
+#        type Repository interface {
+#            GetByID(ctx, billing.InvoiceID) (*billing.Invoice, error)
+#            Save(ctx, *billing.Invoice) error
+#        }
+#    - invoice_usecases.go holds the use-case struct:
+#        type MarkInvoicePaid struct {
+#            Repo   Repository
+#            Events shared.DomainEventPublisher
+#        }
+#        func (uc MarkInvoicePaid) Execute(ctx, id billing.InvoiceID) (*billing.Invoice, error) {
+#            agg, err := uc.Repo.GetByID(ctx, id)
+#            ...
+#            agg.MarkPaid()
+#            events := agg.PullEvents()  // BEFORE Save
+#            if err := uc.Repo.Save(ctx, agg); err != nil { return nil, err }
+#            uc.Events.Publish(ctx, events...)
+#            return agg, nil
+#        }
 
-# 2. Decide which bounded context owns Invoice (e.g. a new "billing/" context).
-#    Move and split the generated files:
-#
-#    a) Domain (pure): internal/billing/domain/invoice.go
-#       - Strip every GORM tag; embed shared.AggregateBase if it raises events.
-#       - Define value objects (e.g. InvoiceID, Money) with constructor invariants.
-#       - Define domain events (e.g. InvoicePaid) implementing EventName() string.
-#
-#    b) GORM model + mapper: internal/billing/infrastructure/persistence/
-#       - gorm_models.go      → unexported gormInvoice with GORM tags
-#       - invoice_mapper.go   → invoiceToDomain / invoiceFromDomain
-#       - registry.go         → Entities() returns []any{&gormInvoice{}}
-#
-#    c) Application port: internal/billing/application/ports.go
-#       - InvoiceRepository interface (methods take *billing.Invoice / shared.UserID)
-#
-#    d) Repository impl: internal/billing/infrastructure/persistence/invoice_repo.go
-#       - `var _ billingapp.InvoiceRepository = (*Repository)(nil)`
-#       - Save MUST NOT replace *agg as a whole — wipes pending events.
-#         Mutate only DB-owned fields back into agg (see stats/.../repository.go).
-
-# 3. Use case: internal/billing/application/invoice_usecases.go
-#    - Struct with Execute(ctx, ...), interface-typed dependencies.
-#    - Pull domain events BEFORE Save: events := agg.PullEvents()
+# 3. Infrastructure (persistence): internal/billing/infrastructure/persistence/
+#    - gorm_models.go    → unexported gormInvoice with GORM tags
+#    - invoice_mapper.go → invoiceToDomain / invoiceFromDomain
+#    - invoice_repo.go   → Repository impl, asserts the port:
+#        var _ billingapp.Repository = (*Repository)(nil)
+#      Save MUST NOT replace *agg as a whole — that wipes
+#      AggregateBase.pendingEvents. Mutate only DB-owned fields back
+#      into agg. (See internal/stats/.../repository.go for the pattern.)
+#    - registry.go       → func Entities() []any { return []any{&gormInvoice{}} }
 
 # 4. HTTP adapter: internal/billing/interfaces/http/handler.go
-#    - Depends ONLY on billingapp.*. Never imports gorm, persistence, or any
-#      other bounded context.
+#    - Depends ONLY on billingapp.*. Never imports gorm, persistence,
+#      or any other bounded context.
+#    - Swagger annotations on every endpoint.
 
 # 5. Wire in internal/composition/composition.go:
-#    - billingRepo := billingpersist.NewRepository(db)
-#    - billingHandler := billinghttp.NewHandler(usecase, ...)
-#    - Append billingpersist.Entities()... to runAutoMigrations.
+#      billingRepo := billingpersist.NewRepository(db)
+#      markPaidUC := &billingapp.MarkInvoicePaid{Repo: billingRepo, Events: ...}
+#      billingHandler := billinghttp.NewHandler(markPaidUC)
+#      entities = append(entities, billingpersist.Entities()...)  // in runAutoMigrations
 #    - If billing needs data from another context, write an ACL adapter here
 #      (mirror statsToExportsReader / authToNotificationsDirectory).
+#    - Register routes in the routerDeps section.
 
-# 6. Swagger + Orval
-cd ..
-just api
+# 6. Regenerate the API client
+cd .. && just api
 
-# 7. Restart backend (AutoMigrate runs on startup)
+# 7. Restart backend (AutoMigrate runs on startup via composition.Build)
 just dev-backend
 ```
+
+Default starting point: **copy `internal/stats/` and modify**. It is the smallest complete example of every pattern above.
 
 ### Entity Registry
 

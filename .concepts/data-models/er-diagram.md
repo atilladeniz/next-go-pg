@@ -210,8 +210,8 @@ type UserStats struct {
 
 ```mermaid
 flowchart TD
-    A[New Entity] --> B[goca make entity]
-    B --> C[Add to registry.go]
+    A[New Aggregate] --> B[Write domain type + GORM twin]
+    B --> C[Add to context Entities&#40;&#41;]
     C --> D[Restart Backend]
     D --> E[GORM AutoMigrate]
     E --> F{Table exists?}
