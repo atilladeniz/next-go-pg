@@ -18,7 +18,7 @@ For everything else: **check `.docs/` first** before searching the internet:
 ├── background-jobs.md  # Background Job Integration Guide
 ├── disaster-recovery.md      # Backups & restore (postgres-backup-s3 + RustFS)
 ├── rustfs.md                 # RustFS (S3-compatible storage)
-├── orchestrator-decision.md  # Decision: stay on River; adopt Hatchet only when AI workflows arrive (issue #57)
+├── orchestrator-decision.md  # Decision: adopt Hatchet for AI workflows; migration plan + kill criteria (issue #57)
 ├── openspec.md               # OpenSpec slash-command cheatsheet
 └── fsd-liniting.xml          # FSD lint rules (Steiger)
 ```
