@@ -42,7 +42,7 @@ _Scope expansion in Phase 3:_ `webhook.go` was also refactored to consume `appli
 - [x] 4.4 Workers wired through the application port: `WorkerDeps.Events` is `application.EventBroadcaster`, `WorkerDeps.StatsRepo` is `application.StatsRepository`. `DataExportWorker` no longer takes `*sse.Broker`. No new `JobEnqueuer` port needed — the existing `jobs.JobEnqueuer` is sufficient and webhook uses it directly.
 - [x] 4.5 Only one `*sse.Broker` reference remains outside the SSE package itself: `composition.routerDeps.sseBroker`, used to register the broker AS the `/events` route handler (the broker implements `http.Handler`). Every other consumer (use case, worker) sees only `application.EventBroadcaster`. Verified via `grep -rn "sse.Broker" backend --include="*.go" | grep -v _test.go`.
 - [x] 4.6 `go build ./... && go vet ./... && go test ./...` — green (189 tests, 17 packages).
-- [ ] 4.7 _Manual smoke test pending — runs after Phase 5._ Confirms: `just dev`, login flow, dashboard stats display, stats SSE update, magic-link delivery via River.
+- [x] 4.7 Manual smoke confirmed during the realtime-SSE bug investigation: clicking a stat counter now updates the dashboard in real time after `POST /api/v1/stats` (regression introduced by the BC split, fixed in commit `33a5451`). Login flow, dashboard stats display, and magic-link delivery via River all work.
 
 _Cleanup landed in Phase 4:_ Removed the unused `sseBroker` field from `APIHandler` (broadcasting now lives in the `IncrementStatField` use case). Constructor signature: `NewAPIHandler(frontendURL, *GetUserStats, *IncrementStatField)`.
 
@@ -64,6 +64,6 @@ _Cleanup landed in Phase 4:_ Removed the unused `sseBroker` field from `APIHandl
 
 ## 7. Verification & archive
 
-- [ ] 7.1 Run `/opsx:verify` and resolve any flagged gaps
-- [ ] 7.2 Run `openspec validate backend-clean-architecture --strict`
-- [ ] 7.3 Run `/opsx:archive` once verification passes and the change has shipped
+- [x] 7.1 `/opsx:verify` ran clean. Three deliberate divergences from the original spec text flagged as WARNINGs (not bugs): (a) the layout went one strategic step further into bounded contexts on top of the planned flat layers, (b) `.goca.yaml` was deleted instead of updated because Goca v1.14.1 ignores its `path:` config — verified empirically, and (c) `swagger.json` is structurally identical but no longer byte-identical after the BC split (Orval regenerated all TS types automatically; no frontend source edits needed).
+- [x] 7.2 `openspec validate backend-clean-architecture --strict` — PASS.
+- [x] 7.3 `/opsx:archive` — runs next.
