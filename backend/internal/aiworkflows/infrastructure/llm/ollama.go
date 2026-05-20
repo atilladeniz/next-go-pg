@@ -16,9 +16,13 @@ import (
 )
 
 const (
-	defaultURL     = "http://127.0.0.1:11434"
-	defaultModel   = "gemma4:e4b"
-	defaultTimeout = 60 * time.Second
+	defaultURL   = "http://127.0.0.1:11434"
+	defaultModel = "gemma4:e4b"
+	// CPU-only Ollama can take 30–120 s per call for 8B-class models.
+	// First call is even slower (model load into memory). Default is
+	// generous; production deploys with GPU should set OLLAMA_TIMEOUT to
+	// something tight like 30s via env.
+	defaultTimeout = 5 * time.Minute
 )
 
 // Client is the Ollama HTTP client. The struct is intentionally

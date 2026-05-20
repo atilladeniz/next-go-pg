@@ -280,12 +280,25 @@ func buildAIWorkflowsHandler(ctx context.Context, app *App, db *gorm.DB, broker 
 		URL:   os.Getenv("OLLAMA_URL"),
 		Model: os.Getenv("OLLAMA_MODEL"),
 	}
+	if raw := os.Getenv("OLLAMA_TIMEOUT"); raw != "" {
+		if d, err := time.ParseDuration(raw); err == nil {
+			llmCfg.Timeout = d
+		} else {
+			logger.Warn().Str("value", raw).Msg("OLLAMA_TIMEOUT not parseable as duration, falling back to default")
+		}
+	}
+	maxFiles := 25
+	if raw := os.Getenv("AI_MAX_FILES"); raw != "" {
+		if n, err := strconv.Atoi(raw); err == nil && n > 0 {
+			maxFiles = n
+		}
+	}
 	deps := aiworkflows.Deps{
 		Cloner:   aigit.NewCloner("", 50*1024*1024),
 		LLM:      aillm.NewClient(llmCfg),
 		Store:    repo,
 		Progress: aievents.NewPublisher(broker),
-		MaxFiles: 25,
+		MaxFiles: maxFiles,
 		MaxBytes: 64 * 1024,
 	}
 
