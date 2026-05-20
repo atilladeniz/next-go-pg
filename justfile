@@ -345,6 +345,44 @@ search-docs-index:
     @bun scripts/search-docs.js --index
     @echo "✓ Index ready! Searches will now be fast."
 
+# ─── AI dev stack (Hatchet + Ollama) ────────────────────────────
+# Opt-in profile. The AI services are NOT brought up by `just dev`
+# to keep first-time setup light (Ollama models are ~5 GB on disk).
+
+# Start Hatchet (workflow engine) + Ollama (LLM runtime)
+[group('ai')]
+ai-up: db-up
+    @echo "🤖 Starting AI dev stack (Hatchet + Ollama)..."
+    @docker compose -f infra/compose/docker-compose.dev.yml --profile ai up -d --wait
+    @echo ""
+    @echo "✓ AI dev stack started"
+    @echo ""
+    @echo "  Hatchet dashboard:  http://localhost:8888"
+    @echo "  Ollama (internal):  http://ollama:11434  (docker network)"
+    @echo ""
+    @echo "  Pull the default model:  just ai-pull-model"
+    @echo ""
+
+# Stop Hatchet + Ollama (keeps db and other services running)
+[group('ai')]
+ai-down:
+    @echo "Stopping AI dev stack..."
+    @docker compose -f infra/compose/docker-compose.dev.yml stop hatchet-lite ollama
+    @docker compose -f infra/compose/docker-compose.dev.yml rm -f hatchet-lite ollama
+    @echo "✓ AI dev stack stopped"
+
+# Pull the configured Ollama model into the persisted volume
+[group('ai')]
+ai-pull-model model='gemma4:e4b':
+    @echo "📦 Pulling Ollama model: {{ model }}"
+    @docker compose -f infra/compose/docker-compose.dev.yml exec ollama ollama pull {{ model }}
+    @echo "✓ Model {{ model }} ready"
+
+# Tail Hatchet engine logs
+[group('ai')]
+ai-logs:
+    @docker compose -f infra/compose/docker-compose.dev.yml logs -f hatchet-lite
+
 # ─── Logging (Grafana + Loki) ───────────────────────────────────
 
 # Start logging stack (Grafana, Loki, Promtail)

@@ -1,12 +1,12 @@
 ## 1. Phase A — Compose + smoke test
 
-- [ ] 1.1 Add `hatchet-lite` service to `infra/compose/docker-compose.dev.yml` (pin image SHA, gRPC `7077` on internal docker network only, dashboard `8888` exposed to localhost, env `SERVER_URL=postgres://postgres:postgres@db:5432/hatchet?sslmode=disable`, depend on `db` service)
-- [ ] 1.2 Add `CREATE DATABASE hatchet;` step to the dev Postgres init (either an `init-db.sql` mounted into `db` or a one-shot init container) so the `hatchet` database exists before `hatchet-lite` migrates
-- [ ] 1.3 Add `ollama` service to `infra/compose/docker-compose.dev.yml` (`ollama/ollama` image pinned to a specific tag, named volume `ollama_data:/root/.ollama`, port `11434` exposed on the docker network only)
-- [ ] 1.4 Add `COMPOSE_PROFILES` support so contributors can opt out of `ollama` + `hatchet-lite` (profile name `ai`) if they only need the core dev stack
-- [ ] 1.5 Add `just ai-up` and `just ai-down` recipes wrapping `docker compose --profile ai up/down`
+- [x] 1.1 Add `hatchet-lite` service to `infra/compose/docker-compose.dev.yml` (pin image SHA, gRPC `7077` on internal docker network only, dashboard `8888` exposed to localhost, env `SERVER_URL=postgres://postgres:postgres@db:5432/hatchet?sslmode=disable`, depend on `db` service)
+- [x] 1.2 Add `CREATE DATABASE hatchet;` step to the dev Postgres init (either an `init-db.sql` mounted into `db` or a one-shot init container) so the `hatchet` database exists before `hatchet-lite` migrates
+- [x] 1.3 Add `ollama` service to `infra/compose/docker-compose.dev.yml` (`ollama/ollama` image pinned to a specific tag, named volume `ollama_data:/root/.ollama`, port `11434` exposed on the docker network only)
+- [x] 1.4 Add `COMPOSE_PROFILES` support so contributors can opt out of `ollama` + `hatchet-lite` (profile name `ai`) if they only need the core dev stack
+- [x] 1.5 Add `just ai-up` and `just ai-down` recipes wrapping `docker compose --profile ai up/down`
 - [ ] 1.6 Verify: `just dev` brings up core services; `just ai-up` brings up Hatchet + Ollama; Hatchet dashboard reachable at `http://localhost:8888`; `curl http://localhost:11434/api/tags` returns 200
-- [ ] 1.7 Update `infra/README.md` with: AI dev stack setup, model pull instructions, expected resource usage, known gotchas (broadcast address fragility, first-pull time)
+- [x] 1.7 Update `infra/README.md` with: AI dev stack setup, model pull instructions, expected resource usage, known gotchas (broadcast address fragility, first-pull time)
 
 ## 2. Phase B — Backend skeleton: domain layer
 
