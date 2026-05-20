@@ -357,10 +357,10 @@ just logs-query '{category="auth"}'
 
 ### Configuration Files
 
-- `deploy/loki/loki-config.yml` - Loki configuration
-- `deploy/loki/promtail-config.yml` - Promtail log collection rules
-- `deploy/grafana/provisioning/datasources/datasources.yml` - Grafana datasource
-- `deploy/compose/docker-compose.logging.yml` - Docker Compose for logging stack
+- `infra/loki/loki-config.yml` - Loki configuration
+- `infra/loki/promtail-config.yml` - Promtail log collection rules
+- `infra/grafana/provisioning/datasources/datasources.yml` - Grafana datasource
+- `infra/compose/docker-compose.logging.yml` - Docker Compose for logging stack
 
 ### Log Labels (for filtering)
 
@@ -402,7 +402,7 @@ Loki and Grafana run as Kamal accessories on the same server. **No Promtail need
 
 1. **Add Grafana password to secrets**:
    ```bash
-   # deploy/.kamal/secrets
+   # infra/kamal/secrets
    GF_SECURITY_ADMIN_PASSWORD=your-secure-password
    ```
 
@@ -422,9 +422,9 @@ Loki and Grafana run as Kamal accessories on the same server. **No Promtail need
 
 | File | Purpose |
 |------|---------|
-| `deploy/config/deploy.yml` | Loki + Grafana accessories definition |
-| `deploy/loki/loki-config.prod.yml` | Loki production config (30 days retention) |
-| `deploy/grafana/provisioning/datasources/datasources.prod.yml` | Grafana → Loki connection |
+| `infra/kamal/deploy.yml` | Loki + Grafana accessories definition |
+| `infra/loki/loki-config.prod.yml` | Loki production config (30 days retention) |
+| `infra/grafana/provisioning/datasources/datasources.prod.yml` | Grafana → Loki connection |
 
 #### Environment Variable
 
@@ -444,7 +444,7 @@ Kamal's Docker network allows containers to reach each other by service name.
 
 #### Log Retention
 
-Default: **30 days** (configurable in `deploy/loki/loki-config.prod.yml`)
+Default: **30 days** (configurable in `infra/loki/loki-config.prod.yml`)
 
 ---
 

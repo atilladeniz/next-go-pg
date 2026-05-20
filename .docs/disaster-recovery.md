@@ -44,7 +44,7 @@ just backup-list
 just backup-now
 
 # Oder direkt mit pg_dump
-docker compose -f deploy/compose/docker-compose.dev.yml exec db pg_dump -U postgres -d nextgopg > backup.sql
+docker compose -f infra/compose/docker-compose.dev.yml exec db pg_dump -U postgres -d nextgopg > backup.sql
 ```
 
 ## Disaster Recovery Prozess
@@ -134,7 +134,7 @@ S3_SECRET_KEY=your-secret-key
 
 | Datei | Beschreibung |
 |-------|--------------|
-| `deploy/compose/docker-compose.backup.yml` | postgres-backup-s3 + RustFS Service Definition |
+| `infra/compose/docker-compose.backup.yml` | postgres-backup-s3 + RustFS Service Definition |
 | `backend/migrations/*.sql` | Schema-Definitionen |
 | `.env` | Datenbank-Credentials |
 

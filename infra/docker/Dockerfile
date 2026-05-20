@@ -2,7 +2,7 @@
 # Builds both Frontend (Next.js) and Backend (Go) in a single container
 # Supervised by a lightweight process manager
 #
-# Build: docker build -f deploy/Dockerfile -t next-go-pg .
+# Build: docker build -f infra/docker/Dockerfile -t next-go-pg .
 # Run:   docker run -p 80:80 next-go-pg
 
 # ============================================
@@ -81,7 +81,7 @@ COPY --from=frontend-builder /app/frontend/public ./frontend/public
 COPY --from=backend-builder /server ./backend/server
 
 # Copy supervisor config
-COPY deploy/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+COPY infra/docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
 # Create non-root user
 RUN addgroup -g 1001 -S app && \

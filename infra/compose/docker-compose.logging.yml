@@ -1,5 +1,5 @@
 # Logging Stack: Grafana + Loki + Promtail
-# Usage: docker compose -f deploy/compose/docker-compose.dev.yml -f deploy/compose/docker-compose.logging.yml up -d
+# Usage: docker compose -f infra/compose/docker-compose.dev.yml -f infra/compose/docker-compose.logging.yml up -d
 
 name: next-go-pg
 

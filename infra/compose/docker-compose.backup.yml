@@ -1,6 +1,6 @@
 # Database Backup Stack
 #
-# Usage: docker compose -f deploy/compose/docker-compose.dev.yml -f deploy/compose/docker-compose.backup.yml up -d
+# Usage: docker compose -f infra/compose/docker-compose.dev.yml -f infra/compose/docker-compose.backup.yml up -d
 #
 # Fully automatic PostgreSQL backups to S3-compatible storage (RustFS)
 # No manual configuration needed - just start and it works!
