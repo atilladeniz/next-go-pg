@@ -87,8 +87,10 @@ func (d Deps) TraverseStep(_ context.Context, path string) (TraverseOutput, erro
 
 // SummarizeFileStep is the fan-out child task. Called per file by the
 // SummarizeFiles orchestrator. Idempotent: same (Path, Filename, model)
-// yields the same output if Ollama is configured deterministically.
-func (d Deps) SummarizeFileStep(ctx context.Context, in SummarizeFileInput) (SummarizeFileOutput, error) {
+// yields the same output if Ollama is configured deterministically. The
+// signature uses hatchet.Context (not plain context.Context) because the
+// Hatchet SDK validates task function signatures at registration time.
+func (d Deps) SummarizeFileStep(ctx hatchet.Context, in SummarizeFileInput) (SummarizeFileOutput, error) {
 	full := filepath.Join(in.Path, in.Filename)
 	body, err := os.ReadFile(full)
 	if err != nil {

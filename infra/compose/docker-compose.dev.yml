@@ -34,13 +34,32 @@ services:
   # alone are ~5 GB).
 
   hatchet-lite:
-    image: ghcr.io/hatchet-dev/hatchet/hatchet-lite:v0.46.0
+    # Pin to v0.84.0 — the matching Go SDK in this repo is v0.86.x; v0.46 is
+    # too old (missing v1.AdminService RPC). v0.84 is Postgres-only, no
+    # RabbitMQ. Stock image hardcodes `--skip certs`, which then makes the
+    # server fail to load TLS. We override the entrypoint to let quickstart
+    # generate self-signed certs.
+    image: ghcr.io/hatchet-dev/hatchet/hatchet-lite:v0.84.0
     profiles: ["ai"]
+    entrypoint: ["/usr/local/bin/hatchet-entrypoint.sh"]
     ports:
       - "127.0.0.1:8888:8080"   # dashboard (host-bound)
       - "127.0.0.1:7077:7077"   # gRPC (host-bound — dev backend on host dials this)
+    volumes:
+      - ./hatchet-init/entrypoint.sh:/usr/local/bin/hatchet-entrypoint.sh:ro
+      - hatchet_config:/config
     environment:
+      # DATABASE_URL is read by the migration step (`atlas-apply.sh`).
       DATABASE_URL: postgres://postgres:postgres@db:5432/hatchet?sslmode=disable
+      # DATABASE_POSTGRES_* are read by the quickstart/seed step and by the
+      # running server (viper-bound config). Without these the seed step
+      # falls back to the embedded-postgres defaults (127.0.0.1:5431).
+      DATABASE_POSTGRES_HOST: db
+      DATABASE_POSTGRES_PORT: "5432"
+      DATABASE_POSTGRES_USERNAME: postgres
+      DATABASE_POSTGRES_PASSWORD: postgres
+      DATABASE_POSTGRES_DB_NAME: hatchet
+      DATABASE_POSTGRES_SSL_MODE: disable
       SERVER_PORT: "8080"
       SERVER_GRPC_PORT: "7077"
       SERVER_GRPC_BIND_ADDRESS: 0.0.0.0
@@ -49,11 +68,9 @@ services:
       # Promoting to a containerised backend later requires re-pointing this.
       SERVER_GRPC_BROADCAST_ADDRESS: 127.0.0.1:7077
       SERVER_GRPC_INSECURE: "true"
-      SERVER_TLS_STRATEGY: none
       SERVER_AUTH_COOKIE_DOMAIN: localhost
       SERVER_AUTH_COOKIE_INSECURE: "true"
       SERVER_DEFAULT_ENGINE_VERSION: v1
-      HATCHET_CLIENT_TLS_STRATEGY: none
     depends_on:
       db:
         condition: service_healthy
@@ -77,3 +94,4 @@ services:
 volumes:
   postgres_data:
   ollama_data:
+  hatchet_config:
