@@ -255,8 +255,9 @@ type Config struct {
 }
 
 type RateLimitConfig struct {
-	RequestsPerMinute int
-	BurstSize         int
+	RequestsPerMinute     int
+	AuthRequestsPerMinute int
+	BurstSize             int
 }
 
 type LoggingConfig struct {
@@ -326,8 +327,9 @@ func Load() *Config {
 			WithCaller:   getEnvAsBool("LOG_WITH_CALLER", false),
 		},
 		RateLimit: RateLimitConfig{
-			RequestsPerMinute: getEnvAsInt("RATE_LIMIT_REQUESTS_PER_MINUTE", 60),
-			BurstSize:         getEnvAsInt("RATE_LIMIT_BURST_SIZE", 10),
+			RequestsPerMinute:     getEnvAsInt("RATE_LIMIT_REQUESTS_PER_MINUTE", 60),
+			AuthRequestsPerMinute: getEnvAsInt("RATE_LIMIT_AUTH_REQUESTS_PER_MINUTE", 1200),
+			BurstSize:             getEnvAsInt("RATE_LIMIT_BURST_SIZE", 10),
 		},
 	}
 }

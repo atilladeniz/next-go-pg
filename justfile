@@ -345,6 +345,39 @@ search-docs-index:
     @bun scripts/search-docs.js --index
     @echo "✓ Index ready! Searches will now be fast."
 
+# ─── AI dev stack (Hatchet workflow engine) ─────────────────────
+# Opt-in profile. The Hatchet engine is NOT brought up by `just dev`
+# so first-time setup stays light. The LLM is OpenRouter (cloud) —
+# set OPENROUTER_API_KEY in the backend's env before booting.
+
+# Start Hatchet workflow engine
+[group('ai')]
+ai-up: db-up
+    @echo "🤖 Starting Hatchet workflow engine..."
+    @docker compose -f infra/compose/docker-compose.dev.yml --profile ai up -d --wait
+    @echo ""
+    @echo "✓ Hatchet started"
+    @echo ""
+    @echo "  Dashboard API: http://localhost:8888/api/v1/meta"
+    @echo "  gRPC:          127.0.0.1:7077"
+    @echo ""
+    @echo "  Backend reads OPENROUTER_API_KEY from env at boot and"
+    @echo "  pings the gateway — no token, no boot of AI handlers."
+    @echo ""
+
+# Stop Hatchet (keeps db and other services running)
+[group('ai')]
+ai-down:
+    @echo "Stopping Hatchet workflow engine..."
+    @docker compose -f infra/compose/docker-compose.dev.yml stop hatchet-lite
+    @docker compose -f infra/compose/docker-compose.dev.yml rm -f hatchet-lite
+    @echo "✓ Hatchet stopped"
+
+# Tail Hatchet engine logs
+[group('ai')]
+ai-logs:
+    @docker compose -f infra/compose/docker-compose.dev.yml logs -f hatchet-lite
+
 # ─── Logging (Grafana + Loki) ───────────────────────────────────
 
 # Start logging stack (Grafana, Loki, Promtail)

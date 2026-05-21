@@ -8,6 +8,7 @@ package composition
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -38,6 +39,17 @@ import (
 	statsevents "github.com/atilladeniz/next-go-pg/backend/internal/stats/infrastructure/events"
 	statspersist "github.com/atilladeniz/next-go-pg/backend/internal/stats/infrastructure/persistence"
 	statshttp "github.com/atilladeniz/next-go-pg/backend/internal/stats/interfaces/http"
+
+	// Bounded context: aiworkflows
+	aiapp "github.com/atilladeniz/next-go-pg/backend/internal/aiworkflows/application"
+	aievents "github.com/atilladeniz/next-go-pg/backend/internal/aiworkflows/infrastructure/events"
+	aigit "github.com/atilladeniz/next-go-pg/backend/internal/aiworkflows/infrastructure/git"
+	aillm "github.com/atilladeniz/next-go-pg/backend/internal/aiworkflows/infrastructure/llm"
+	aipersist "github.com/atilladeniz/next-go-pg/backend/internal/aiworkflows/infrastructure/persistence"
+	aiworkflows "github.com/atilladeniz/next-go-pg/backend/internal/aiworkflows/infrastructure/workflows"
+	aihttp "github.com/atilladeniz/next-go-pg/backend/internal/aiworkflows/interfaces/http"
+
+	hatchet "github.com/hatchet-dev/hatchet/sdks/go"
 
 	// Bounded context: exports
 	exportsapp "github.com/atilladeniz/next-go-pg/backend/internal/exports/application"
@@ -72,6 +84,11 @@ type App struct {
 	pgxPool       *pgxpool.Pool
 	riverJobQueue *riverPkg.Client
 	sseBroker     *sse.Broker
+
+	// AI workflow worker — running goroutine + cancel. Nil when
+	// HATCHET_CLIENT_TOKEN is not set (degraded boot).
+	hatchetWorker     *aiworkflows.Worker
+	hatchetWorkerStop context.CancelFunc
 }
 
 // Build assembles the dependency graph.
@@ -156,6 +173,14 @@ func Build(ctx context.Context, in Inputs) (*App, error) {
 		}
 	}
 
+	// AI workflows context — gated on HATCHET_CLIENT_TOKEN. Without it
+	// we skip the Hatchet wiring entirely so `just dev` still boots
+	// when the AI compose profile is down.
+	var aiHandler *aihttp.Handler
+	if db != nil {
+		aiHandler = buildAIWorkflowsHandler(ctx, app, db, sseBroker)
+	}
+
 	// HTTP layer — per-context handlers.
 	authHandler := authhttp.NewHandler()
 	statsHandler := statshttp.NewHandler(getStatsUC, incrementStatUC)
@@ -184,6 +209,7 @@ func Build(ctx context.Context, in Inputs) (*App, error) {
 		statsHandler:   statsHandler,
 		webhookHandler: webhookHandler,
 		exportHandler:  exportHandler,
+		aiHandler:      aiHandler,
 		combinedAuth:   combinedAuth,
 	})
 
@@ -198,15 +224,19 @@ func Build(ctx context.Context, in Inputs) (*App, error) {
 	return app, nil
 }
 
-// Shutdown stops the HTTP server, River, the SSE broker and closes
-// the pgx pool. Order matters: HTTP first so no new SSE connections
-// arrive, then the broker (drains and closes existing clients), then
-// the rest.
+// Shutdown stops the HTTP server, the Hatchet worker, River, the SSE
+// broker and closes the pgx pool. Order matters: HTTP first so no new
+// SSE connections arrive, Hatchet worker so no new tasks are claimed,
+// then the broker drains existing clients, then the rest.
 func (a *App) Shutdown(ctx context.Context) {
 	if a.HTTPServer != nil {
 		if err := a.HTTPServer.Shutdown(ctx); err != nil {
 			logger.Error().Err(err).Msg("Server forced to shutdown")
 		}
+	}
+	if a.hatchetWorkerStop != nil {
+		logger.Info().Msg("Stopping Hatchet worker...")
+		a.hatchetWorkerStop()
 	}
 	if a.sseBroker != nil {
 		if err := a.sseBroker.Shutdown(ctx); err != nil {
@@ -222,6 +252,113 @@ func (a *App) Shutdown(ctx context.Context) {
 	if a.pgxPool != nil {
 		a.pgxPool.Close()
 	}
+}
+
+// buildAIWorkflowsHandler wires the aiworkflows bounded context end to
+// end. It is gated on HATCHET_CLIENT_TOKEN: without a token we cannot
+// dial hatchet-lite, so we skip the wiring and return a handler that
+// responds with 503 (Service Unavailable). The store and use cases
+// still work in degraded mode so GET /ai/summaries/{id} can answer for
+// rows enqueued before a restart.
+func buildAIWorkflowsHandler(ctx context.Context, app *App, db *gorm.DB, broker *sse.Broker) *aihttp.Handler {
+	repo := aipersist.NewRepository(db)
+	getUC := &aiapp.GetRepoSummary{Store: repo}
+	listUC := &aiapp.ListUserSummaries{Store: repo}
+	deleteUC := &aiapp.DeleteUserSummary{Store: repo}
+
+	token := os.Getenv("HATCHET_CLIENT_TOKEN")
+	if token == "" {
+		logger.Warn().Msg("HATCHET_CLIENT_TOKEN unset — AI workflows disabled (degraded boot). GET /ai/summaries/{id} still serves existing rows.")
+		return aihttp.NewHandler(nil, getUC, listUC, deleteUC)
+	}
+
+	client, err := hatchet.NewClient()
+	if err != nil {
+		logger.Warn().Err(err).Msg("Hatchet client init failed — AI workflows disabled")
+		return aihttp.NewHandler(nil, getUC, listUC, deleteUC)
+	}
+
+	llmClient, llmLabel, err := buildLLMClient(ctx)
+	if err != nil {
+		logger.Warn().Err(err).Msg("LLM client init failed — AI workflows disabled")
+		return aihttp.NewHandler(nil, getUC, listUC, deleteUC)
+	}
+	maxFiles := 25
+	if raw := os.Getenv("AI_MAX_FILES"); raw != "" {
+		if n, err := strconv.Atoi(raw); err == nil && n > 0 {
+			maxFiles = n
+		}
+	}
+	deps := aiworkflows.Deps{
+		Cloner:   aigit.NewCloner("", 50*1024*1024),
+		LLM:      llmClient,
+		Store:    repo,
+		Progress: aievents.NewPublisher(broker),
+		MaxFiles: maxFiles,
+		MaxBytes: 64 * 1024,
+	}
+	_ = llmLabel // surfaced via the wired-log below
+
+	worker, err := aiworkflows.NewWorker(client, deps, "ai-workflows-worker")
+	if err != nil {
+		logger.Warn().Err(err).Msg("Hatchet worker init failed — AI workflows disabled")
+		return aihttp.NewHandler(nil, getUC, listUC, deleteUC)
+	}
+
+	workerCtx, cancel := context.WithCancel(ctx)
+	app.hatchetWorker = worker
+	app.hatchetWorkerStop = cancel
+	go func() {
+		logger.Info().Str("worker", "ai-workflows-worker").Msg("Starting Hatchet worker")
+		if err := worker.Start(workerCtx); err != nil && !errors.Is(err, context.Canceled) {
+			logger.Error().Err(err).Msg("Hatchet worker exited with error")
+		}
+	}()
+
+	enqueuer := aiworkflows.NewEnqueuer(client)
+	summarizeUC := &aiapp.SummarizeRepo{Store: repo, Enqueuer: enqueuer}
+
+	logger.Info().Str("llm", llmLabel).Msg("AI workflows context wired: Hatchet + LLM")
+	return aihttp.NewHandler(summarizeUC, getUC, listUC, deleteUC)
+}
+
+// buildLLMClient constructs the OpenRouter LLM client and verifies the
+// API key with a cheap auth-info ping. Returned label is the
+// human-readable model identifier surfaced in logs — never the secret.
+//
+// Required env:
+//
+//	OPENROUTER_API_KEY                — fails startup if unset
+//	OPENROUTER_MODEL                  — default openai/gpt-oss-120b
+//	OPENROUTER_URL                    — default https://openrouter.ai
+//	OPENROUTER_TIMEOUT                — Go duration, default 60s
+//	OPENROUTER_REFERER, OPENROUTER_TITLE — optional analytics headers
+//
+// This function fails fast at boot rather than letting the first
+// workflow run discover a misconfigured/missing key.
+func buildLLMClient(ctx context.Context) (aiapp.LLMClient, string, error) {
+	cfg := aillm.OpenRouterConfig{
+		URL:     os.Getenv("OPENROUTER_URL"),
+		APIKey:  os.Getenv("OPENROUTER_API_KEY"),
+		Model:   os.Getenv("OPENROUTER_MODEL"),
+		Referer: os.Getenv("OPENROUTER_REFERER"),
+		Title:   os.Getenv("OPENROUTER_TITLE"),
+	}
+	if raw := os.Getenv("OPENROUTER_TIMEOUT"); raw != "" {
+		if d, err := time.ParseDuration(raw); err == nil {
+			cfg.Timeout = d
+		}
+	}
+	client, err := aillm.NewOpenRouterClient(cfg)
+	if err != nil {
+		return nil, "", err
+	}
+	pingCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	if err := client.Ping(pingCtx); err != nil {
+		return nil, "", fmt.Errorf("openrouter ping: %w", err)
+	}
+	return client, "openrouter:" + client.Model(), nil
 }
 
 // statsToExportsReader is the anti-corruption layer between the stats
@@ -278,6 +415,7 @@ type routerDeps struct {
 	statsHandler   *statshttp.Handler
 	webhookHandler *notifhttp.Handler
 	exportHandler  *exportshttp.Handler
+	aiHandler      *aihttp.Handler
 	combinedAuth   *middleware.CombinedAuthMiddleware
 }
 
@@ -287,9 +425,10 @@ func buildRouter(d routerDeps) http.Handler {
 	loggingMW := middleware.NewLoggingMiddleware()
 	corsMW := middleware.NewCORSMiddleware(d.cfg.FrontendURL)
 	rateLimitMW := middleware.NewRateLimitMiddleware(middleware.RateLimitConfig{
-		RequestsPerMinute: d.cfg.RateLimit.RequestsPerMinute,
-		BurstSize:         d.cfg.RateLimit.BurstSize,
-		SkipPaths:         []string{"/health", "/health/ready", "/health/live", "/metrics"},
+		RequestsPerMinute:     d.cfg.RateLimit.RequestsPerMinute,
+		AuthRequestsPerMinute: d.cfg.RateLimit.AuthRequestsPerMinute,
+		BurstSize:             d.cfg.RateLimit.BurstSize,
+		SkipPaths:             []string{"/health", "/health/ready", "/health/live", "/metrics"},
 	})
 	metricsMW := middleware.NewMetricsMiddleware()
 
@@ -333,6 +472,13 @@ func buildRouter(d routerDeps) http.Handler {
 	if d.exportHandler != nil {
 		apiRouter.Handle("/export/start", d.combinedAuth.RequireAuth(http.HandlerFunc(d.exportHandler.StartExport))).Methods("POST", "OPTIONS")
 		apiRouter.HandleFunc("/export/download/{id}", d.exportHandler.DownloadExport).Methods("GET")
+	}
+
+	if d.aiHandler != nil {
+		apiRouter.Handle("/ai/summarize-repo", d.combinedAuth.RequireAuth(http.HandlerFunc(d.aiHandler.SummarizeRepo))).Methods("POST", "OPTIONS")
+		apiRouter.Handle("/ai/summaries", d.combinedAuth.RequireAuth(http.HandlerFunc(d.aiHandler.ListRepoSummaries))).Methods("GET", "OPTIONS")
+		apiRouter.Handle("/ai/summaries/{id}", d.combinedAuth.RequireAuth(http.HandlerFunc(d.aiHandler.GetRepoSummary))).Methods("GET", "OPTIONS")
+		apiRouter.Handle("/ai/summaries/{id}", d.combinedAuth.RequireAuth(http.HandlerFunc(d.aiHandler.DeleteRepoSummary))).Methods("DELETE", "OPTIONS")
 	}
 
 	return router
@@ -454,6 +600,7 @@ func runAutoMigrations(database *gorm.DB) error {
 	// Collect entities from every context that owns persistence.
 	entities := []any{}
 	entities = append(entities, statspersist.Entities()...)
+	entities = append(entities, aipersist.Entities()...)
 
 	for _, entity := range entities {
 		if err := database.AutoMigrate(entity); err != nil {

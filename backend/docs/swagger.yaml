@@ -1,5 +1,84 @@
 basePath: /api/v1
 definitions:
+  aiworkflows_interfaces_http.ErrorResponse:
+    properties:
+      error:
+        example: invalid repo url
+        type: string
+    type: object
+  aiworkflows_interfaces_http.FileSummaryDTO:
+    properties:
+      filename:
+        type: string
+      summary:
+        type: string
+    type: object
+  aiworkflows_interfaces_http.RepoSummaryListItem:
+    properties:
+      fileCount:
+        type: integer
+      id:
+        type: integer
+      repoUrl:
+        type: string
+      startedAt:
+        type: string
+      status:
+        type: string
+      updatedAt:
+        type: string
+    type: object
+  aiworkflows_interfaces_http.RepoSummaryListResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/aiworkflows_interfaces_http.RepoSummaryListItem'
+        type: array
+    type: object
+  aiworkflows_interfaces_http.RepoSummaryResponse:
+    properties:
+      completedAt:
+        type: string
+      failReason:
+        type: string
+      files:
+        items:
+          $ref: '#/definitions/aiworkflows_interfaces_http.FileSummaryDTO'
+        type: array
+      id:
+        type: integer
+      repoUrl:
+        type: string
+      startedAt:
+        type: string
+      status:
+        type: string
+      stepDurations:
+        additionalProperties:
+          format: int64
+          type: integer
+        type: object
+      summary:
+        type: string
+    type: object
+  aiworkflows_interfaces_http.SummarizeRepoRequest:
+    properties:
+      repoUrl:
+        example: https://github.com/owner/repo
+        type: string
+    type: object
+  aiworkflows_interfaces_http.SummarizeRepoResponse:
+    properties:
+      runId:
+        example: a1b2c3d4-...
+        type: string
+      status:
+        example: pending
+        type: string
+      summaryId:
+        example: 42
+        type: integer
+    type: object
   auth_interfaces_http.ErrorResponse:
     properties:
       error:
@@ -149,6 +228,133 @@ info:
   title: Next-Go-PG API
   version: "1.0"
 paths:
+  /ai/summaries:
+    get:
+      description: Returns up to 50 of the authenticated user's runs, newest first.
+        Used by the AI page to show a history of past runs.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/aiworkflows_interfaces_http.RepoSummaryListResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/aiworkflows_interfaces_http.ErrorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/aiworkflows_interfaces_http.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List the user's recent repository summaries
+      tags:
+      - ai
+  /ai/summaries/{id}:
+    delete:
+      description: Removes a run owned by the authenticated user. Returns 404 for
+        missing rows AND cross-user deletes to avoid leaking existence.
+      parameters:
+      - description: Summary ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/aiworkflows_interfaces_http.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/aiworkflows_interfaces_http.ErrorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/aiworkflows_interfaces_http.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete a repository summary run
+      tags:
+      - ai
+    get:
+      description: Returns the stored summary for a run owned by the authenticated
+        user. Cross-user reads return 404 to avoid leaking existence.
+      parameters:
+      - description: Summary ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/aiworkflows_interfaces_http.RepoSummaryResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/aiworkflows_interfaces_http.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/aiworkflows_interfaces_http.ErrorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/aiworkflows_interfaces_http.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get a repository summarization result
+      tags:
+      - ai
+  /ai/summarize-repo:
+    post:
+      consumes:
+      - application/json
+      description: Enqueues a Hatchet workflow that clones the repository, summarises
+        individual files via the configured LLM provider (OpenRouter), and produces
+        a repo-level summary.
+      parameters:
+      - description: Repo URL to summarize
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/aiworkflows_interfaces_http.SummarizeRepoRequest'
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            $ref: '#/definitions/aiworkflows_interfaces_http.SummarizeRepoResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/aiworkflows_interfaces_http.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/aiworkflows_interfaces_http.ErrorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/aiworkflows_interfaces_http.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Trigger a repository summarization workflow
+      tags:
+      - ai
   /export/download/{id}:
     get:
       description: Downloads the exported file by download ID

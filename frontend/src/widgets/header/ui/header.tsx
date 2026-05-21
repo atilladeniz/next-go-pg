@@ -10,6 +10,7 @@ import { UserMenu } from "./user-menu"
 
 const navItems = [
 	{ href: "/dashboard", label: "Dashboard" },
+	{ href: "/ai/summarize", label: "AI" },
 	{ href: "/api-test", label: "API Test" },
 ]
 

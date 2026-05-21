@@ -19,6 +19,7 @@ For everything else: **check `.docs/` first** before searching the internet:
 ├── disaster-recovery.md      # Backups & restore (postgres-backup-s3 + RustFS)
 ├── rustfs.md                 # RustFS (S3-compatible storage)
 ├── orchestrator-decision.md  # Decision: adopt Hatchet for AI workflows; migration plan + kill criteria (issue #57)
+├── ai-workflows.md           # Hatchet + Ollama workflow guide (how to add a workflow)
 ├── openspec.md               # OpenSpec slash-command cheatsheet
 └── fsd-liniting.xml          # FSD lint rules (Steiger)
 ```
@@ -55,7 +56,8 @@ Full-Stack Monorepo with Next.js 16 Frontend and Go Backend, PostgreSQL database
 - **Auth**: Better Auth Session Validation
 - **API Docs**: Swagger/swag
 - **Logging**: zerolog (structured JSON)
-- **Background Jobs**: River (PostgreSQL-native job queue)
+- **Background Jobs**: River (PostgreSQL-native job queue) for one-shot stateless work
+- **AI Workflows**: Hatchet (`hatchet-lite`) + Ollama for multi-step durable AI pipelines — see `.docs/ai-workflows.md`
 - **Module**: `github.com/atilladeniz/next-go-pg/backend`
 
 ### Infrastructure
@@ -794,6 +796,16 @@ next-go-pg/
 │   │   │   │   ├── (memory store)     # in-memory artifact store
 │   │   │   │   └── jobs/              # River export worker + enqueuer
 │   │   │   └── interfaces/http/       # /export/*
+│   │   ├── aiworkflows/               # Bounded Context (AI multi-step workflows via Hatchet)
+│   │   │   ├── domain/                # RepoSummary aggregate, RepoURL/Status/FileSummary VOs
+│   │   │   ├── application/           # HatchetEnqueuer, LLMClient, RepoCloner, Store, ProgressPublisher
+│   │   │   ├── infrastructure/
+│   │   │   │   ├── workflows/         # Hatchet SDK adapter (DAG + worker)
+│   │   │   │   ├── git/               # go-git cloner
+│   │   │   │   ├── llm/               # Ollama HTTP client
+│   │   │   │   ├── persistence/       # GORM RepoSummary model + repo + Entities()
+│   │   │   │   └── events/            # Domain-event → SSE (`ai-progress`) adapter
+│   │   │   └── interfaces/http/       # /ai/summarize-repo, /ai/summaries/{id}
 │   │   ├── platform/                  # Cross-cutting infrastructure
 │   │   │   ├── middleware/            # Auth, CORS, Logging, Rate limit, Metrics
 │   │   │   └── sse/                   # Server-Sent Events broker
@@ -805,7 +817,7 @@ next-go-pg/
 │   │   ├── app/              # Next.js App Router
 │   │   ├── widgets/          # Composite UI (Header)
 │   │   ├── features/         # auth, user-settings, security-settings,
-│   │   │                     # data-export, stats
+│   │   │                     # data-export, stats, ai-summarize
 │   │   ├── entities/         # Business Objects (User)
 │   │   └── shared/           # Reusable (UI, API, Lib)
 │   └── orval.config.ts

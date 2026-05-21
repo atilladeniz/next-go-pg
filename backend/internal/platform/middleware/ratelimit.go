@@ -1,65 +1,76 @@
 package middleware
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/atilladeniz/next-go-pg/backend/pkg/logger"
 )
 
-// RateLimiter implements a token bucket rate limiter
+// RateLimiter implements a token bucket rate limiter. Each bucket
+// remembers the limit it was created with so that mixing tiers (e.g.
+// anonymous vs authenticated callers) on the same instance keeps
+// refilling at the correct rate after the window rolls over.
 type RateLimiter struct {
 	mu       sync.RWMutex
 	buckets  map[string]*bucket
-	rate     int           // requests per window
-	window   time.Duration // time window
-	cleanup  time.Duration // cleanup interval for old buckets
+	window   time.Duration
+	cleanup  time.Duration
 	stopChan chan struct{}
 }
 
 type bucket struct {
 	tokens    int
+	limit     int
 	lastReset time.Time
 }
 
-// RateLimitConfig holds rate limiter configuration
+// RateLimitConfig holds rate limiter configuration.
+//
+// The middleware applies two tiers:
+//   - Anonymous callers (no session cookie / bearer token) get
+//     RequestsPerMinute per IP. This is the strict tier that protects
+//     the API surface from direct hammering.
+//   - Authenticated callers get AuthRequestsPerMinute per session.
+//     A logged-in user refreshing the dashboard fans out into many
+//     parallel queries (SSR prefetch + React Query refetch + SSE
+//     reconnect) — the strict tier would trip on a single rapid
+//     refresh, which is bad UX. The higher tier keeps real abuse
+//     bounded while making honest refreshes invisible.
 type RateLimitConfig struct {
-	// RequestsPerMinute is the number of requests allowed per minute per IP
-	RequestsPerMinute int
-	// BurstSize allows temporary bursts above the limit
-	BurstSize int
-	// SkipPaths are paths that bypass rate limiting (e.g., health checks)
-	SkipPaths []string
+	RequestsPerMinute     int
+	AuthRequestsPerMinute int
+	BurstSize             int
+	SkipPaths             []string
 }
 
-// DefaultRateLimitConfig returns sensible defaults
+// DefaultRateLimitConfig returns sensible defaults.
 func DefaultRateLimitConfig() RateLimitConfig {
 	return RateLimitConfig{
-		RequestsPerMinute: 60, // 1 request per second on average
-		BurstSize:         10, // Allow bursts of 10 requests
-		SkipPaths:         []string{"/health", "/health/ready", "/health/live"},
+		RequestsPerMinute:     60,   // anonymous: 1 req/s on average
+		AuthRequestsPerMinute: 1200, // authenticated: 20 req/s — plenty for rapid refresh + SSR fanout
+		BurstSize:             10,
+		SkipPaths:             []string{"/health", "/health/ready", "/health/live"},
 	}
 }
 
-// NewRateLimiter creates a new rate limiter
+// NewRateLimiter creates a new rate limiter.
 func NewRateLimiter(config RateLimitConfig) *RateLimiter {
 	rl := &RateLimiter{
 		buckets:  make(map[string]*bucket),
-		rate:     config.RequestsPerMinute,
 		window:   time.Minute,
 		cleanup:  5 * time.Minute,
 		stopChan: make(chan struct{}),
 	}
-
-	// Start cleanup goroutine
 	go rl.cleanupLoop()
-
 	return rl
 }
 
-// cleanupLoop removes old buckets periodically
 func (rl *RateLimiter) cleanupLoop() {
 	ticker := time.NewTicker(rl.cleanup)
 	defer ticker.Stop()
@@ -70,7 +81,6 @@ func (rl *RateLimiter) cleanupLoop() {
 			rl.mu.Lock()
 			now := time.Now()
 			for key, b := range rl.buckets {
-				// Remove buckets that haven't been used for 2x the window
 				if now.Sub(b.lastReset) > 2*rl.window {
 					delete(rl.buckets, key)
 				}
@@ -82,13 +92,20 @@ func (rl *RateLimiter) cleanupLoop() {
 	}
 }
 
-// Stop stops the cleanup goroutine
+// Stop stops the cleanup goroutine.
 func (rl *RateLimiter) Stop() {
 	close(rl.stopChan)
 }
 
-// Allow checks if a request from the given key should be allowed
-func (rl *RateLimiter) Allow(key string) bool {
+// Allow checks if a request keyed by `key` is allowed under `limit`
+// requests per window. The first call for a key creates a bucket sized
+// to `limit`; subsequent calls in the same window use whatever limit
+// the bucket was originally created with (so a session that flips
+// tiers mid-window keeps its existing budget until the window rolls).
+func (rl *RateLimiter) Allow(key string, limit int) bool {
+	if limit <= 0 {
+		return true
+	}
 	rl.mu.Lock()
 	defer rl.mu.Unlock()
 
@@ -96,22 +113,17 @@ func (rl *RateLimiter) Allow(key string) bool {
 	b, exists := rl.buckets[key]
 
 	if !exists {
-		// Create new bucket with full tokens
-		rl.buckets[key] = &bucket{
-			tokens:    rl.rate - 1, // Use one token for this request
-			lastReset: now,
-		}
+		rl.buckets[key] = &bucket{tokens: limit - 1, limit: limit, lastReset: now}
 		return true
 	}
 
-	// Check if we need to reset the bucket
 	if now.Sub(b.lastReset) >= rl.window {
-		b.tokens = rl.rate - 1 // Reset and use one token
+		b.tokens = limit - 1
+		b.limit = limit
 		b.lastReset = now
 		return true
 	}
 
-	// Check if we have tokens available
 	if b.tokens > 0 {
 		b.tokens--
 		return true
@@ -120,25 +132,24 @@ func (rl *RateLimiter) Allow(key string) bool {
 	return false
 }
 
-// Remaining returns the number of remaining requests for a key
-func (rl *RateLimiter) Remaining(key string) int {
+// Remaining returns the number of remaining requests for a key.
+// Returns `defaultLimit` if the key has no bucket yet (so the response
+// headers stay sensible on the very first request of a session).
+func (rl *RateLimiter) Remaining(key string, defaultLimit int) int {
 	rl.mu.RLock()
 	defer rl.mu.RUnlock()
 
 	b, exists := rl.buckets[key]
 	if !exists {
-		return rl.rate
+		return defaultLimit
 	}
-
-	// Check if bucket should be reset
 	if time.Since(b.lastReset) >= rl.window {
-		return rl.rate
+		return b.limit
 	}
-
 	return b.tokens
 }
 
-// ResetTime returns when the rate limit will reset for a key
+// ResetTime returns when the rate limit will reset for a key.
 func (rl *RateLimiter) ResetTime(key string) time.Time {
 	rl.mu.RLock()
 	defer rl.mu.RUnlock()
@@ -147,19 +158,23 @@ func (rl *RateLimiter) ResetTime(key string) time.Time {
 	if !exists {
 		return time.Now().Add(rl.window)
 	}
-
 	return b.lastReset.Add(rl.window)
 }
 
-// RateLimitMiddleware wraps the rate limiter for use as middleware
+// RateLimitMiddleware wraps the rate limiter for use as middleware.
 type RateLimitMiddleware struct {
 	limiter   *RateLimiter
 	config    RateLimitConfig
 	skipPaths map[string]bool
 }
 
-// NewRateLimitMiddleware creates a new rate limit middleware
+// NewRateLimitMiddleware creates a new rate limit middleware.
 func NewRateLimitMiddleware(config RateLimitConfig) *RateLimitMiddleware {
+	if config.AuthRequestsPerMinute <= 0 {
+		// Backward-compatible fallback: callers that don't set the auth tier
+		// keep the old single-tier behavior.
+		config.AuthRequestsPerMinute = config.RequestsPerMinute
+	}
 	skipPaths := make(map[string]bool)
 	for _, path := range config.SkipPaths {
 		skipPaths[path] = true
@@ -172,49 +187,97 @@ func NewRateLimitMiddleware(config RateLimitConfig) *RateLimitMiddleware {
 	}
 }
 
-// Handler returns the middleware handler
+// classifyRequest picks the rate-limit bucket key and effective limit
+// for a request. The check is intentionally cheap — we don't validate
+// the session here (the auth middleware downstream does that), we just
+// look for the *presence* of a credential. The downside is that a
+// stolen cookie buys the attacker the higher tier; the upside is that
+// honest logged-in users get a tier that doesn't trip on rapid
+// refresh. The auth middleware still rejects invalid credentials, so
+// rate-limit-only protection is not load-bearing for security.
+func (m *RateLimitMiddleware) classifyRequest(r *http.Request) (key string, limit int, authed bool) {
+	if token := bearerToken(r); token != "" {
+		return "auth:" + hashCred(token), m.config.AuthRequestsPerMinute, true
+	}
+	if cookie := sessionCookieValue(r); cookie != "" {
+		return "auth:" + hashCred(cookie), m.config.AuthRequestsPerMinute, true
+	}
+	return "ip:" + getClientIP(r), m.config.RequestsPerMinute, false
+}
+
+func bearerToken(r *http.Request) string {
+	h := r.Header.Get("Authorization")
+	if h == "" {
+		return ""
+	}
+	const prefix = "Bearer "
+	if len(h) <= len(prefix) || !strings.EqualFold(h[:len(prefix)], prefix) {
+		return ""
+	}
+	return strings.TrimSpace(h[len(prefix):])
+}
+
+// sessionCookieValue returns the value of the Better Auth session
+// cookie if any of its variants are present. Better Auth defaults to
+// `better-auth.session_token` and adds a `__Secure-` prefix when the
+// cookie is set over HTTPS — we accept both.
+func sessionCookieValue(r *http.Request) string {
+	for _, c := range r.Cookies() {
+		name := c.Name
+		if strings.Contains(name, "session_token") || strings.HasPrefix(name, "better-auth.") || strings.HasPrefix(name, "__Secure-better-auth.") {
+			if c.Value != "" {
+				return c.Value
+			}
+		}
+	}
+	return ""
+}
+
+func hashCred(v string) string {
+	sum := sha256.Sum256([]byte(v))
+	return hex.EncodeToString(sum[:8])
+}
+
+// Handler returns the middleware handler.
 func (m *RateLimitMiddleware) Handler(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Skip rate limiting for configured paths
 		if m.skipPaths[r.URL.Path] {
 			next.ServeHTTP(w, r)
 			return
 		}
 
-		// Get client identifier (IP address)
-		clientIP := getClientIP(r)
+		key, limit, authed := m.classifyRequest(r)
 
-		// Check rate limit
-		if !m.limiter.Allow(clientIP) {
-			remaining := m.limiter.Remaining(clientIP)
-			resetTime := m.limiter.ResetTime(clientIP)
+		if !m.limiter.Allow(key, limit) {
+			remaining := m.limiter.Remaining(key, limit)
+			resetTime := m.limiter.ResetTime(key)
 
-			// Set rate limit headers
-			w.Header().Set("X-RateLimit-Limit", string(rune(m.config.RequestsPerMinute)))
-			w.Header().Set("X-RateLimit-Remaining", string(rune(remaining)))
+			w.Header().Set("X-RateLimit-Limit", formatInt(limit))
+			w.Header().Set("X-RateLimit-Remaining", formatInt(remaining))
 			w.Header().Set("X-RateLimit-Reset", resetTime.Format(time.RFC3339))
-			w.Header().Set("Retry-After", string(rune(int(time.Until(resetTime).Seconds()))))
+			w.Header().Set("Retry-After", formatInt(int(time.Until(resetTime).Seconds())))
 			w.Header().Set("Content-Type", "application/json")
 
 			logger.Warn().
-				Str("client_ip", clientIP).
+				Str("client_ip", getClientIP(r)).
 				Str("path", r.URL.Path).
 				Str("method", r.Method).
+				Bool("authenticated", authed).
+				Int("limit", limit).
 				Msg("Rate limit exceeded")
 
 			w.WriteHeader(http.StatusTooManyRequests)
-			json.NewEncoder(w).Encode(map[string]interface{}{
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{
 				"error":       "rate limit exceeded",
 				"retry_after": int(time.Until(resetTime).Seconds()),
 			})
 			return
 		}
 
-		// Set rate limit headers for successful requests
-		remaining := m.limiter.Remaining(clientIP)
-		resetTime := m.limiter.ResetTime(clientIP)
+		remaining := m.limiter.Remaining(key, limit)
+		resetTime := m.limiter.ResetTime(key)
 
-		w.Header().Set("X-RateLimit-Limit", formatInt(m.config.RequestsPerMinute))
+		w.Header().Set("X-RateLimit-Limit", formatInt(limit))
 		w.Header().Set("X-RateLimit-Remaining", formatInt(remaining))
 		w.Header().Set("X-RateLimit-Reset", resetTime.Format(time.RFC3339))
 
@@ -222,20 +285,18 @@ func (m *RateLimitMiddleware) Handler(next http.Handler) http.Handler {
 	})
 }
 
-// formatInt converts an int to a string
+// formatInt converts an int to a string (no fmt to avoid an alloc).
 func formatInt(n int) string {
 	if n == 0 {
 		return "0"
 	}
 
-	// Handle negative numbers
 	negative := false
 	if n < 0 {
 		negative = true
 		n = -n
 	}
 
-	// Build the string in reverse
 	var digits [20]byte
 	i := len(digits)
 	for n > 0 {
@@ -252,7 +313,7 @@ func formatInt(n int) string {
 	return string(digits[i:])
 }
 
-// Stop stops the rate limiter cleanup goroutine
+// Stop stops the rate limiter cleanup goroutine.
 func (m *RateLimitMiddleware) Stop() {
 	m.limiter.Stop()
 }

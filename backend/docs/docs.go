@@ -15,6 +15,199 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/ai/summaries": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns up to 50 of the authenticated user's runs, newest first. Used by the AI page to show a history of past runs.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "ai"
+                ],
+                "summary": "List the user's recent repository summaries",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/aiworkflows_interfaces_http.RepoSummaryListResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/aiworkflows_interfaces_http.ErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/aiworkflows_interfaces_http.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/ai/summaries/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns the stored summary for a run owned by the authenticated user. Cross-user reads return 404 to avoid leaking existence.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "ai"
+                ],
+                "summary": "Get a repository summarization result",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Summary ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/aiworkflows_interfaces_http.RepoSummaryResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/aiworkflows_interfaces_http.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/aiworkflows_interfaces_http.ErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/aiworkflows_interfaces_http.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Removes a run owned by the authenticated user. Returns 404 for missing rows AND cross-user deletes to avoid leaking existence.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "ai"
+                ],
+                "summary": "Delete a repository summary run",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Summary ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/aiworkflows_interfaces_http.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/aiworkflows_interfaces_http.ErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/aiworkflows_interfaces_http.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/ai/summarize-repo": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Enqueues a Hatchet workflow that clones the repository, summarises individual files via the configured LLM provider (OpenRouter), and produces a repo-level summary.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "ai"
+                ],
+                "summary": "Trigger a repository summarization workflow",
+                "parameters": [
+                    {
+                        "description": "Repo URL to summarize",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/aiworkflows_interfaces_http.SummarizeRepoRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "Accepted",
+                        "schema": {
+                            "$ref": "#/definitions/aiworkflows_interfaces_http.SummarizeRepoResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/aiworkflows_interfaces_http.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/aiworkflows_interfaces_http.ErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/aiworkflows_interfaces_http.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/export/download/{id}": {
             "get": {
                 "description": "Downloads the exported file by download ID",
@@ -590,6 +783,125 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "aiworkflows_interfaces_http.ErrorResponse": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "string",
+                    "example": "invalid repo url"
+                }
+            }
+        },
+        "aiworkflows_interfaces_http.FileSummaryDTO": {
+            "type": "object",
+            "properties": {
+                "filename": {
+                    "type": "string"
+                },
+                "summary": {
+                    "type": "string"
+                }
+            }
+        },
+        "aiworkflows_interfaces_http.RepoSummaryListItem": {
+            "type": "object",
+            "properties": {
+                "fileCount": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "repoUrl": {
+                    "type": "string"
+                },
+                "startedAt": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "updatedAt": {
+                    "type": "string"
+                }
+            }
+        },
+        "aiworkflows_interfaces_http.RepoSummaryListResponse": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/aiworkflows_interfaces_http.RepoSummaryListItem"
+                    }
+                }
+            }
+        },
+        "aiworkflows_interfaces_http.RepoSummaryResponse": {
+            "type": "object",
+            "properties": {
+                "completedAt": {
+                    "type": "string"
+                },
+                "failReason": {
+                    "type": "string"
+                },
+                "files": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/aiworkflows_interfaces_http.FileSummaryDTO"
+                    }
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "repoUrl": {
+                    "type": "string"
+                },
+                "startedAt": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "stepDurations": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "integer",
+                        "format": "int64"
+                    }
+                },
+                "summary": {
+                    "type": "string"
+                }
+            }
+        },
+        "aiworkflows_interfaces_http.SummarizeRepoRequest": {
+            "type": "object",
+            "properties": {
+                "repoUrl": {
+                    "type": "string",
+                    "example": "https://github.com/owner/repo"
+                }
+            }
+        },
+        "aiworkflows_interfaces_http.SummarizeRepoResponse": {
+            "type": "object",
+            "properties": {
+                "runId": {
+                    "type": "string",
+                    "example": "a1b2c3d4-..."
+                },
+                "status": {
+                    "type": "string",
+                    "example": "pending"
+                },
+                "summaryId": {
+                    "type": "integer",
+                    "example": 42
+                }
+            }
+        },
         "auth_interfaces_http.ErrorResponse": {
             "type": "object",
             "properties": {

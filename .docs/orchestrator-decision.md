@@ -226,6 +226,16 @@ unexpected.
 
 ### Phase 1 — PoC alongside River (week of the first AI workflow proposal)
 
+**Status (2026-05-20):** **In progress on `feat/hatchet-ollama-ai-workflow-poc`.**
+The OpenSpec change `add-hatchet-ollama-ai-workflow-poc` implements
+this phase end-to-end: dedicated dev Compose services, a new
+`internal/aiworkflows/` bounded context, a 5-step DAG (Clone →
+Traverse → SummarizeFile fan-out → Aggregate → Store), and a
+`/ai/summarize` page that exercises the SSE-progress integration.
+Runtime verification (image-tag boot, broadcast-address sanity check,
+mid-run crash test) is the remaining gate before this section flips
+to **complete**.
+
 Trigger: an AI feature lands in the roadmap (e.g. issue
 *"Add code-indexer workflow"*).
 

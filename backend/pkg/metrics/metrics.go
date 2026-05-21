@@ -101,6 +101,15 @@ var (
 		},
 	)
 
+	// AIWorkflowsCompleted counts AI workflow runs by terminal status.
+	AIWorkflowsCompleted = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "ai_workflows_completed_total",
+			Help: "Total number of AI workflow runs that reached a terminal status",
+		},
+		[]string{"status"},
+	)
+
 	// AppInfo provides application metadata
 	AppInfo = promauto.NewGaugeVec(
 		prometheus.GaugeOpts{

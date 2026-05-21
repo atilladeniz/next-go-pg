@@ -1,6 +1,25 @@
 # Background Jobs with River
 
-This project uses [River](https://riverqueue.com) for background job processing. River is a PostgreSQL-native job queue for Go, offering:
+This project runs **two complementary job systems**, picked by workload shape:
+
+| System  | Use for                                                  | Where it lives                                              |
+|---------|----------------------------------------------------------|-------------------------------------------------------------|
+| River   | One-shot stateless jobs (emails, exports)                | `internal/notifications/jobs/`, `internal/exports/jobs/`    |
+| Hatchet | Multi-step durable AI workflows (summarize, index, …)    | `internal/aiworkflows/infrastructure/workflows/`            |
+
+**Use River when:** the job is a single function call, ≤1 retry policy,
+no inter-step state, and can be retried from scratch on failure.
+Today: four transactional email kinds + data export.
+
+**Use Hatchet when:** the work is a multi-step pipeline, steps have
+different retry/cost profiles, mid-run crash must resume from the last
+completed step, or the workflow fans out (e.g. summarize-per-file). See
+`.docs/ai-workflows.md` for the workflow-engine pattern and
+`.docs/orchestrator-decision.md` for the rationale behind the split.
+
+The rest of this file documents River specifically.
+
+River is a PostgreSQL-native job queue for Go, offering:
 
 - **Transactional guarantees**: Jobs are committed atomically with your data
 - **High performance**: 46,000-66,000 jobs/second

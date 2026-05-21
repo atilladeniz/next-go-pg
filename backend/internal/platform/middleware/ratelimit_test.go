@@ -17,15 +17,13 @@ func TestRateLimiter_Allow(t *testing.T) {
 
 	key := "test-ip"
 
-	// Should allow first 5 requests
 	for i := 0; i < 5; i++ {
-		if !rl.Allow(key) {
+		if !rl.Allow(key, 5) {
 			t.Errorf("Request %d should be allowed", i+1)
 		}
 	}
 
-	// 6th request should be denied
-	if rl.Allow(key) {
+	if rl.Allow(key, 5) {
 		t.Error("6th request should be denied")
 	}
 }
@@ -39,14 +37,12 @@ func TestRateLimiter_Remaining(t *testing.T) {
 
 	key := "test-ip"
 
-	// Before any requests, should have full quota
-	if remaining := rl.Remaining(key); remaining != 10 {
+	if remaining := rl.Remaining(key, 10); remaining != 10 {
 		t.Errorf("Expected 10 remaining, got %d", remaining)
 	}
 
-	// After one request, should have 9 remaining
-	rl.Allow(key)
-	if remaining := rl.Remaining(key); remaining != 9 {
+	rl.Allow(key, 10)
+	if remaining := rl.Remaining(key, 10); remaining != 9 {
 		t.Errorf("Expected 9 remaining, got %d", remaining)
 	}
 }
@@ -58,17 +54,14 @@ func TestRateLimiter_DifferentKeys(t *testing.T) {
 	rl := NewRateLimiter(config)
 	defer rl.Stop()
 
-	// Each key should have its own bucket
-	rl.Allow("ip1")
-	rl.Allow("ip1")
+	rl.Allow("ip1", 2)
+	rl.Allow("ip1", 2)
 
-	// ip1 should be exhausted
-	if rl.Allow("ip1") {
+	if rl.Allow("ip1", 2) {
 		t.Error("ip1 should be rate limited")
 	}
 
-	// ip2 should still have quota
-	if !rl.Allow("ip2") {
+	if !rl.Allow("ip2", 2) {
 		t.Error("ip2 should not be rate limited")
 	}
 }
@@ -81,11 +74,10 @@ func TestRateLimitMiddleware_SkipPaths(t *testing.T) {
 	middleware := NewRateLimitMiddleware(config)
 	defer middleware.Stop()
 
-	handler := middleware.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := middleware.Handler(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
 
-	// First request to /api should succeed
 	req := httptest.NewRequest("GET", "/api", nil)
 	req.RemoteAddr = "192.168.1.1:12345"
 	w := httptest.NewRecorder()
@@ -95,7 +87,6 @@ func TestRateLimitMiddleware_SkipPaths(t *testing.T) {
 		t.Errorf("Expected 200, got %d", w.Code)
 	}
 
-	// Second request to /api should be rate limited
 	w = httptest.NewRecorder()
 	handler.ServeHTTP(w, req)
 
@@ -103,7 +94,6 @@ func TestRateLimitMiddleware_SkipPaths(t *testing.T) {
 		t.Errorf("Expected 429, got %d", w.Code)
 	}
 
-	// Requests to /health should always succeed (skip path)
 	for i := 0; i < 10; i++ {
 		req := httptest.NewRequest("GET", "/health", nil)
 		req.RemoteAddr = "192.168.1.1:12345"
@@ -123,7 +113,7 @@ func TestRateLimitMiddleware_Headers(t *testing.T) {
 	middleware := NewRateLimitMiddleware(config)
 	defer middleware.Stop()
 
-	handler := middleware.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := middleware.Handler(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
 
@@ -132,7 +122,6 @@ func TestRateLimitMiddleware_Headers(t *testing.T) {
 	w := httptest.NewRecorder()
 	handler.ServeHTTP(w, req)
 
-	// Check rate limit headers are set
 	if w.Header().Get("X-RateLimit-Limit") == "" {
 		t.Error("X-RateLimit-Limit header should be set")
 	}
@@ -141,6 +130,95 @@ func TestRateLimitMiddleware_Headers(t *testing.T) {
 	}
 	if w.Header().Get("X-RateLimit-Reset") == "" {
 		t.Error("X-RateLimit-Reset header should be set")
+	}
+}
+
+// TestRateLimitMiddleware_AuthTier verifies that a request carrying a
+// Better Auth session cookie uses the higher AuthRequestsPerMinute
+// tier and gets its own bucket (keyed by cookie, not IP). The
+// anonymous tier on the same IP is exhausted after `RequestsPerMinute`
+// requests, but the authenticated session keeps going.
+func TestRateLimitMiddleware_AuthTier(t *testing.T) {
+	config := RateLimitConfig{
+		RequestsPerMinute:     2,
+		AuthRequestsPerMinute: 50,
+	}
+	mw := NewRateLimitMiddleware(config)
+	defer mw.Stop()
+
+	handler := mw.Handler(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	authedReq := func() *http.Request {
+		r := httptest.NewRequest("GET", "/api/v1/me", nil)
+		r.RemoteAddr = "192.168.1.1:12345"
+		r.AddCookie(&http.Cookie{Name: "better-auth.session_token", Value: "abc123"})
+		return r
+	}
+
+	// Authenticated user blows past the anonymous limit on the same IP.
+	for i := 0; i < 10; i++ {
+		w := httptest.NewRecorder()
+		handler.ServeHTTP(w, authedReq())
+		if w.Code != http.StatusOK {
+			t.Fatalf("auth request %d expected 200, got %d", i+1, w.Code)
+		}
+	}
+
+	// Anonymous traffic from the *same IP* still falls under the strict
+	// tier, because the auth bucket is keyed by cookie, not IP.
+	anonReq := func() *http.Request {
+		r := httptest.NewRequest("GET", "/api/v1/hello", nil)
+		r.RemoteAddr = "192.168.1.1:12345"
+		return r
+	}
+	for i := 0; i < 2; i++ {
+		w := httptest.NewRecorder()
+		handler.ServeHTTP(w, anonReq())
+		if w.Code != http.StatusOK {
+			t.Fatalf("anon request %d expected 200, got %d", i+1, w.Code)
+		}
+	}
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, anonReq())
+	if w.Code != http.StatusTooManyRequests {
+		t.Errorf("3rd anonymous request from same IP should be 429, got %d", w.Code)
+	}
+}
+
+// TestRateLimitMiddleware_AuthTierBearer covers the Bearer-token path
+// alongside the cookie path.
+func TestRateLimitMiddleware_AuthTierBearer(t *testing.T) {
+	config := RateLimitConfig{
+		RequestsPerMinute:     1,
+		AuthRequestsPerMinute: 5,
+	}
+	mw := NewRateLimitMiddleware(config)
+	defer mw.Stop()
+
+	handler := mw.Handler(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	req := func() *http.Request {
+		r := httptest.NewRequest("GET", "/api", nil)
+		r.RemoteAddr = "10.0.0.5:9999"
+		r.Header.Set("Authorization", "Bearer some-jwt-token")
+		return r
+	}
+
+	for i := 0; i < 5; i++ {
+		w := httptest.NewRecorder()
+		handler.ServeHTTP(w, req())
+		if w.Code != http.StatusOK {
+			t.Fatalf("bearer request %d expected 200, got %d", i+1, w.Code)
+		}
+	}
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req())
+	if w.Code != http.StatusTooManyRequests {
+		t.Errorf("6th bearer request should be 429, got %d", w.Code)
 	}
 }
 
@@ -166,8 +244,6 @@ func TestFormatInt(t *testing.T) {
 }
 
 func TestRateLimiter_Reset(t *testing.T) {
-	// This test verifies that the bucket resets after the window
-	// We use a very short test to avoid long waits
 	config := RateLimitConfig{
 		RequestsPerMinute: 1,
 	}
@@ -176,13 +252,11 @@ func TestRateLimiter_Reset(t *testing.T) {
 
 	key := "test-ip"
 
-	// Use up the quota
-	rl.Allow(key)
-	if rl.Allow(key) {
+	rl.Allow(key, 1)
+	if rl.Allow(key, 1) {
 		t.Error("Should be rate limited")
 	}
 
-	// Verify reset time is in the future
 	resetTime := rl.ResetTime(key)
 	if resetTime.Before(time.Now()) {
 		t.Error("Reset time should be in the future")
