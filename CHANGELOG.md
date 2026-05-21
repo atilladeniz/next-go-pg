@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.10.0](https://github.com/atilladeniz/next-go-pg/compare/v1.9.0...v1.10.0) (2026-05-21)
+
+
+### Features
+
+* **aiworkflows:** hatchet + openrouter AI workflow stack, multi-card UX, delete + auth-tier rate-limit ([#70](https://github.com/atilladeniz/next-go-pg/issues/70)) ([0de6103](https://github.com/atilladeniz/next-go-pg/commit/0de61034b51fb1b2c1a1165e8a6eb04e43c1be62))
+
 ## [1.9.0](https://github.com/atilladeniz/next-go-pg/compare/v1.8.0...v1.9.0) (2026-05-20)
 
 
