@@ -58,6 +58,16 @@ func (s *fakeStore) GetByID(_ context.Context, id uint) (*ai.RepoSummary, error)
 	return row, nil
 }
 
+func (s *fakeStore) ListByUserID(_ context.Context, userID shared.UserID, _ int) ([]*ai.RepoSummary, error) {
+	out := make([]*ai.RepoSummary, 0)
+	for _, row := range s.rows {
+		if row.UserID == userID {
+			out = append(out, row)
+		}
+	}
+	return out, nil
+}
+
 type fakeEnqueuer struct {
 	runID string
 	err   error
@@ -71,7 +81,7 @@ func TestSummarizeRepo_HappyPath(t *testing.T) {
 	t.Parallel()
 	store := newFakeStore()
 	enq := &fakeEnqueuer{runID: "run-xyz"}
-	h := aihttp.NewHandler(&aiapp.SummarizeRepo{Store: store, Enqueuer: enq}, &aiapp.GetRepoSummary{Store: store})
+	h := aihttp.NewHandler(&aiapp.SummarizeRepo{Store: store, Enqueuer: enq}, &aiapp.GetRepoSummary{Store: store}, nil)
 
 	body := bytes.NewBufferString(`{"repoUrl":"https://github.com/owner/repo"}`)
 	req := withUser(httptest.NewRequest(stdhttp.MethodPost, "/api/v1/ai/summarize-repo", body), "user-1")
@@ -96,7 +106,7 @@ func TestSummarizeRepo_HappyPath(t *testing.T) {
 
 func TestSummarizeRepo_Unauthenticated(t *testing.T) {
 	t.Parallel()
-	h := aihttp.NewHandler(&aiapp.SummarizeRepo{Store: newFakeStore(), Enqueuer: &fakeEnqueuer{}}, nil)
+	h := aihttp.NewHandler(&aiapp.SummarizeRepo{Store: newFakeStore(), Enqueuer: &fakeEnqueuer{}}, nil, nil)
 
 	req := httptest.NewRequest(stdhttp.MethodPost, "/api/v1/ai/summarize-repo",
 		strings.NewReader(`{"repoUrl":"https://github.com/owner/repo"}`))
@@ -111,7 +121,7 @@ func TestSummarizeRepo_Unauthenticated(t *testing.T) {
 func TestSummarizeRepo_DegradedMode(t *testing.T) {
 	t.Parallel()
 	// summarizeUC nil — token missing path.
-	h := aihttp.NewHandler(nil, &aiapp.GetRepoSummary{Store: newFakeStore()})
+	h := aihttp.NewHandler(nil, &aiapp.GetRepoSummary{Store: newFakeStore()}, nil)
 
 	body := strings.NewReader(`{"repoUrl":"https://github.com/owner/repo"}`)
 	req := withUser(httptest.NewRequest(stdhttp.MethodPost, "/api/v1/ai/summarize-repo", body), "user-1")
@@ -127,7 +137,7 @@ func TestSummarizeRepo_InvalidURL(t *testing.T) {
 	t.Parallel()
 	store := newFakeStore()
 	enq := &fakeEnqueuer{}
-	h := aihttp.NewHandler(&aiapp.SummarizeRepo{Store: store, Enqueuer: enq}, nil)
+	h := aihttp.NewHandler(&aiapp.SummarizeRepo{Store: store, Enqueuer: enq}, nil, nil)
 
 	body := strings.NewReader(`{"repoUrl":"not-a-url"}`)
 	req := withUser(httptest.NewRequest(stdhttp.MethodPost, "/api/v1/ai/summarize-repo", body), "user-1")
@@ -147,7 +157,7 @@ func TestGetRepoSummary_OwnershipReturns404(t *testing.T) {
 	agg := ai.NewRepoSummary(owner, url)
 	_ = store.Create(context.Background(), agg)
 
-	h := aihttp.NewHandler(nil, &aiapp.GetRepoSummary{Store: store})
+	h := aihttp.NewHandler(nil, &aiapp.GetRepoSummary{Store: store}, nil)
 
 	// Wrap router so {id} resolves.
 	router := mux.NewRouter()
@@ -170,7 +180,7 @@ func TestGetRepoSummary_HappyPath(t *testing.T) {
 	agg := ai.NewRepoSummary(owner, url)
 	_ = store.Create(context.Background(), agg)
 
-	h := aihttp.NewHandler(nil, &aiapp.GetRepoSummary{Store: store})
+	h := aihttp.NewHandler(nil, &aiapp.GetRepoSummary{Store: store}, nil)
 	router := mux.NewRouter()
 	router.HandleFunc("/api/v1/ai/summaries/{id}", h.GetRepoSummary).Methods("GET")
 

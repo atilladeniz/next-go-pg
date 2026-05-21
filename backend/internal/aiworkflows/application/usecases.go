@@ -61,6 +61,22 @@ func (uc SummarizeRepo) Execute(ctx context.Context, in SummarizeRepoInput) (Sum
 	return SummarizeRepoOutput{SummaryID: agg.ID, RunID: runID}, nil
 }
 
+// ListUserSummaries returns the requesting user's recent summary runs,
+// newest first. Limit is clamped server-side so callers can't paginate
+// through the whole table.
+type ListUserSummaries struct {
+	Store Store
+}
+
+const ListLimitMax = 50
+
+func (uc ListUserSummaries) Execute(ctx context.Context, userID shared.UserID, limit int) ([]*ai.RepoSummary, error) {
+	if limit <= 0 || limit > ListLimitMax {
+		limit = ListLimitMax
+	}
+	return uc.Store.ListByUserID(ctx, userID, limit)
+}
+
 // GetRepoSummary loads a RepoSummary aggregate for the requesting user.
 // Returns ErrNotFound for both missing rows AND cross-user reads so the
 // HTTP layer maps cleanly to a 404 without leaking existence.

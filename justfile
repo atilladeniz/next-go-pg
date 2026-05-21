@@ -345,38 +345,33 @@ search-docs-index:
     @bun scripts/search-docs.js --index
     @echo "✓ Index ready! Searches will now be fast."
 
-# ─── AI dev stack (Hatchet + Ollama) ────────────────────────────
-# Opt-in profile. The AI services are NOT brought up by `just dev`
-# to keep first-time setup light (Ollama models are ~5 GB on disk).
+# ─── AI dev stack (Hatchet workflow engine) ─────────────────────
+# Opt-in profile. The Hatchet engine is NOT brought up by `just dev`
+# so first-time setup stays light. The LLM is OpenRouter (cloud) —
+# set OPENROUTER_API_KEY in the backend's env before booting.
 
-# Start Hatchet (workflow engine) + Ollama (LLM runtime)
+# Start Hatchet workflow engine
 [group('ai')]
 ai-up: db-up
-    @echo "🤖 Starting AI dev stack (Hatchet + Ollama)..."
+    @echo "🤖 Starting Hatchet workflow engine..."
     @docker compose -f infra/compose/docker-compose.dev.yml --profile ai up -d --wait
     @echo ""
-    @echo "✓ AI dev stack started"
+    @echo "✓ Hatchet started"
     @echo ""
-    @echo "  Hatchet dashboard:  http://localhost:8888"
-    @echo "  Ollama (internal):  http://ollama:11434  (docker network)"
+    @echo "  Dashboard API: http://localhost:8888/api/v1/meta"
+    @echo "  gRPC:          127.0.0.1:7077"
     @echo ""
-    @echo "  Pull the default model:  just ai-pull-model"
+    @echo "  Backend reads OPENROUTER_API_KEY from env at boot and"
+    @echo "  pings the gateway — no token, no boot of AI handlers."
     @echo ""
 
-# Stop Hatchet + Ollama (keeps db and other services running)
+# Stop Hatchet (keeps db and other services running)
 [group('ai')]
 ai-down:
-    @echo "Stopping AI dev stack..."
-    @docker compose -f infra/compose/docker-compose.dev.yml stop hatchet-lite ollama
-    @docker compose -f infra/compose/docker-compose.dev.yml rm -f hatchet-lite ollama
-    @echo "✓ AI dev stack stopped"
-
-# Pull the configured Ollama model into the persisted volume
-[group('ai')]
-ai-pull-model model='gemma4:e4b':
-    @echo "📦 Pulling Ollama model: {{ model }}"
-    @docker compose -f infra/compose/docker-compose.dev.yml exec ollama ollama pull {{ model }}
-    @echo "✓ Model {{ model }} ready"
+    @echo "Stopping Hatchet workflow engine..."
+    @docker compose -f infra/compose/docker-compose.dev.yml stop hatchet-lite
+    @docker compose -f infra/compose/docker-compose.dev.yml rm -f hatchet-lite
+    @echo "✓ Hatchet stopped"
 
 # Tail Hatchet engine logs
 [group('ai')]

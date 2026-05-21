@@ -6,6 +6,7 @@
  * OpenAPI spec version: 1.0
  */
 import type { AiworkflowsInterfacesHttpFileSummaryDTO } from './aiworkflowsInterfacesHttpFileSummaryDTO';
+import type { AiworkflowsInterfacesHttpRepoSummaryResponseStepDurations } from './aiworkflowsInterfacesHttpRepoSummaryResponseStepDurations';
 
 export interface AiworkflowsInterfacesHttpRepoSummaryResponse {
   completedAt?: string;
@@ -15,5 +16,6 @@ export interface AiworkflowsInterfacesHttpRepoSummaryResponse {
   repoUrl?: string;
   startedAt?: string;
   status?: string;
+  stepDurations?: AiworkflowsInterfacesHttpRepoSummaryResponseStepDurations;
   summary?: string;
 }

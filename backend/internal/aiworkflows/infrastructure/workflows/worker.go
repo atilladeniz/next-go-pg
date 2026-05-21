@@ -18,7 +18,7 @@ type Worker struct {
 // NewWorker registers the workflow + child task with a freshly-created
 // Hatchet worker. Slot count controls parallel task execution; 10
 // matches the value used in the Hatchet docs for fan-out examples and
-// is sized for the dev laptop (Ollama bottleneck dominates anyway).
+// is sized for the dev laptop (LLM-provider latency dominates anyway).
 func NewWorker(client *hatchet.Client, deps Deps, name string) (*Worker, error) {
 	defs := Build(client, deps)
 	w, err := client.NewWorker(

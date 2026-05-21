@@ -22,7 +22,8 @@ type Definitions struct {
 // own retry policy.
 func Build(client *hatchet.Client, deps Deps) Definitions {
 	// Child task: one Hatchet run per file. 5× retry with exponential
-	// backoff because Ollama can be transiently slow or OOM.
+	// backoff because the LLM gateway can be transiently slow, rate-
+	// limited, or fail upstream.
 	fileTask := client.NewStandaloneTask(
 		StandaloneFileTask,
 		deps.SummarizeFileStep,
@@ -47,7 +48,7 @@ func Build(client *hatchet.Client, deps Deps) Definitions {
 			if err := ctx.ParentOutput(cloneT, &clone); err != nil {
 				return TraverseOutput{}, err
 			}
-			return deps.TraverseStep(ctx, clone.Path)
+			return deps.TraverseStep(ctx, in, clone.Path)
 		},
 		hatchet.WithParents(cloneT),
 		// No WithRetries — Traverse is pure/deterministic. Any error here
@@ -74,7 +75,7 @@ func Build(client *hatchet.Client, deps Deps) Definitions {
 			if err := ctx.ParentOutput(summarizeT, &summaries); err != nil {
 				return AggregateOutput{}, err
 			}
-			return deps.AggregateStep(ctx, summaries)
+			return deps.AggregateStep(ctx, in, summaries)
 		},
 		hatchet.WithParents(summarizeT),
 		hatchet.WithRetries(3),

@@ -8,6 +8,7 @@ import (
 
 	aiapp "github.com/atilladeniz/next-go-pg/backend/internal/aiworkflows/application"
 	ai "github.com/atilladeniz/next-go-pg/backend/internal/aiworkflows/domain"
+	shared "github.com/atilladeniz/next-go-pg/backend/internal/shared/domain"
 )
 
 // Repository is the GORM-backed implementation of the aiworkflows
@@ -58,4 +59,29 @@ func (r *Repository) GetByID(ctx context.Context, id uint) (*ai.RepoSummary, err
 		return nil, err
 	}
 	return toDomain(m)
+}
+
+// ListByUserID returns the user's recent summaries, newest first.
+func (r *Repository) ListByUserID(ctx context.Context, userID shared.UserID, limit int) ([]*ai.RepoSummary, error) {
+	if limit <= 0 {
+		limit = 20
+	}
+	var rows []gormRepoSummary
+	err := r.db.WithContext(ctx).
+		Where("user_id = ?", string(userID)).
+		Order("id DESC").
+		Limit(limit).
+		Find(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+	out := make([]*ai.RepoSummary, 0, len(rows))
+	for _, row := range rows {
+		agg, err := toDomain(row)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, agg)
+	}
+	return out, nil
 }

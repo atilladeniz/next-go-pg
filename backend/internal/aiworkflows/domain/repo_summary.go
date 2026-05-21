@@ -25,6 +25,10 @@ type RepoSummary struct {
 	CompletedAt time.Time
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
+	// StepDurations maps StepName → milliseconds elapsed for completed
+	// steps. Persisted as JSONB so a page reload shows the exact same
+	// timings the live SSE stream produced.
+	StepDurations map[string]int64
 }
 
 var _ shared.AggregateRoot = (*RepoSummary)(nil)
@@ -39,6 +43,16 @@ func NewRepoSummary(userID shared.UserID, repoURL RepoURL) *RepoSummary {
 		RepoURL: repoURL,
 		Status:  StatusPending,
 	}
+}
+
+// RecordStepDuration stores how long a completed step took. Idempotent
+// — re-recording the same step (after a retry) overwrites. Persistence
+// adapters serialise the map to JSONB so refresh keeps the timings.
+func (r *RepoSummary) RecordStepDuration(step string, durationMs int64) {
+	if r.StepDurations == nil {
+		r.StepDurations = make(map[string]int64)
+	}
+	r.StepDurations[step] = durationMs
 }
 
 // MarkStarted transitions pending → running and records SummaryStarted.

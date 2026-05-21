@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	hatchet "github.com/hatchet-dev/hatchet/sdks/go"
@@ -31,14 +32,55 @@ type Deps struct {
 	MaxBytes int64
 }
 
+// publishStep is a small helper to keep the per-step start/end emissions
+// readable. Wrapping in a helper avoids repeating the same five-line
+// boilerplate at every step boundary. When `state == completed` and we
+// have a duration, we also persist it on the aggregate so refreshes
+// after the run keep the timing.
+func (d Deps) publishStep(ctx context.Context, in WorkflowInput, name aiapp.StepName, state aiapp.StepState, durationMs int64, reason string) {
+	d.Progress.PublishStep(ctx, aiapp.StepProgress{
+		SummaryID:  in.SummaryID,
+		UserID:     shared.UserID(in.UserID),
+		Step:       name,
+		State:      state,
+		DurationMs: durationMs,
+		Reason:     reason,
+	})
+	if state == aiapp.StepStateCompleted && durationMs > 0 {
+		d.recordDuration(ctx, in.SummaryID, string(name), durationMs)
+	}
+}
+
+// recordDuration persists a completed step's duration onto the
+// aggregate. Best-effort: failures here only mean refresh shows ?ms
+// instead of the precise time, not a workflow break.
+func (d Deps) recordDuration(ctx context.Context, summaryID uint, step string, ms int64) {
+	agg, err := d.Store.GetByID(ctx, summaryID)
+	if err != nil {
+		return
+	}
+	agg.RecordStepDuration(step, ms)
+	_ = d.Store.Save(ctx, agg)
+}
+
 // CloneStep performs a shallow clone of the requested repo and marks the
 // aggregate as `running`. The output's Path is the on-disk working copy.
-func (d Deps) CloneStep(ctx context.Context, in WorkflowInput) (CloneOutput, error) {
-	agg, err := d.loadAndStart(ctx, in)
-	if err != nil {
+func (d Deps) CloneStep(ctx context.Context, in WorkflowInput) (out CloneOutput, err error) {
+	start := time.Now()
+	d.publishStep(ctx, in, aiapp.StepClone, aiapp.StepStateStarted, 0, "")
+	defer func() {
+		state := aiapp.StepStateCompleted
+		reason := ""
+		if err != nil {
+			state = aiapp.StepStateFailed
+			reason = err.Error()
+		}
+		d.publishStep(ctx, in, aiapp.StepClone, state, time.Since(start).Milliseconds(), reason)
+	}()
+
+	if _, err = d.loadAndStart(ctx, in); err != nil {
 		return CloneOutput{}, err
 	}
-
 	url, err := ai.NewRepoURL(in.RepoURL)
 	if err != nil {
 		return CloneOutput{}, fmt.Errorf("clone: invalid repo url: %w", err)
@@ -47,11 +89,7 @@ func (d Deps) CloneStep(ctx context.Context, in WorkflowInput) (CloneOutput, err
 	if err != nil {
 		return CloneOutput{}, fmt.Errorf("clone: %w", err)
 	}
-	// Cleanup is the worker's responsibility on workflow termination —
-	// we intentionally do NOT defer cleanup here because the path needs
-	// to survive into the next step. The store step performs cleanup as
-	// its final side effect.
-	_ = agg
+	// Cleanup runs in StoreStep at the natural end of the workflow.
 	return CloneOutput{Path: cloned.Path}, nil
 }
 
@@ -77,7 +115,19 @@ func (d Deps) loadAndStart(ctx context.Context, in WorkflowInput) (*ai.RepoSumma
 
 // TraverseStep walks the cloned repo and selects files to summarize.
 // Deterministic, no retries.
-func (d Deps) TraverseStep(_ context.Context, path string) (TraverseOutput, error) {
+func (d Deps) TraverseStep(ctx context.Context, in WorkflowInput, path string) (out TraverseOutput, err error) {
+	start := time.Now()
+	d.publishStep(ctx, in, aiapp.StepTraverse, aiapp.StepStateStarted, 0, "")
+	defer func() {
+		state := aiapp.StepStateCompleted
+		reason := ""
+		if err != nil {
+			state = aiapp.StepStateFailed
+			reason = err.Error()
+		}
+		d.publishStep(ctx, in, aiapp.StepTraverse, state, time.Since(start).Milliseconds(), reason)
+	}()
+
 	files, err := selectFiles(path, d.MaxFiles, d.MaxBytes)
 	if err != nil {
 		return TraverseOutput{}, fmt.Errorf("traverse: %w", err)
@@ -86,10 +136,13 @@ func (d Deps) TraverseStep(_ context.Context, path string) (TraverseOutput, erro
 }
 
 // SummarizeFileStep is the fan-out child task. Called per file by the
-// SummarizeFiles orchestrator. Idempotent: same (Path, Filename, model)
-// yields the same output if Ollama is configured deterministically. The
-// signature uses hatchet.Context (not plain context.Context) because the
-// Hatchet SDK validates task function signatures at registration time.
+// SummarizeFiles orchestrator. Idempotent on the input side: same
+// (Path, Filename) always produces the same prompt — actual LLM
+// determinism depends on the upstream provider's settings.
+//
+// Hatchet's SDK validates task function signatures via reflection, so the
+// first parameter MUST be hatchet.Context (which embeds context.Context
+// anyway — the LLM client treats it as a regular context).
 func (d Deps) SummarizeFileStep(ctx hatchet.Context, in SummarizeFileInput) (SummarizeFileOutput, error) {
 	full := filepath.Join(in.Path, in.Filename)
 	body, err := os.ReadFile(full)
@@ -116,69 +169,115 @@ func (d Deps) SummarizeFileStep(ctx hatchet.Context, in SummarizeFileInput) (Sum
 
 // SummarizeFilesStep fans out across all files via child task calls.
 // Each child is independently checkpointed in Hatchet, so a mid-run
-// crash resumes from the last in-flight file. We append per-file
-// summaries to the aggregate as they arrive and publish progress events.
+// crash resumes from the last in-flight file. As each child completes,
+// we immediately publish a `summarize_files:progress` SSE event so the
+// frontend's counter advances in real time, rather than only firing the
+// final batch after wg.Wait().
 func (d Deps) SummarizeFilesStep(
 	ctx context.Context,
 	hctx hatchet.Context,
 	in WorkflowInput,
 	traverse TraverseOutput,
 	childTask *hatchet.StandaloneTask,
-) (SummarizeFilesOutput, error) {
+) (out SummarizeFilesOutput, err error) {
+	start := time.Now()
 	total := len(traverse.Files)
+	d.Progress.PublishStep(ctx, aiapp.StepProgress{
+		SummaryID: in.SummaryID,
+		UserID:    shared.UserID(in.UserID),
+		Step:      aiapp.StepSummarizeFiles,
+		State:     aiapp.StepStateStarted,
+		FileCount: total,
+	})
+	defer func() {
+		state := aiapp.StepStateCompleted
+		reason := ""
+		if err != nil {
+			state = aiapp.StepStateFailed
+			reason = err.Error()
+		}
+		durMs := time.Since(start).Milliseconds()
+		d.Progress.PublishStep(ctx, aiapp.StepProgress{
+			SummaryID:  in.SummaryID,
+			UserID:     shared.UserID(in.UserID),
+			Step:       aiapp.StepSummarizeFiles,
+			State:      state,
+			DurationMs: durMs,
+			FileCount:  total,
+			Reason:     reason,
+		})
+		if state == aiapp.StepStateCompleted {
+			d.recordDuration(ctx, in.SummaryID, string(aiapp.StepSummarizeFiles), durMs)
+		}
+	}()
+
 	results := make([]SummarizeFileOutput, total)
 	errs := make([]error, total)
+	var completed atomic.Int32
 
 	var wg sync.WaitGroup
 	wg.Add(total)
 	for i, file := range traverse.Files {
 		go func(idx int, name string) {
 			defer wg.Done()
-			out, err := childTask.Run(hctx, SummarizeFileInput{
+			res, runErr := childTask.Run(hctx, SummarizeFileInput{
 				SummaryID: in.SummaryID,
 				UserID:    in.UserID,
 				Path:      traverse.Path,
 				Filename:  name,
 				Total:     total,
 			})
-			if err != nil {
-				errs[idx] = err
+			if runErr != nil {
+				errs[idx] = runErr
 				return
 			}
 			var typed SummarizeFileOutput
-			if err := out.Into(&typed); err != nil {
-				errs[idx] = fmt.Errorf("decode child %q: %w", name, err)
+			if decErr := res.Into(&typed); decErr != nil {
+				errs[idx] = fmt.Errorf("decode child %q: %w", name, decErr)
 				return
 			}
 			results[idx] = typed
+
+			// Per-file progress event — fires the moment THIS file is
+			// summarized, not after wg.Wait(). Counter is the number
+			// completed so far (1-based, monotonic).
+			n := int(completed.Add(1))
+			d.Progress.PublishStep(ctx, aiapp.StepProgress{
+				SummaryID: in.SummaryID,
+				UserID:    shared.UserID(in.UserID),
+				Step:      aiapp.StepSummarizeFiles,
+				State:     aiapp.StepStateProgress,
+				FileIndex: n,
+				FileCount: total,
+				Filename:  name,
+			})
 		}(i, file)
 	}
 	wg.Wait()
 
-	for _, err := range errs {
-		if err != nil {
-			return SummarizeFilesOutput{}, err
+	for _, e := range errs {
+		if e != nil {
+			return SummarizeFilesOutput{}, e
 		}
 	}
 
-	// Append in deterministic order (input order is preserved by index)
-	// and emit per-file progress events.
+	// Persist per-file summaries on the aggregate in deterministic order.
 	agg, err := d.Store.GetByID(ctx, in.SummaryID)
 	if err != nil {
 		return SummarizeFilesOutput{}, fmt.Errorf("load aggregate: %w", err)
 	}
 	for _, r := range results {
-		fs, err := ai.NewFileSummary(r.Filename, r.Summary)
-		if err != nil {
-			return SummarizeFilesOutput{}, fmt.Errorf("file summary value object: %w", err)
+		fs, fsErr := ai.NewFileSummary(r.Filename, r.Summary)
+		if fsErr != nil {
+			return SummarizeFilesOutput{}, fmt.Errorf("file summary value object: %w", fsErr)
 		}
-		if err := agg.AppendFileSummary(fs, total); err != nil {
-			return SummarizeFilesOutput{}, fmt.Errorf("append file: %w", err)
+		if appendErr := agg.AppendFileSummary(fs, total); appendErr != nil {
+			return SummarizeFilesOutput{}, fmt.Errorf("append file: %w", appendErr)
 		}
 	}
 	events := agg.PullEvents()
-	if err := d.Store.Save(ctx, agg); err != nil {
-		return SummarizeFilesOutput{}, fmt.Errorf("save after fan-out: %w", err)
+	if saveErr := d.Store.Save(ctx, agg); saveErr != nil {
+		return SummarizeFilesOutput{}, fmt.Errorf("save after fan-out: %w", saveErr)
 	}
 	_ = d.Progress.Publish(ctx, events...)
 
@@ -187,7 +286,19 @@ func (d Deps) SummarizeFilesStep(
 
 // AggregateStep asks the LLM to produce a repo-level summary by stitching
 // the per-file summaries into one prompt.
-func (d Deps) AggregateStep(ctx context.Context, summaries SummarizeFilesOutput) (AggregateOutput, error) {
+func (d Deps) AggregateStep(ctx context.Context, in WorkflowInput, summaries SummarizeFilesOutput) (out AggregateOutput, err error) {
+	start := time.Now()
+	d.publishStep(ctx, in, aiapp.StepAggregate, aiapp.StepStateStarted, 0, "")
+	defer func() {
+		state := aiapp.StepStateCompleted
+		reason := ""
+		if err != nil {
+			state = aiapp.StepStateFailed
+			reason = err.Error()
+		}
+		d.publishStep(ctx, in, aiapp.StepAggregate, state, time.Since(start).Milliseconds(), reason)
+	}()
+
 	if len(summaries.Summaries) == 0 {
 		return AggregateOutput{}, errors.New("aggregate: empty per-file summaries")
 	}
@@ -216,17 +327,29 @@ func (d Deps) StoreStep(
 	in WorkflowInput,
 	traverse TraverseOutput,
 	aggregateOut AggregateOutput,
-) (StoreOutput, error) {
+) (out StoreOutput, err error) {
+	start := time.Now()
+	d.publishStep(ctx, in, aiapp.StepStore, aiapp.StepStateStarted, 0, "")
+	defer func() {
+		state := aiapp.StepStateCompleted
+		reason := ""
+		if err != nil {
+			state = aiapp.StepStateFailed
+			reason = err.Error()
+		}
+		d.publishStep(ctx, in, aiapp.StepStore, state, time.Since(start).Milliseconds(), reason)
+	}()
+
 	agg, err := d.Store.GetByID(ctx, in.SummaryID)
 	if err != nil {
 		return StoreOutput{}, fmt.Errorf("load aggregate: %w", err)
 	}
 	now := time.Now().UTC()
-	if err := agg.MarkCompleted(aggregateOut.Summary, now); err != nil {
+	if err = agg.MarkCompleted(aggregateOut.Summary, now); err != nil {
 		return StoreOutput{}, fmt.Errorf("mark completed: %w", err)
 	}
 	events := agg.PullEvents()
-	if err := d.Store.Save(ctx, agg); err != nil {
+	if err = d.Store.Save(ctx, agg); err != nil {
 		return StoreOutput{}, fmt.Errorf("save after complete: %w", err)
 	}
 	_ = d.Progress.Publish(ctx, events...)
@@ -238,8 +361,12 @@ func (d Deps) StoreStep(
 }
 
 // HandleFailure marks the aggregate as failed and publishes the event.
-// Wired to Hatchet's workflow OnFailure hook.
-func (d Deps) HandleFailure(ctx context.Context, in WorkflowInput, reason string) {
+// Wired to Hatchet's workflow OnFailure hook. Uses context.Background()
+// because the hatchet.Context handed to the failure hook may already be
+// cancelled by the time we get here — and we still need to write the
+// terminal state to the DB regardless.
+func (d Deps) HandleFailure(_ context.Context, in WorkflowInput, reason string) {
+	ctx := context.Background()
 	agg, err := d.Store.GetByID(ctx, in.SummaryID)
 	if err != nil {
 		return
@@ -277,7 +404,7 @@ func selectFiles(root string, maxFiles int, maxBytes int64) ([]string, error) {
 	var picked []string
 	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
-			return nil // skip unreadable entries
+			return nil
 		}
 		if info.IsDir() {
 			if _, skip := skipDir[info.Name()]; skip {
@@ -308,6 +435,3 @@ func selectFiles(root string, maxFiles int, maxBytes int64) ([]string, error) {
 	}
 	return picked, nil
 }
-
-// usedShared is here to keep go-vet happy when shared is otherwise unused.
-var _ = shared.NewUserID

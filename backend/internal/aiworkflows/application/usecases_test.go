@@ -56,6 +56,19 @@ func (s *fakeStore) GetByID(_ context.Context, id uint) (*ai.RepoSummary, error)
 	return row, nil
 }
 
+func (s *fakeStore) ListByUserID(_ context.Context, userID shared.UserID, limit int) ([]*ai.RepoSummary, error) {
+	out := make([]*ai.RepoSummary, 0)
+	for _, row := range s.rows {
+		if row.UserID == userID {
+			out = append(out, row)
+		}
+	}
+	if limit > 0 && len(out) > limit {
+		out = out[:limit]
+	}
+	return out, nil
+}
+
 // fakeEnqueuer is a stub HatchetEnqueuer.
 type fakeEnqueuer struct {
 	runID string

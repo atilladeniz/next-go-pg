@@ -9,6 +9,43 @@
     "host": "localhost:8080",
     "basePath": "/api/v1",
     "paths": {
+        "/ai/summaries": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns up to 50 of the authenticated user's runs, newest first. Used by the AI page to show a history of past runs.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "ai"
+                ],
+                "summary": "List the user's recent repository summaries",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/aiworkflows_interfaces_http.RepoSummaryListResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/aiworkflows_interfaces_http.ErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/aiworkflows_interfaces_http.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/ai/summaries/{id}": {
             "get": {
                 "security": [
@@ -68,7 +105,7 @@
                         "BearerAuth": []
                     }
                 ],
-                "description": "Enqueues a Hatchet workflow that clones the repository, summarises individual files via Ollama, and produces a repo-level summary.",
+                "description": "Enqueues a Hatchet workflow that clones the repository, summarises individual files via the configured LLM provider (OpenRouter), and produces a repo-level summary.",
                 "consumes": [
                     "application/json"
                 ],
@@ -713,6 +750,40 @@
                 }
             }
         },
+        "aiworkflows_interfaces_http.RepoSummaryListItem": {
+            "type": "object",
+            "properties": {
+                "fileCount": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "repoUrl": {
+                    "type": "string"
+                },
+                "startedAt": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "updatedAt": {
+                    "type": "string"
+                }
+            }
+        },
+        "aiworkflows_interfaces_http.RepoSummaryListResponse": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/aiworkflows_interfaces_http.RepoSummaryListItem"
+                    }
+                }
+            }
+        },
         "aiworkflows_interfaces_http.RepoSummaryResponse": {
             "type": "object",
             "properties": {
@@ -739,6 +810,13 @@
                 },
                 "status": {
                     "type": "string"
+                },
+                "stepDurations": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "integer",
+                        "format": "int64"
+                    }
                 },
                 "summary": {
                     "type": "string"

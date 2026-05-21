@@ -26,6 +26,7 @@ import type {
 
 import type {
   AiworkflowsInterfacesHttpErrorResponse,
+  AiworkflowsInterfacesHttpRepoSummaryListResponse,
   AiworkflowsInterfacesHttpRepoSummaryResponse,
   AiworkflowsInterfacesHttpSummarizeRepoRequest,
   AiworkflowsInterfacesHttpSummarizeRepoResponse
@@ -35,6 +36,131 @@ import { customFetch } from '../../custom-fetch';
 
 
 type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
+
+
+
+/**
+ * Returns up to 50 of the authenticated user's runs, newest first. Used by the AI page to show a history of past runs.
+ * @summary List the user's recent repository summaries
+ */
+export type getAiSummariesResponse200 = {
+  data: AiworkflowsInterfacesHttpRepoSummaryListResponse
+  status: 200
+}
+
+export type getAiSummariesResponse401 = {
+  data: AiworkflowsInterfacesHttpErrorResponse
+  status: 401
+}
+
+export type getAiSummariesResponse503 = {
+  data: AiworkflowsInterfacesHttpErrorResponse
+  status: 503
+}
+    
+export type getAiSummariesResponseSuccess = (getAiSummariesResponse200) & {
+  headers: Headers;
+};
+export type getAiSummariesResponseError = (getAiSummariesResponse401 | getAiSummariesResponse503) & {
+  headers: Headers;
+};
+
+export type getAiSummariesResponse = (getAiSummariesResponseSuccess | getAiSummariesResponseError)
+
+export const getGetAiSummariesUrl = () => {
+
+
+  
+
+  return `http://localhost:8080/api/v1/ai/summaries`
+}
+
+export const getAiSummaries = async ( options?: RequestInit): Promise<getAiSummariesResponse> => {
+  
+  return customFetch<getAiSummariesResponse>(getGetAiSummariesUrl(),
+  {      
+    ...options,
+    method: 'GET'
+    
+    
+  }
+);}
+
+
+
+
+
+export const getGetAiSummariesQueryKey = () => {
+    return [
+    `http://localhost:8080/api/v1/ai/summaries`
+    ] as const;
+    }
+
+    
+export const getGetAiSummariesQueryOptions = <TData = Awaited<ReturnType<typeof getAiSummaries>>, TError = AiworkflowsInterfacesHttpErrorResponse>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAiSummaries>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAiSummariesQueryKey();
+
+  
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAiSummaries>>> = ({ signal }) => getAiSummaries({ signal, ...requestOptions });
+
+      
+
+      
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAiSummaries>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetAiSummariesQueryResult = NonNullable<Awaited<ReturnType<typeof getAiSummaries>>>
+export type GetAiSummariesQueryError = AiworkflowsInterfacesHttpErrorResponse
+
+
+export function useGetAiSummaries<TData = Awaited<ReturnType<typeof getAiSummaries>>, TError = AiworkflowsInterfacesHttpErrorResponse>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAiSummaries>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getAiSummaries>>,
+          TError,
+          Awaited<ReturnType<typeof getAiSummaries>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetAiSummaries<TData = Awaited<ReturnType<typeof getAiSummaries>>, TError = AiworkflowsInterfacesHttpErrorResponse>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAiSummaries>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getAiSummaries>>,
+          TError,
+          Awaited<ReturnType<typeof getAiSummaries>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetAiSummaries<TData = Awaited<ReturnType<typeof getAiSummaries>>, TError = AiworkflowsInterfacesHttpErrorResponse>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAiSummaries>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary List the user's recent repository summaries
+ */
+
+export function useGetAiSummaries<TData = Awaited<ReturnType<typeof getAiSummaries>>, TError = AiworkflowsInterfacesHttpErrorResponse>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAiSummaries>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient 
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetAiSummariesQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey ;
+
+  return query;
+}
+
 
 
 

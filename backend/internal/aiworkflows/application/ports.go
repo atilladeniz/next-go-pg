@@ -27,6 +27,7 @@ type Store interface {
 	Create(ctx context.Context, agg *ai.RepoSummary) error
 	Save(ctx context.Context, agg *ai.RepoSummary) error
 	GetByID(ctx context.Context, id uint) (*ai.RepoSummary, error)
+	ListByUserID(ctx context.Context, userID shared.UserID, limit int) ([]*ai.RepoSummary, error)
 }
 
 // HatchetEnqueuer hides the Hatchet SDK from the application and HTTP
@@ -45,8 +46,9 @@ type EnqueueSummarizeRepoInput struct {
 	RepoURL   ai.RepoURL
 }
 
-// LLMClient is the LLM-runtime abstraction. Implementations talk to
-// Ollama in dev; in production they could fan out to a hosted provider.
+// LLMClient is the LLM-runtime abstraction. Current implementation
+// talks to OpenRouter; the port stays generic so swapping in another
+// provider (local model, different gateway) is a one-line wire change.
 type LLMClient interface {
 	Generate(ctx context.Context, prompt string) (string, error)
 }
@@ -63,9 +65,54 @@ type ClonedRepo struct {
 	Cleanup func() error
 }
 
-// ProgressPublisher dispatches the domain events the workflow records on
-// the aggregate. The SSE adapter under infrastructure/events maps each
-// event onto the `ai-progress` SSE event type.
+// ProgressPublisher dispatches workflow progress to the frontend.
+//
+// Two channels:
+//   - `Publish` routes the bounded context's domain events (started,
+//     completed, failed, cancelled). The adapter under
+//     infrastructure/events maps each onto an `ai-progress` SSE event.
+//   - `PublishStep` is a thin bypass for fine-grained step-state and
+//     per-file fan-out progress that the aggregate does NOT own. It
+//     fires on every step boundary plus once per file completion so the
+//     frontend can render a live "step N of 5 — file 3 of 5" view
+//     without waiting for the orchestrator's WaitGroup to drain.
 type ProgressPublisher interface {
 	Publish(ctx context.Context, events ...shared.DomainEvent) error
+	PublishStep(ctx context.Context, step StepProgress)
+}
+
+// StepName enumerates the workflow's main steps. Kept as a typed string
+// so the frontend can match on values without a wire-level fragility check.
+type StepName string
+
+const (
+	StepClone          StepName = "clone"
+	StepTraverse       StepName = "traverse"
+	StepSummarizeFiles StepName = "summarize_files"
+	StepAggregate      StepName = "aggregate"
+	StepStore          StepName = "store"
+)
+
+// StepState is the wire-level state of one step.
+type StepState string
+
+const (
+	StepStateStarted   StepState = "started"
+	StepStateCompleted StepState = "completed"
+	StepStateFailed    StepState = "failed"
+	StepStateProgress  StepState = "progress" // per-file ticks within summarize_files
+)
+
+// StepProgress is the payload published on a step transition. Use the
+// zero value for unset numeric fields.
+type StepProgress struct {
+	SummaryID  uint
+	UserID     shared.UserID
+	Step       StepName
+	State      StepState
+	DurationMs int64
+	FileIndex  int    // 1-based, for summarize_files state=progress
+	FileCount  int    // total files Traverse selected
+	Filename   string // last completed filename
+	Reason     string // populated only when State=failed
 }

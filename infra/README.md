@@ -15,71 +15,82 @@ infra/
 └── grafana/            # Grafana provisioning (datasources + dashboards)
 ```
 
-This document covers Kamal deployment and the optional AI dev stack
-(Hatchet workflow engine + Ollama LLM runtime).
+This document covers Kamal deployment and the optional AI workflow stack
+(self-hosted `hatchet-lite` workflow engine + cloud LLM via OpenRouter).
 
-## AI dev stack (optional)
+## AI workflow stack (optional)
 
-The AI dev stack adds a self-hosted `hatchet-lite` workflow engine and a
-local `ollama` LLM runtime to the dev Docker Compose file. Both run
-behind the `ai` Compose profile, so they are NOT started by `just dev` —
-opt in explicitly with `just ai-up`.
+`hatchet-lite` runs locally for workflow orchestration; the LLM itself is
+**OpenRouter** (cloud) — no local model containers, no GPU pinning, same
+configuration in dev and production. Hatchet lives behind the `ai`
+Compose profile, so it is NOT started by `just dev` — opt in explicitly.
 
 ### Quick start
 
 ```bash
-# 1. Bring up core dev stack (db, mailpit) and AI services
+# 1. Start the workflow engine
 just ai-up
 
-# 2. First-run only: pull the default model (~5 GB for gemma4:e4b)
-just ai-pull-model              # uses default gemma4:e4b
-# or pick a different one:
-just ai-pull-model gemma4:26b-a4b
+# 2. Export the LLM key (required — backend fails fast if missing)
+export OPENROUTER_API_KEY='sk-or-...'
+export OPENROUTER_MODEL='openrouter/free'   # auto-route to a free model
 
-# 3. Hatchet dashboard at http://localhost:8888  (anonymous in dev mode)
+# 3. Start the backend — it pings OpenRouter on boot
+just dev-backend
 ```
 
 ### Endpoints
 
-| Service        | URL                              | Notes                                          |
-|----------------|----------------------------------|------------------------------------------------|
-| Hatchet gRPC   | `127.0.0.1:7077`                 | Backend (running on host) dials this           |
-| Hatchet UI     | `http://localhost:8888`          | Browser dashboard — generate token here        |
-| Ollama HTTP    | `http://127.0.0.1:11434`         | Backend HTTP client target                     |
+| Service        | URL                                | Notes                                          |
+|----------------|------------------------------------|------------------------------------------------|
+| Hatchet gRPC   | `127.0.0.1:7077`                   | Backend (on host) dials this                   |
+| Hatchet API    | `http://localhost:8888/api/v1/...` | Dashboard JSON API                             |
+| OpenRouter     | `https://openrouter.ai`            | Cloud LLM gateway (configurable via env)       |
 
-All three are bound to `127.0.0.1` only — never exposed to your LAN.
+Hatchet ports are bound to `127.0.0.1` only — never exposed to your LAN.
+
+### LLM configuration (required env)
+
+| Env                    | Default                      | Purpose                                     |
+|------------------------|------------------------------|---------------------------------------------|
+| `OPENROUTER_API_KEY`   | (none — required)            | Auth token                                  |
+| `OPENROUTER_MODEL`     | `openai/gpt-oss-120b`        | Use `openrouter/free` for free Auto-Router  |
+| `OPENROUTER_URL`       | `https://openrouter.ai`      | Override for self-hosted proxies            |
+| `OPENROUTER_TIMEOUT`   | `60s`                        | Go duration                                 |
+| `OPENROUTER_REFERER`   | (empty)                      | OpenRouter analytics header                 |
+| `OPENROUTER_TITLE`     | (empty)                      | OpenRouter analytics header                 |
+
+Backend pings `GET /api/v1/auth/key` at boot with the configured token. A
+401 or unreachable gateway aborts AI-handler wiring (the rest of the
+backend still boots — AI endpoints return 503 in that case).
 
 ### What gets created
 
 - A dedicated `hatchet` Postgres database (script:
   `infra/compose/postgres-init/01-create-hatchet-db.sql`). Created
-  automatically on a **fresh** Postgres data volume. If your `postgres_data`
-  volume already exists, create it manually:
+  automatically on a **fresh** Postgres data volume. For existing
+  volumes, create manually:
   ```bash
   docker compose -f infra/compose/docker-compose.dev.yml \
     exec db psql -U postgres -c 'CREATE DATABASE hatchet'
   ```
-- An `ollama_data` named volume that persists pulled models between
-  restarts.
+- A `hatchet_config` named volume that persists encryption keys + the
+  default tenant between restarts.
 
-### Expected resource usage
+### Resource usage
 
-- `hatchet-lite`: ~150 MB RAM idle.
-- `ollama` + `gemma4:e4b`: ~5 GB disk for the model, 6–8 GB RAM during
-  inference on a dev MacBook (M1/M2). Switch to `gemma4:26b-a4b` only on
-  a workstation with ≥32 GB RAM.
+`hatchet-lite` runs ~150 MB RAM idle. The LLM call cost is whatever
+OpenRouter bills (free models are $0 — see
+[https://openrouter.ai/collections/free-models](https://openrouter.ai/collections/free-models)).
 
 ### Known gotchas
 
 - **Postgres init script only fires on a fresh volume.** Existing dev
   volumes need the manual `CREATE DATABASE hatchet` step above.
 - **Hatchet broadcast address is fragile.** `SERVER_GRPC_BROADCAST_ADDRESS`
-  must be reachable from any worker. Inside the docker network we use the
-  service name `hatchet-lite:7077`. If you point a worker from outside the
-  docker network at it, the worker will fail to resume long-running tasks.
-- **First model pull is slow** (~5 GB over the network). The Ollama
-  healthcheck does not pre-pull — that's an explicit `just ai-pull-model`
-  step so contributors choose when to spend the disk and bandwidth.
+  must match how workers will dial it. Dev uses `127.0.0.1:7077` because
+  the backend runs on the host. Promoting to containerised backend later
+  requires re-pointing this.
 - **Hatchet Go SDK has no OpenTelemetry support as of May 2026.** Engine
   and worker logs flow via stdout → Promtail → Loki, queryable in Grafana
   with `{service="hatchet"}`.
@@ -87,15 +98,16 @@ All three are bound to `127.0.0.1` only — never exposed to your LAN.
 ### Stopping
 
 ```bash
-just ai-down            # stops hatchet-lite + ollama, keeps db running
+just ai-down            # stops hatchet-lite, keeps db running
 ```
 
 ### Production deploy
 
-The AI dev stack is **not** wired into `infra/kamal/deploy.yml`. Promoting
-`hatchet-lite` (or a managed Hatchet Cloud workspace) to production is
-Phase 2 of the orchestrator plan — see
+Promoting `hatchet-lite` (or a managed Hatchet Cloud workspace) to
+production is Phase 2 of the orchestrator plan — see
 [`.docs/orchestrator-decision.md`](../.docs/orchestrator-decision.md).
+The LLM side is already production-shaped — set the same
+`OPENROUTER_*` env vars in your Kamal secrets and you're done.
 
 ## Quick Reference
 

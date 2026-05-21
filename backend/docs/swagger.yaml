@@ -13,6 +13,28 @@ definitions:
       summary:
         type: string
     type: object
+  aiworkflows_interfaces_http.RepoSummaryListItem:
+    properties:
+      fileCount:
+        type: integer
+      id:
+        type: integer
+      repoUrl:
+        type: string
+      startedAt:
+        type: string
+      status:
+        type: string
+      updatedAt:
+        type: string
+    type: object
+  aiworkflows_interfaces_http.RepoSummaryListResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/aiworkflows_interfaces_http.RepoSummaryListItem'
+        type: array
+    type: object
   aiworkflows_interfaces_http.RepoSummaryResponse:
     properties:
       completedAt:
@@ -31,6 +53,11 @@ definitions:
         type: string
       status:
         type: string
+      stepDurations:
+        additionalProperties:
+          format: int64
+          type: integer
+        type: object
       summary:
         type: string
     type: object
@@ -201,6 +228,30 @@ info:
   title: Next-Go-PG API
   version: "1.0"
 paths:
+  /ai/summaries:
+    get:
+      description: Returns up to 50 of the authenticated user's runs, newest first.
+        Used by the AI page to show a history of past runs.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/aiworkflows_interfaces_http.RepoSummaryListResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/aiworkflows_interfaces_http.ErrorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/aiworkflows_interfaces_http.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List the user's recent repository summaries
+      tags:
+      - ai
   /ai/summaries/{id}:
     get:
       description: Returns the stored summary for a run owned by the authenticated
@@ -240,7 +291,8 @@ paths:
       consumes:
       - application/json
       description: Enqueues a Hatchet workflow that clones the repository, summarises
-        individual files via Ollama, and produces a repo-level summary.
+        individual files via the configured LLM provider (OpenRouter), and produces
+        a repo-level summary.
       parameters:
       - description: Repo URL to summarize
         in: body

@@ -11,17 +11,18 @@ import (
 )
 
 type gormRepoSummary struct {
-	ID          uint              `gorm:"primaryKey"`
-	UserID      string            `gorm:"index;not null"`
-	RepoURL     string            `gorm:"not null"`
-	Status      string            `gorm:"index;not null"`
-	Files       fileSummariesJSON `gorm:"type:jsonb;default:'[]'"`
-	Summary     string            `gorm:"type:text"`
-	FailReason  string            `gorm:"type:text"`
-	StartedAt   time.Time
-	CompletedAt time.Time
-	CreatedAt   time.Time `gorm:"autoCreateTime"`
-	UpdatedAt   time.Time `gorm:"autoUpdateTime"`
+	ID            uint              `gorm:"primaryKey"`
+	UserID        string            `gorm:"index;not null"`
+	RepoURL       string            `gorm:"not null"`
+	Status        string            `gorm:"index;not null"`
+	Files         fileSummariesJSON `gorm:"type:jsonb;default:'[]'"`
+	Summary       string            `gorm:"type:text"`
+	FailReason    string            `gorm:"type:text"`
+	StepDurations stepDurationsJSON `gorm:"type:jsonb;default:'{}'"`
+	StartedAt     time.Time
+	CompletedAt   time.Time
+	CreatedAt     time.Time `gorm:"autoCreateTime"`
+	UpdatedAt     time.Time `gorm:"autoUpdateTime"`
 }
 
 func (gormRepoSummary) TableName() string { return "repo_summaries" }
@@ -65,6 +66,40 @@ func (f *fileSummariesJSON) Scan(src any) error {
 		return nil
 	}
 	return json.Unmarshal(raw, f)
+}
+
+// stepDurationsJSON is a map[stepName]int64Ms backed by JSONB. Keeps
+// completed-step durations alongside the row so a page refresh during
+// or after a run can paint the exact timings the live SSE stream
+// reported, rather than losing them when the React state is dropped.
+type stepDurationsJSON map[string]int64
+
+func (s stepDurationsJSON) Value() (driver.Value, error) {
+	if s == nil {
+		return "{}", nil
+	}
+	return json.Marshal(s)
+}
+
+func (s *stepDurationsJSON) Scan(src any) error {
+	if src == nil {
+		*s = nil
+		return nil
+	}
+	var raw []byte
+	switch v := src.(type) {
+	case []byte:
+		raw = v
+	case string:
+		raw = []byte(v)
+	default:
+		return errors.New("stepDurationsJSON: unsupported scan source")
+	}
+	if len(raw) == 0 {
+		*s = nil
+		return nil
+	}
+	return json.Unmarshal(raw, s)
 }
 
 // Entities returns the GORM models that AutoMigrate must process for

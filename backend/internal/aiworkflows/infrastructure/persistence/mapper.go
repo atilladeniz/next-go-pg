@@ -22,18 +22,23 @@ func toDomain(m gormRepoSummary) (*ai.RepoSummary, error) {
 	if err != nil {
 		return nil, err
 	}
+	durations := make(map[string]int64, len(m.StepDurations))
+	for k, v := range m.StepDurations {
+		durations[k] = v
+	}
 	return &ai.RepoSummary{
-		ID:          m.ID,
-		UserID:      shared.UserID(m.UserID),
-		RepoURL:     url,
-		Status:      status,
-		Files:       files,
-		Summary:     m.Summary,
-		FailReason:  m.FailReason,
-		StartedAt:   m.StartedAt,
-		CompletedAt: m.CompletedAt,
-		CreatedAt:   m.CreatedAt,
-		UpdatedAt:   m.UpdatedAt,
+		ID:            m.ID,
+		UserID:        shared.UserID(m.UserID),
+		RepoURL:       url,
+		Status:        status,
+		Files:         files,
+		Summary:       m.Summary,
+		FailReason:    m.FailReason,
+		StartedAt:     m.StartedAt,
+		CompletedAt:   m.CompletedAt,
+		CreatedAt:     m.CreatedAt,
+		UpdatedAt:     m.UpdatedAt,
+		StepDurations: durations,
 	}, nil
 }
 
@@ -45,17 +50,22 @@ func fromDomain(d *ai.RepoSummary) gormRepoSummary {
 			Summary:  fs.Summary(),
 		})
 	}
+	durations := make(stepDurationsJSON, len(d.StepDurations))
+	for k, v := range d.StepDurations {
+		durations[k] = v
+	}
 	return gormRepoSummary{
-		ID:          d.ID,
-		UserID:      d.UserID.String(),
-		RepoURL:     d.RepoURL.String(),
-		Status:      d.Status.String(),
-		Files:       files,
-		Summary:     d.Summary,
-		FailReason:  d.FailReason,
-		StartedAt:   d.StartedAt,
-		CompletedAt: d.CompletedAt,
-		CreatedAt:   d.CreatedAt,
-		UpdatedAt:   d.UpdatedAt,
+		ID:            d.ID,
+		UserID:        d.UserID.String(),
+		RepoURL:       d.RepoURL.String(),
+		Status:        d.Status.String(),
+		Files:         files,
+		Summary:       d.Summary,
+		FailReason:    d.FailReason,
+		StepDurations: durations,
+		StartedAt:     d.StartedAt,
+		CompletedAt:   d.CompletedAt,
+		CreatedAt:     d.CreatedAt,
+		UpdatedAt:     d.UpdatedAt,
 	}
 }

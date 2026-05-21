@@ -32,21 +32,53 @@ func NewPublisher(broadcaster Broadcaster) *Publisher {
 	return &Publisher{broadcaster: broadcaster}
 }
 
-// progressPayload is the SSE event body. Frontend consumers decode it
-// directly. `step` identifies which domain event fired so the UI can
-// pick a label and render fileIndex/fileCount when present.
+// progressPayload is the SSE event body. Two flavours flow over the same
+// `ai-progress` channel — `kind` distinguishes them on the frontend:
+//   - kind=lifecycle: started/completed/failed/cancelled from the
+//     RepoSummary aggregate's domain events
+//   - kind=step: step-level transitions emitted directly by the
+//     workflow (clone/traverse/.../store with started/completed/failed/progress)
 type progressPayload struct {
-	SummaryID uint   `json:"summaryId"`
-	UserID    string `json:"userId"`
-	Step      string `json:"step"`
-	Status    string `json:"status,omitempty"`
-	Filename  string `json:"filename,omitempty"`
-	FileIndex int    `json:"fileIndex,omitempty"`
-	FileCount int    `json:"fileCount,omitempty"`
-	Reason    string `json:"reason,omitempty"`
+	Kind       string `json:"kind"`
+	SummaryID  uint   `json:"summaryId"`
+	UserID     string `json:"userId"`
+	Step       string `json:"step"`
+	State      string `json:"state,omitempty"`      // step transitions: started/completed/failed/progress
+	Status     string `json:"status,omitempty"`     // lifecycle (run-level): running/completed/failed/cancelled
+	DurationMs int64  `json:"durationMs,omitempty"` // step-level duration on completion
+	Filename   string `json:"filename,omitempty"`
+	FileIndex  int    `json:"fileIndex,omitempty"`
+	FileCount  int    `json:"fileCount,omitempty"`
+	Reason     string `json:"reason,omitempty"`
 }
 
 const sseEventName = "ai-progress"
+
+// PublishStep broadcasts a step-level progress event. Step events are
+// the granular update the live UI renders against (one row per step,
+// with state + duration + per-file counters during fan-out).
+func (p *Publisher) PublishStep(_ context.Context, step aiapp.StepProgress) {
+	if p.broadcaster == nil {
+		return
+	}
+	payload := progressPayload{
+		Kind:       "step",
+		SummaryID:  step.SummaryID,
+		UserID:     step.UserID.String(),
+		Step:       string(step.Step),
+		State:      string(step.State),
+		DurationMs: step.DurationMs,
+		Filename:   step.Filename,
+		FileIndex:  step.FileIndex,
+		FileCount:  step.FileCount,
+		Reason:     step.Reason,
+	}
+	raw, err := json.Marshal(payload)
+	if err != nil {
+		return
+	}
+	p.broadcaster.Broadcast(sseEventName, string(raw))
+}
 
 // Publish routes each domain event to the broadcast topic. Unknown
 // events are silently skipped (probably emitted by another context).
@@ -87,40 +119,43 @@ func encode(ev shared.DomainEvent) (progressPayload, bool) {
 	switch e := ev.(type) {
 	case ai.SummaryStarted:
 		return progressPayload{
+			Kind:      "lifecycle",
 			SummaryID: e.SummaryID,
 			UserID:    e.UserID.String(),
-			Step:      "started",
 			Status:    "running",
 		}, true
 	case ai.FileSummarized:
+		// FileSummarized still flows on lifecycle events for downstream
+		// consumers (audit, future analytics). The frontend's live UI
+		// uses the granular PublishStep stream instead.
 		return progressPayload{
+			Kind:      "lifecycle",
 			SummaryID: e.SummaryID,
 			UserID:    e.UserID.String(),
-			Step:      "summarize_file",
 			Filename:  e.Filename,
 			FileIndex: e.FileIndex,
 			FileCount: e.FileCount,
 		}, true
 	case ai.SummaryCompleted:
 		return progressPayload{
+			Kind:      "lifecycle",
 			SummaryID: e.SummaryID,
 			UserID:    e.UserID.String(),
-			Step:      "store",
 			Status:    "completed",
 		}, true
 	case ai.SummaryFailed:
 		return progressPayload{
+			Kind:      "lifecycle",
 			SummaryID: e.SummaryID,
 			UserID:    e.UserID.String(),
-			Step:      "store",
 			Status:    "failed",
 			Reason:    e.Reason,
 		}, true
 	case ai.SummaryCancelled:
 		return progressPayload{
+			Kind:      "lifecycle",
 			SummaryID: e.SummaryID,
 			UserID:    e.UserID.String(),
-			Step:      "store",
 			Status:    "cancelled",
 		}, true
 	default:

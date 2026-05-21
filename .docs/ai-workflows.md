@@ -1,9 +1,16 @@
-# AI Workflows (Hatchet + Ollama)
+# AI Workflows (Hatchet + OpenRouter)
 
 The `aiworkflows` bounded context owns long-running, multi-step AI work
-backed by [Hatchet](https://hatchet.run) (durable workflow engine) and a
-local [Ollama](https://ollama.com) runtime. Use it when River is too
-small a hammer — see `.docs/background-jobs.md` for when each fits.
+backed by [Hatchet](https://hatchet.run) (durable workflow engine) and
+[OpenRouter](https://openrouter.ai) (cloud LLM gateway). Use it when
+River is too small a hammer — see `.docs/background-jobs.md` for when
+each fits.
+
+The LLM is intentionally cloud-only: same configuration in dev and
+production, no GPU pinning, no model-pull bandwidth. Free-tier models
+are reachable via `OPENROUTER_MODEL=openrouter/free` for zero-cost dev.
+Backend pings the gateway at boot — a missing or rejected key fails
+fast instead of surfacing on the first workflow run.
 
 This doc covers **how to add a new workflow**. For the rationale on
 two-queue split see `.docs/orchestrator-decision.md`.

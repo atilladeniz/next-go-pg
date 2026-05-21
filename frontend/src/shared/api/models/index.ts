@@ -8,7 +8,10 @@
 
 export * from './aiworkflowsInterfacesHttpErrorResponse';
 export * from './aiworkflowsInterfacesHttpFileSummaryDTO';
+export * from './aiworkflowsInterfacesHttpRepoSummaryListItem';
+export * from './aiworkflowsInterfacesHttpRepoSummaryListResponse';
 export * from './aiworkflowsInterfacesHttpRepoSummaryResponse';
+export * from './aiworkflowsInterfacesHttpRepoSummaryResponseStepDurations';
 export * from './aiworkflowsInterfacesHttpSummarizeRepoRequest';
 export * from './aiworkflowsInterfacesHttpSummarizeRepoResponse';
 export * from './authInterfacesHttpErrorResponse';

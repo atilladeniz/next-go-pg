@@ -1,7 +1,7 @@
 // Package http is the aiworkflows context's inbound interface adapter.
 // HTTP endpoints translate request/response shapes and call application
 // use cases — they own no business logic and never touch Hatchet, GORM,
-// or Ollama directly.
+// or the LLM client directly.
 package http
 
 import (
@@ -22,13 +22,14 @@ import (
 type Handler struct {
 	summarizeRepo  *aiapp.SummarizeRepo
 	getRepoSummary *aiapp.GetRepoSummary
+	listSummaries  *aiapp.ListUserSummaries
 }
 
 // NewHandler returns a Handler. Either use case may be nil; in that case
 // the corresponding endpoints respond with 503 Service Unavailable so
 // the dev stack still boots even without Hatchet wired.
-func NewHandler(summarize *aiapp.SummarizeRepo, get *aiapp.GetRepoSummary) *Handler {
-	return &Handler{summarizeRepo: summarize, getRepoSummary: get}
+func NewHandler(summarize *aiapp.SummarizeRepo, get *aiapp.GetRepoSummary, list *aiapp.ListUserSummaries) *Handler {
+	return &Handler{summarizeRepo: summarize, getRepoSummary: get, listSummaries: list}
 }
 
 // SummarizeRepoRequest is the wire-level request body.
@@ -51,14 +52,31 @@ type FileSummaryDTO struct {
 
 // RepoSummaryResponse is the 200 body for GET /ai/summaries/{id}.
 type RepoSummaryResponse struct {
-	ID          uint             `json:"id"`
-	RepoURL     string           `json:"repoUrl"`
-	Status      string           `json:"status"`
-	Files       []FileSummaryDTO `json:"files"`
-	Summary     string           `json:"summary"`
-	FailReason  string           `json:"failReason,omitempty"`
-	StartedAt   string           `json:"startedAt,omitempty"`
-	CompletedAt string           `json:"completedAt,omitempty"`
+	ID            uint             `json:"id"`
+	RepoURL       string           `json:"repoUrl"`
+	Status        string           `json:"status"`
+	Files         []FileSummaryDTO `json:"files"`
+	Summary       string           `json:"summary"`
+	FailReason    string           `json:"failReason,omitempty"`
+	StartedAt     string           `json:"startedAt,omitempty"`
+	CompletedAt   string           `json:"completedAt,omitempty"`
+	StepDurations map[string]int64 `json:"stepDurations,omitempty"`
+}
+
+// RepoSummaryListItem is the compact projection returned by GET /ai/summaries.
+type RepoSummaryListItem struct {
+	ID        uint   `json:"id"`
+	RepoURL   string `json:"repoUrl"`
+	Status    string `json:"status"`
+	FileCount int    `json:"fileCount"`
+	StartedAt string `json:"startedAt,omitempty"`
+	UpdatedAt string `json:"updatedAt,omitempty"`
+}
+
+// RepoSummaryListResponse wraps the list so we can add pagination later
+// without a breaking JSON change.
+type RepoSummaryListResponse struct {
+	Items []RepoSummaryListItem `json:"items"`
 }
 
 // ErrorResponse is the aiworkflows error envelope.
@@ -68,7 +86,7 @@ type ErrorResponse struct {
 
 // SummarizeRepo godoc
 // @Summary  Trigger a repository summarization workflow
-// @Description Enqueues a Hatchet workflow that clones the repository, summarises individual files via Ollama, and produces a repo-level summary.
+// @Description Enqueues a Hatchet workflow that clones the repository, summarises individual files via the configured LLM provider (OpenRouter), and produces a repo-level summary.
 // @Tags     ai
 // @Accept   json
 // @Produce  json
@@ -169,6 +187,55 @@ func (h *Handler) GetRepoSummary(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, toResponse(agg))
+}
+
+// ListRepoSummaries godoc
+// @Summary  List the user's recent repository summaries
+// @Description Returns up to 50 of the authenticated user's runs, newest first. Used by the AI page to show a history of past runs.
+// @Tags     ai
+// @Produce  json
+// @Success  200 {object} RepoSummaryListResponse
+// @Failure  401 {object} ErrorResponse
+// @Failure  503 {object} ErrorResponse
+// @Security BearerAuth
+// @Router   /ai/summaries [get]
+func (h *Handler) ListRepoSummaries(w http.ResponseWriter, r *http.Request) {
+	user := middleware.GetUserFromContext(r.Context())
+	if user == nil {
+		writeError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+	if h.listSummaries == nil {
+		writeError(w, http.StatusServiceUnavailable, "ai workflows not configured")
+		return
+	}
+	uid, err := shared.NewUserID(user.ID)
+	if err != nil {
+		writeError(w, http.StatusUnauthorized, "invalid user id")
+		return
+	}
+	rows, err := h.listSummaries.Execute(r.Context(), uid, 20)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to load summaries")
+		return
+	}
+	items := make([]RepoSummaryListItem, 0, len(rows))
+	for _, row := range rows {
+		item := RepoSummaryListItem{
+			ID:        row.ID,
+			RepoURL:   row.RepoURL.String(),
+			Status:    row.Status.String(),
+			FileCount: len(row.Files),
+		}
+		if !row.StartedAt.IsZero() {
+			item.StartedAt = row.StartedAt.UTC().Format("2006-01-02T15:04:05Z")
+		}
+		if !row.UpdatedAt.IsZero() {
+			item.UpdatedAt = row.UpdatedAt.UTC().Format("2006-01-02T15:04:05Z")
+		}
+		items = append(items, item)
+	}
+	writeJSON(w, RepoSummaryListResponse{Items: items})
 }
 
 func toResponse(s *ai.RepoSummary) RepoSummaryResponse {

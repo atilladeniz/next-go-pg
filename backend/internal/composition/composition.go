@@ -263,29 +263,24 @@ func (a *App) Shutdown(ctx context.Context) {
 func buildAIWorkflowsHandler(ctx context.Context, app *App, db *gorm.DB, broker *sse.Broker) *aihttp.Handler {
 	repo := aipersist.NewRepository(db)
 	getUC := &aiapp.GetRepoSummary{Store: repo}
+	listUC := &aiapp.ListUserSummaries{Store: repo}
 
 	token := os.Getenv("HATCHET_CLIENT_TOKEN")
 	if token == "" {
 		logger.Warn().Msg("HATCHET_CLIENT_TOKEN unset — AI workflows disabled (degraded boot). GET /ai/summaries/{id} still serves existing rows.")
-		return aihttp.NewHandler(nil, getUC)
+		return aihttp.NewHandler(nil, getUC, listUC)
 	}
 
 	client, err := hatchet.NewClient()
 	if err != nil {
 		logger.Warn().Err(err).Msg("Hatchet client init failed — AI workflows disabled")
-		return aihttp.NewHandler(nil, getUC)
+		return aihttp.NewHandler(nil, getUC, listUC)
 	}
 
-	llmCfg := aillm.Config{
-		URL:   os.Getenv("OLLAMA_URL"),
-		Model: os.Getenv("OLLAMA_MODEL"),
-	}
-	if raw := os.Getenv("OLLAMA_TIMEOUT"); raw != "" {
-		if d, err := time.ParseDuration(raw); err == nil {
-			llmCfg.Timeout = d
-		} else {
-			logger.Warn().Str("value", raw).Msg("OLLAMA_TIMEOUT not parseable as duration, falling back to default")
-		}
+	llmClient, llmLabel, err := buildLLMClient(ctx)
+	if err != nil {
+		logger.Warn().Err(err).Msg("LLM client init failed — AI workflows disabled")
+		return aihttp.NewHandler(nil, getUC, listUC)
 	}
 	maxFiles := 25
 	if raw := os.Getenv("AI_MAX_FILES"); raw != "" {
@@ -295,17 +290,18 @@ func buildAIWorkflowsHandler(ctx context.Context, app *App, db *gorm.DB, broker 
 	}
 	deps := aiworkflows.Deps{
 		Cloner:   aigit.NewCloner("", 50*1024*1024),
-		LLM:      aillm.NewClient(llmCfg),
+		LLM:      llmClient,
 		Store:    repo,
 		Progress: aievents.NewPublisher(broker),
 		MaxFiles: maxFiles,
 		MaxBytes: 64 * 1024,
 	}
+	_ = llmLabel // surfaced via the wired-log below
 
 	worker, err := aiworkflows.NewWorker(client, deps, "ai-workflows-worker")
 	if err != nil {
 		logger.Warn().Err(err).Msg("Hatchet worker init failed — AI workflows disabled")
-		return aihttp.NewHandler(nil, getUC)
+		return aihttp.NewHandler(nil, getUC, listUC)
 	}
 
 	workerCtx, cancel := context.WithCancel(ctx)
@@ -321,8 +317,47 @@ func buildAIWorkflowsHandler(ctx context.Context, app *App, db *gorm.DB, broker 
 	enqueuer := aiworkflows.NewEnqueuer(client)
 	summarizeUC := &aiapp.SummarizeRepo{Store: repo, Enqueuer: enqueuer}
 
-	logger.Info().Msg("AI workflows context wired: Hatchet + Ollama")
-	return aihttp.NewHandler(summarizeUC, getUC)
+	logger.Info().Str("llm", llmLabel).Msg("AI workflows context wired: Hatchet + LLM")
+	return aihttp.NewHandler(summarizeUC, getUC, listUC)
+}
+
+// buildLLMClient constructs the OpenRouter LLM client and verifies the
+// API key with a cheap auth-info ping. Returned label is the
+// human-readable model identifier surfaced in logs — never the secret.
+//
+// Required env:
+//
+//	OPENROUTER_API_KEY                — fails startup if unset
+//	OPENROUTER_MODEL                  — default openai/gpt-oss-120b
+//	OPENROUTER_URL                    — default https://openrouter.ai
+//	OPENROUTER_TIMEOUT                — Go duration, default 60s
+//	OPENROUTER_REFERER, OPENROUTER_TITLE — optional analytics headers
+//
+// This function fails fast at boot rather than letting the first
+// workflow run discover a misconfigured/missing key.
+func buildLLMClient(ctx context.Context) (aiapp.LLMClient, string, error) {
+	cfg := aillm.OpenRouterConfig{
+		URL:     os.Getenv("OPENROUTER_URL"),
+		APIKey:  os.Getenv("OPENROUTER_API_KEY"),
+		Model:   os.Getenv("OPENROUTER_MODEL"),
+		Referer: os.Getenv("OPENROUTER_REFERER"),
+		Title:   os.Getenv("OPENROUTER_TITLE"),
+	}
+	if raw := os.Getenv("OPENROUTER_TIMEOUT"); raw != "" {
+		if d, err := time.ParseDuration(raw); err == nil {
+			cfg.Timeout = d
+		}
+	}
+	client, err := aillm.NewOpenRouterClient(cfg)
+	if err != nil {
+		return nil, "", err
+	}
+	pingCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	if err := client.Ping(pingCtx); err != nil {
+		return nil, "", fmt.Errorf("openrouter ping: %w", err)
+	}
+	return client, "openrouter:" + client.Model(), nil
 }
 
 // statsToExportsReader is the anti-corruption layer between the stats
@@ -389,9 +424,10 @@ func buildRouter(d routerDeps) http.Handler {
 	loggingMW := middleware.NewLoggingMiddleware()
 	corsMW := middleware.NewCORSMiddleware(d.cfg.FrontendURL)
 	rateLimitMW := middleware.NewRateLimitMiddleware(middleware.RateLimitConfig{
-		RequestsPerMinute: d.cfg.RateLimit.RequestsPerMinute,
-		BurstSize:         d.cfg.RateLimit.BurstSize,
-		SkipPaths:         []string{"/health", "/health/ready", "/health/live", "/metrics"},
+		RequestsPerMinute:     d.cfg.RateLimit.RequestsPerMinute,
+		AuthRequestsPerMinute: d.cfg.RateLimit.AuthRequestsPerMinute,
+		BurstSize:             d.cfg.RateLimit.BurstSize,
+		SkipPaths:             []string{"/health", "/health/ready", "/health/live", "/metrics"},
 	})
 	metricsMW := middleware.NewMetricsMiddleware()
 
@@ -439,6 +475,7 @@ func buildRouter(d routerDeps) http.Handler {
 
 	if d.aiHandler != nil {
 		apiRouter.Handle("/ai/summarize-repo", d.combinedAuth.RequireAuth(http.HandlerFunc(d.aiHandler.SummarizeRepo))).Methods("POST", "OPTIONS")
+		apiRouter.Handle("/ai/summaries", d.combinedAuth.RequireAuth(http.HandlerFunc(d.aiHandler.ListRepoSummaries))).Methods("GET", "OPTIONS")
 		apiRouter.Handle("/ai/summaries/{id}", d.combinedAuth.RequireAuth(http.HandlerFunc(d.aiHandler.GetRepoSummary))).Methods("GET", "OPTIONS")
 	}
 
