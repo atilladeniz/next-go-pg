@@ -1,9 +1,10 @@
 "use client"
 
+import { cn } from "@shared/lib/utils"
 import { Accordion } from "@shared/ui/accordion"
 import { Sparkles } from "lucide-react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { useCallback, useMemo } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { useHistory } from "../model/use-history"
 import { RunRow } from "./run-row"
 
@@ -17,8 +18,18 @@ export function RunList() {
 	const params = useSearchParams()
 	const { items, isLoading, isError } = useHistory()
 
+	// `mounted` suppresses the accordion-content open/close animations on
+	// the very first paint after a refresh. Without it Radix runs
+	// `animate-accordion-down` on mount because its `data-state` flips
+	// from undefined → "open", which renders as a visible close-then-open
+	// flicker for any card that the URL says should be expanded.
+	// Pattern documented in radix-ui/primitives#1463 and shadcn-ui#1644.
+	const [mounted, setMounted] = useState(false)
+	useEffect(() => {
+		setMounted(true)
+	}, [])
+
 	const openIds = useMemo(() => {
-		// Legacy single `id` param keeps working alongside multi-`ids`.
 		const single = params.get("id")
 		const multi = params.get("ids")
 		const raw = multi ?? single
@@ -29,12 +40,26 @@ export function RunList() {
 			.filter(Boolean)
 	}, [params])
 
-	const onValueChange = useCallback(
+	const writeOpenIds = useCallback(
 		(next: string[]) => {
 			const url = next.length ? `/ai/summarize?ids=${next.join(",")}` : "/ai/summarize"
 			router.replace(url, { scroll: false })
 		},
 		[router],
+	)
+
+	const onValueChange = useCallback(
+		(next: string[]) => {
+			writeOpenIds(next)
+		},
+		[writeOpenIds],
+	)
+
+	const onDeleted = useCallback(
+		(id: number) => {
+			writeOpenIds(openIds.filter((x) => x !== String(id)))
+		},
+		[openIds, writeOpenIds],
 	)
 
 	if (isLoading) {
@@ -58,7 +83,17 @@ export function RunList() {
 	}
 
 	return (
-		<Accordion type="multiple" value={openIds} onValueChange={onValueChange} className="space-y-3">
+		<Accordion
+			type="multiple"
+			value={openIds}
+			onValueChange={onValueChange}
+			className={cn(
+				"space-y-3",
+				// First paint only — kill the open/close animation so Radix
+				// does not flash the just-restored card closed-then-open.
+				!mounted && "[&_[data-slot=accordion-content]]:!animate-none",
+			)}
+		>
 			{items.map((it) => (
 				<RunRow
 					key={it.id}
@@ -69,6 +104,7 @@ export function RunList() {
 					startedAt={it.startedAt}
 					updatedAt={it.updatedAt}
 					isOpen={openIds.includes(String(it.id))}
+					onDeleted={onDeleted}
 				/>
 			))}
 		</Accordion>

@@ -96,13 +96,15 @@ function subscribe(l: Listener): () => void {
 }
 
 // useAIProgress subscribes to the shared SSE stream and aggregates step
-// events for ONE summary run. Pass null to disable.
-export function useAIProgress(summaryId: number | null): ProgressView {
+// events for ONE summary run. Pass 0 (or any non-positive number) to
+// disable; passing the real id keeps the singleton subscription and
+// React state intact across collapse/expand cycles.
+export function useAIProgress(summaryId: number): ProgressView {
 	const queryClient = useQueryClient()
 	const [view, setView] = useState<ProgressView>(initialView())
 
 	useEffect(() => {
-		if (summaryId === null) {
+		if (summaryId <= 0) {
 			setView(initialView())
 			return
 		}

@@ -264,23 +264,24 @@ func buildAIWorkflowsHandler(ctx context.Context, app *App, db *gorm.DB, broker 
 	repo := aipersist.NewRepository(db)
 	getUC := &aiapp.GetRepoSummary{Store: repo}
 	listUC := &aiapp.ListUserSummaries{Store: repo}
+	deleteUC := &aiapp.DeleteUserSummary{Store: repo}
 
 	token := os.Getenv("HATCHET_CLIENT_TOKEN")
 	if token == "" {
 		logger.Warn().Msg("HATCHET_CLIENT_TOKEN unset — AI workflows disabled (degraded boot). GET /ai/summaries/{id} still serves existing rows.")
-		return aihttp.NewHandler(nil, getUC, listUC)
+		return aihttp.NewHandler(nil, getUC, listUC, deleteUC)
 	}
 
 	client, err := hatchet.NewClient()
 	if err != nil {
 		logger.Warn().Err(err).Msg("Hatchet client init failed — AI workflows disabled")
-		return aihttp.NewHandler(nil, getUC, listUC)
+		return aihttp.NewHandler(nil, getUC, listUC, deleteUC)
 	}
 
 	llmClient, llmLabel, err := buildLLMClient(ctx)
 	if err != nil {
 		logger.Warn().Err(err).Msg("LLM client init failed — AI workflows disabled")
-		return aihttp.NewHandler(nil, getUC, listUC)
+		return aihttp.NewHandler(nil, getUC, listUC, deleteUC)
 	}
 	maxFiles := 25
 	if raw := os.Getenv("AI_MAX_FILES"); raw != "" {
@@ -301,7 +302,7 @@ func buildAIWorkflowsHandler(ctx context.Context, app *App, db *gorm.DB, broker 
 	worker, err := aiworkflows.NewWorker(client, deps, "ai-workflows-worker")
 	if err != nil {
 		logger.Warn().Err(err).Msg("Hatchet worker init failed — AI workflows disabled")
-		return aihttp.NewHandler(nil, getUC, listUC)
+		return aihttp.NewHandler(nil, getUC, listUC, deleteUC)
 	}
 
 	workerCtx, cancel := context.WithCancel(ctx)
@@ -318,7 +319,7 @@ func buildAIWorkflowsHandler(ctx context.Context, app *App, db *gorm.DB, broker 
 	summarizeUC := &aiapp.SummarizeRepo{Store: repo, Enqueuer: enqueuer}
 
 	logger.Info().Str("llm", llmLabel).Msg("AI workflows context wired: Hatchet + LLM")
-	return aihttp.NewHandler(summarizeUC, getUC, listUC)
+	return aihttp.NewHandler(summarizeUC, getUC, listUC, deleteUC)
 }
 
 // buildLLMClient constructs the OpenRouter LLM client and verifies the
@@ -477,6 +478,7 @@ func buildRouter(d routerDeps) http.Handler {
 		apiRouter.Handle("/ai/summarize-repo", d.combinedAuth.RequireAuth(http.HandlerFunc(d.aiHandler.SummarizeRepo))).Methods("POST", "OPTIONS")
 		apiRouter.Handle("/ai/summaries", d.combinedAuth.RequireAuth(http.HandlerFunc(d.aiHandler.ListRepoSummaries))).Methods("GET", "OPTIONS")
 		apiRouter.Handle("/ai/summaries/{id}", d.combinedAuth.RequireAuth(http.HandlerFunc(d.aiHandler.GetRepoSummary))).Methods("GET", "OPTIONS")
+		apiRouter.Handle("/ai/summaries/{id}", d.combinedAuth.RequireAuth(http.HandlerFunc(d.aiHandler.DeleteRepoSummary))).Methods("DELETE", "OPTIONS")
 	}
 
 	return router

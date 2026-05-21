@@ -99,3 +99,20 @@ func (uc GetRepoSummary) Execute(ctx context.Context, in GetRepoSummaryInput) (*
 	}
 	return agg, nil
 }
+
+// DeleteUserSummary removes a run owned by the caller. The Store
+// implementation is responsible for the owner check — DeleteUserSummary
+// just bundles the input. Returns ErrNotFound for missing rows AND
+// cross-user deletes, matching the GetByID contract.
+type DeleteUserSummary struct {
+	Store Store
+}
+
+type DeleteUserSummaryInput struct {
+	UserID    shared.UserID
+	SummaryID uint
+}
+
+func (uc DeleteUserSummary) Execute(ctx context.Context, in DeleteUserSummaryInput) error {
+	return uc.Store.Delete(ctx, in.UserID, in.SummaryID)
+}

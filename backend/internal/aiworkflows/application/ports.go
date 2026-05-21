@@ -28,6 +28,11 @@ type Store interface {
 	Save(ctx context.Context, agg *ai.RepoSummary) error
 	GetByID(ctx context.Context, id uint) (*ai.RepoSummary, error)
 	ListByUserID(ctx context.Context, userID shared.UserID, limit int) ([]*ai.RepoSummary, error)
+	// Delete removes the row owned by userID. Returns ErrNotFound when
+	// the row is missing OR when it belongs to another user — the same
+	// error surface as GetByID, so the HTTP layer maps both to 404 and
+	// never leaks cross-user existence.
+	Delete(ctx context.Context, userID shared.UserID, id uint) error
 }
 
 // HatchetEnqueuer hides the Hatchet SDK from the application and HTTP

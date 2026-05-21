@@ -253,6 +253,37 @@ paths:
       tags:
       - ai
   /ai/summaries/{id}:
+    delete:
+      description: Removes a run owned by the authenticated user. Returns 404 for
+        missing rows AND cross-user deletes to avoid leaking existence.
+      parameters:
+      - description: Summary ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/aiworkflows_interfaces_http.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/aiworkflows_interfaces_http.ErrorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/aiworkflows_interfaces_http.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete a repository summary run
+      tags:
+      - ai
     get:
       description: Returns the stored summary for a run owned by the authenticated
         user. Cross-user reads return 404 to avoid leaking existence.

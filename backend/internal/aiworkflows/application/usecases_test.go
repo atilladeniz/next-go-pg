@@ -69,6 +69,15 @@ func (s *fakeStore) ListByUserID(_ context.Context, userID shared.UserID, limit 
 	return out, nil
 }
 
+func (s *fakeStore) Delete(_ context.Context, userID shared.UserID, id uint) error {
+	row, ok := s.rows[id]
+	if !ok || row.UserID != userID {
+		return aiapp.ErrNotFound
+	}
+	delete(s.rows, id)
+	return nil
+}
+
 // fakeEnqueuer is a stub HatchetEnqueuer.
 type fakeEnqueuer struct {
 	runID string

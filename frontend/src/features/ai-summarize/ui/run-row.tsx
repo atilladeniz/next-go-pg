@@ -1,8 +1,24 @@
 "use client"
 
+import * as AccordionPrimitive from "@radix-ui/react-accordion"
+import { getGetAiSummariesQueryKey, useDeleteAiSummariesId } from "@shared/api/endpoints/ai/ai"
 import type { AiworkflowsInterfacesHttpRepoSummaryResponse } from "@shared/api/models"
-import { AccordionContent, AccordionItem, AccordionTrigger } from "@shared/ui/accordion"
-import { CheckCircle2, Circle, Loader2, XCircle } from "lucide-react"
+import { cn } from "@shared/lib/utils"
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@shared/ui/accordion"
+import {
+	AlertDialog,
+	AlertDialogAction,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogDescription,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogTitle,
+	AlertDialogTrigger,
+} from "@shared/ui/alert-dialog"
+import { Button } from "@shared/ui/button"
+import { useQueryClient } from "@tanstack/react-query"
+import { CheckCircle2, ChevronDown, Circle, Loader2, Trash2, XCircle } from "lucide-react"
 import { useMemo } from "react"
 import {
 	STEP_ORDER,
@@ -99,9 +115,10 @@ function StepRow({ step }: { step: StepView }) {
 	const showSub = step.name === "summarize_files" && step.fileCount && step.fileCount > 0
 	return (
 		<div
-			className={`flex items-center gap-3 rounded-md px-3 py-2 transition-colors ${
-				step.status === "running" ? "bg-primary/5" : ""
-			}`}
+			className={cn(
+				"flex items-center gap-3 rounded-md px-3 py-2 transition-colors",
+				step.status === "running" && "bg-primary/5",
+			)}
 		>
 			<StepIcon status={step.status} />
 			<div className="flex-1 min-w-0">
@@ -140,15 +157,31 @@ export interface RunRowProps {
 	startedAt?: string
 	updatedAt?: string
 	isOpen: boolean
+	onDeleted?: (id: number) => void
 }
 
 // RunRow renders one run as a shadcn AccordionItem. The parent
 // <Accordion type="multiple"> drives open/close state — we only need to
 // fetch the detail when the card is currently open. Multi-mode lets the
 // user inspect several runs side-by-side.
-export function RunRow({ id, repoUrl, status, fileCount, startedAt, isOpen }: RunRowProps) {
-	const live = useAIProgress(isOpen ? id : null)
-	const detail = useRepoSummary(isOpen ? id : null)
+export function RunRow({
+	id,
+	repoUrl,
+	status,
+	fileCount,
+	startedAt,
+	isOpen,
+	onDeleted,
+}: RunRowProps) {
+	// Always pass the real id so React Query's cache key stays stable.
+	// Gating with `null` here would re-key the query on every collapse →
+	// the previously fetched detail (incl. failure reason) would vanish
+	// during the close animation, which the user sees as the failure
+	// text dropping out before the panel finishes collapsing.
+	const live = useAIProgress(id)
+	const detail = useRepoSummary(id, isOpen)
+	const queryClient = useQueryClient()
+	const deleteMutation = useDeleteAiSummariesId()
 
 	const detailEnvelope = detail.data as
 		| { data?: AiworkflowsInterfacesHttpRepoSummaryResponse }
@@ -246,39 +279,112 @@ export function RunRow({ id, repoUrl, status, fileCount, startedAt, isOpen }: Ru
 		return `${statusLabel[effectiveStatus] ?? effectiveStatus} · ${formatRelative(startedAt)}`
 	})()
 
+	const handleConfirmDelete = async () => {
+		try {
+			await deleteMutation.mutateAsync({ id })
+			queryClient.invalidateQueries({ queryKey: getGetAiSummariesQueryKey() })
+			onDeleted?.(id)
+		} catch {
+			// Mutation surfaces the error via deleteMutation.isError;
+			// the row stays visible so the user can retry.
+		}
+	}
+
 	return (
-		<AccordionItem value={String(id)} className="rounded-xl border bg-card last:border-b">
-			{/* `items-center` overrides shadcn's `items-start` so the chevron
-			    lines up with the title row instead of floating at the top.
-			    `[&>svg]:translate-y-0` cancels the +2px nudge baked into the
-			    primitive's ChevronDownIcon. */}
-			<AccordionTrigger className="items-center px-4 py-3 hover:no-underline data-[state=open]:bg-muted/30 [&>svg]:translate-y-0">
-				<div className="flex flex-1 items-center gap-3 min-w-0">
-					<div className="flex-1 min-w-0 text-left">
-						<div className="font-medium truncate">{formatRepoLabel(repoUrl)}</div>
-						<div className="text-xs text-muted-foreground truncate font-normal">{subLabel}</div>
+		<AccordionItem
+			value={String(id)}
+			className={cn(
+				"overflow-hidden rounded-xl border bg-card last:border-b",
+				// 300ms with ease-out matches the accordion-down 200ms keyframe
+				// closely enough that the bg fade looks coupled with the
+				// height animation, without being so slow it feels laggy.
+				"transition-colors duration-300 ease-out",
+				"data-[state=open]:bg-muted/30",
+			)}
+		>
+			{/* Header is a single flex row with `items-center` — the
+			    Trigger expands to fill, the delete Button sits as a
+			    proper flex sibling on the right. No absolute positioning,
+			    no margin hacks: alignment is purely from flex centering,
+			    so the button stays put whether the item is open or
+			    closed. shadcn's <AccordionTrigger> wraps the trigger in
+			    its own Header internally and can't be extended from
+			    outside — we use the Radix primitive directly here.
+			    The open-state background lives on the AccordionItem so
+			    Trigger + delete Button visually share the same header
+			    block; otherwise the Trigger looked like a separate inner
+			    pill detached from the action button on its right. */}
+			<AccordionPrimitive.Header className="flex items-center">
+				<AccordionPrimitive.Trigger
+					className={cn(
+						"focus-visible:border-ring focus-visible:ring-ring/50",
+						"flex flex-1 cursor-pointer items-center gap-3",
+						"py-3 pl-4 pr-2 text-left text-sm font-medium",
+						"outline-none focus-visible:ring-[3px]",
+						"disabled:pointer-events-none disabled:opacity-50",
+						"[&[data-state=open]>svg.chevron]:rotate-180",
+					)}
+				>
+					<div className="min-w-0 flex-1 text-left">
+						<div className="truncate font-medium">{formatRepoLabel(repoUrl)}</div>
+						<div className="truncate text-xs font-normal text-muted-foreground">{subLabel}</div>
 					</div>
-					<div className={`flex items-center gap-2 text-sm font-medium ${toneText[tone]}`}>
-						<span className={`h-2 w-2 rounded-full ${toneDot[tone]}`} />
+					<div className={cn("flex items-center gap-2 text-sm font-medium", toneText[tone])}>
+						<span className={cn("h-2 w-2 rounded-full", toneDot[tone])} />
 						{statusLabel[effectiveStatus] ?? effectiveStatus}
 					</div>
-					{/* Mini step-progress counter, much more honest than a half-baked
+					{/* Mini step-progress counter, more honest than a half-baked
 					    bar that depends on detail-fetch state. */}
-					<div className="hidden shrink-0 text-xs font-mono tabular-nums text-muted-foreground sm:block">
+					<div className="hidden shrink-0 font-mono text-xs tabular-nums text-muted-foreground sm:block">
 						{doneCount} / {STEP_ORDER.length}
 					</div>
-				</div>
-			</AccordionTrigger>
+					<ChevronDown className="chevron pointer-events-none size-4 shrink-0 text-muted-foreground transition-transform duration-200" />
+				</AccordionPrimitive.Trigger>
+				<AlertDialog>
+					<AlertDialogTrigger asChild>
+						<Button
+							variant="ghost"
+							size="icon-sm"
+							disabled={deleteMutation.isPending}
+							title="Run löschen"
+							className="mr-2 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+						>
+							<Trash2 className="h-4 w-4" />
+							<span className="sr-only">Löschen</span>
+						</Button>
+					</AlertDialogTrigger>
+					<AlertDialogContent>
+						<AlertDialogHeader>
+							<AlertDialogTitle>Run löschen?</AlertDialogTitle>
+							<AlertDialogDescription>
+								<span className="font-mono text-foreground">{formatRepoLabel(repoUrl)}</span> wird
+								inklusive Datei-Zusammenfassungen unwiderruflich gelöscht.
+							</AlertDialogDescription>
+						</AlertDialogHeader>
+						<AlertDialogFooter>
+							<AlertDialogCancel>Abbrechen</AlertDialogCancel>
+							<AlertDialogAction
+								onClick={handleConfirmDelete}
+								className="bg-destructive text-white hover:bg-destructive/90"
+							>
+								Löschen
+							</AlertDialogAction>
+						</AlertDialogFooter>
+					</AlertDialogContent>
+				</AlertDialog>
+			</AccordionPrimitive.Header>
 			<AccordionContent className="px-4 pb-4">
 				<div className="space-y-4">
-					<div className="divide-y rounded-lg border">
+					{/* Inner panels keep `bg-card` so they pop against the muted
+					    header background when the item is open. */}
+					<div className="divide-y rounded-lg border bg-card">
 						{STEP_ORDER.map((name) => (
 							<StepRow key={name} step={steps[name]} />
 						))}
 					</div>
 
 					{result?.status === "completed" && result.summary && (
-						<div>
+						<div className="rounded-lg border bg-card p-4">
 							<h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
 								Zusammenfassung
 							</h3>
@@ -287,25 +393,29 @@ export function RunRow({ id, repoUrl, status, fileCount, startedAt, isOpen }: Ru
 					)}
 
 					{result?.files && result.files.length > 0 && (
-						<details className="rounded-lg border">
-							<summary className="cursor-pointer p-3 text-sm font-medium">
-								Dateien ({result.files.length})
-							</summary>
-							<div className="divide-y border-t">
-								{result.files.map((f) => (
-									<div key={f.filename} className="space-y-1 p-3">
-										<div className="font-mono text-xs">{f.filename}</div>
-										<div className="text-sm text-muted-foreground leading-relaxed">{f.summary}</div>
+						<Accordion
+							type="single"
+							collapsible
+							className="overflow-hidden rounded-lg border bg-card"
+						>
+							<AccordionItem value="files" className="border-b-0">
+								<AccordionTrigger className="items-center px-3 py-2 text-sm font-medium hover:no-underline data-[state=open]:border-b">
+									Dateien ({result.files.length})
+								</AccordionTrigger>
+								<AccordionContent className="p-0">
+									<div className="divide-y">
+										{result.files.map((f) => (
+											<div key={f.filename} className="space-y-1 p-3">
+												<div className="font-mono text-xs">{f.filename}</div>
+												<div className="text-sm leading-relaxed text-muted-foreground">
+													{f.summary}
+												</div>
+											</div>
+										))}
 									</div>
-								))}
-							</div>
-						</details>
-					)}
-
-					{result?.status === "failed" && result.failReason && (
-						<div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
-							{result.failReason}
-						</div>
+								</AccordionContent>
+							</AccordionItem>
+						</Accordion>
 					)}
 
 					{!result && (effectiveStatus === "pending" || effectiveStatus === "running") && (

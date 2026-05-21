@@ -2,12 +2,17 @@
 
 import { useGetAiSummariesId } from "@shared/api/endpoints/ai/ai"
 
-// useRepoSummary loads a stored summary. Pass null to disable the query
-// (e.g. before a run has been started).
-export function useRepoSummary(summaryId: number | null) {
-	return useGetAiSummariesId(summaryId ?? 0, {
+// useRepoSummary loads a stored summary.
+//
+// Always call with the REAL summaryId — never substitute `null` / `0`
+// when you want to disable the fetch. The key has to stay stable so
+// React Query's cache survives toggle cycles (e.g. collapsing an
+// accordion card mid-animation must NOT wipe the failure reason that
+// was already fetched). Use the `enabled` parameter to gate the fetch.
+export function useRepoSummary(summaryId: number, enabled = true) {
+	return useGetAiSummariesId(summaryId, {
 		query: {
-			enabled: summaryId !== null,
+			enabled: enabled && summaryId > 0,
 			// Poll occasionally as a safety net in case the SSE event was
 			// missed (tab backgrounded, connection blip). Backstop only;
 			// the primary update path is SSE invalidation.

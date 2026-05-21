@@ -23,13 +23,14 @@ type Handler struct {
 	summarizeRepo  *aiapp.SummarizeRepo
 	getRepoSummary *aiapp.GetRepoSummary
 	listSummaries  *aiapp.ListUserSummaries
+	deleteSummary  *aiapp.DeleteUserSummary
 }
 
-// NewHandler returns a Handler. Either use case may be nil; in that case
+// NewHandler returns a Handler. Any use case may be nil; in that case
 // the corresponding endpoints respond with 503 Service Unavailable so
 // the dev stack still boots even without Hatchet wired.
-func NewHandler(summarize *aiapp.SummarizeRepo, get *aiapp.GetRepoSummary, list *aiapp.ListUserSummaries) *Handler {
-	return &Handler{summarizeRepo: summarize, getRepoSummary: get, listSummaries: list}
+func NewHandler(summarize *aiapp.SummarizeRepo, get *aiapp.GetRepoSummary, list *aiapp.ListUserSummaries, del *aiapp.DeleteUserSummary) *Handler {
+	return &Handler{summarizeRepo: summarize, getRepoSummary: get, listSummaries: list, deleteSummary: del}
 }
 
 // SummarizeRepoRequest is the wire-level request body.
@@ -236,6 +237,58 @@ func (h *Handler) ListRepoSummaries(w http.ResponseWriter, r *http.Request) {
 		items = append(items, item)
 	}
 	writeJSON(w, RepoSummaryListResponse{Items: items})
+}
+
+// DeleteRepoSummary godoc
+// @Summary  Delete a repository summary run
+// @Description Removes a run owned by the authenticated user. Returns 404 for missing rows AND cross-user deletes to avoid leaking existence.
+// @Tags     ai
+// @Produce  json
+// @Param    id path integer true "Summary ID"
+// @Success  204 "No Content"
+// @Failure  401 {object} ErrorResponse
+// @Failure  404 {object} ErrorResponse
+// @Failure  503 {object} ErrorResponse
+// @Security BearerAuth
+// @Router   /ai/summaries/{id} [delete]
+func (h *Handler) DeleteRepoSummary(w http.ResponseWriter, r *http.Request) {
+	user := middleware.GetUserFromContext(r.Context())
+	if user == nil {
+		writeError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+	if h.deleteSummary == nil {
+		writeError(w, http.StatusServiceUnavailable, "ai workflows not configured")
+		return
+	}
+
+	vars := mux.Vars(r)
+	id64, err := strconv.ParseUint(vars["id"], 10, 64)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid id")
+		return
+	}
+
+	uid, err := shared.NewUserID(user.ID)
+	if err != nil {
+		writeError(w, http.StatusUnauthorized, "invalid user id")
+		return
+	}
+
+	err = h.deleteSummary.Execute(r.Context(), aiapp.DeleteUserSummaryInput{
+		UserID:    uid,
+		SummaryID: uint(id64),
+	})
+	if err != nil {
+		if errors.Is(err, aiapp.ErrNotFound) {
+			writeError(w, http.StatusNotFound, "not found")
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "failed to delete summary")
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func toResponse(s *ai.RepoSummary) RepoSummaryResponse {

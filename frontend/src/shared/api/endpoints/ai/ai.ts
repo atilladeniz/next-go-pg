@@ -165,6 +165,106 @@ export function useGetAiSummaries<TData = Awaited<ReturnType<typeof getAiSummari
 
 
 /**
+ * Removes a run owned by the authenticated user. Returns 404 for missing rows AND cross-user deletes to avoid leaking existence.
+ * @summary Delete a repository summary run
+ */
+export type deleteAiSummariesIdResponse204 = {
+  data: void
+  status: 204
+}
+
+export type deleteAiSummariesIdResponse401 = {
+  data: AiworkflowsInterfacesHttpErrorResponse
+  status: 401
+}
+
+export type deleteAiSummariesIdResponse404 = {
+  data: AiworkflowsInterfacesHttpErrorResponse
+  status: 404
+}
+
+export type deleteAiSummariesIdResponse503 = {
+  data: AiworkflowsInterfacesHttpErrorResponse
+  status: 503
+}
+    
+export type deleteAiSummariesIdResponseSuccess = (deleteAiSummariesIdResponse204) & {
+  headers: Headers;
+};
+export type deleteAiSummariesIdResponseError = (deleteAiSummariesIdResponse401 | deleteAiSummariesIdResponse404 | deleteAiSummariesIdResponse503) & {
+  headers: Headers;
+};
+
+export type deleteAiSummariesIdResponse = (deleteAiSummariesIdResponseSuccess | deleteAiSummariesIdResponseError)
+
+export const getDeleteAiSummariesIdUrl = (id: number,) => {
+
+
+  
+
+  return `http://localhost:8080/api/v1/ai/summaries/${id}`
+}
+
+export const deleteAiSummariesId = async (id: number, options?: RequestInit): Promise<deleteAiSummariesIdResponse> => {
+  
+  return customFetch<deleteAiSummariesIdResponse>(getDeleteAiSummariesIdUrl(id),
+  {      
+    ...options,
+    method: 'DELETE'
+    
+    
+  }
+);}
+
+
+
+
+export const getDeleteAiSummariesIdMutationOptions = <TError = AiworkflowsInterfacesHttpErrorResponse,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteAiSummariesId>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteAiSummariesId>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['deleteAiSummariesId'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+      
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteAiSummariesId>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteAiSummariesId(id,requestOptions)
+        }
+
+        
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteAiSummariesIdMutationResult = NonNullable<Awaited<ReturnType<typeof deleteAiSummariesId>>>
+    
+    export type DeleteAiSummariesIdMutationError = AiworkflowsInterfacesHttpErrorResponse
+
+    /**
+ * @summary Delete a repository summary run
+ */
+export const useDeleteAiSummariesId = <TError = AiworkflowsInterfacesHttpErrorResponse,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteAiSummariesId>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof deleteAiSummariesId>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+
+      const mutationOptions = getDeleteAiSummariesIdMutationOptions(options);
+
+      return useMutation(mutationOptions, queryClient);
+    }
+    /**
  * Returns the stored summary for a run owned by the authenticated user. Cross-user reads return 404 to avoid leaking existence.
  * @summary Get a repository summarization result
  */
@@ -295,7 +395,7 @@ export function useGetAiSummariesId<TData = Awaited<ReturnType<typeof getAiSumma
 
 
 /**
- * Enqueues a Hatchet workflow that clones the repository, summarises individual files via Ollama, and produces a repo-level summary.
+ * Enqueues a Hatchet workflow that clones the repository, summarises individual files via the configured LLM provider (OpenRouter), and produces a repo-level summary.
  * @summary Trigger a repository summarization workflow
  */
 export type postAiSummarizeRepoResponse202 = {
